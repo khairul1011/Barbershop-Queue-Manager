@@ -6,23 +6,23 @@ import Schedule from './components/Schedule';
 import Requests from './components/Requests';
 import QueueList from './components/QueueList';
 import SettingsView from './components/Settings';
-import History from './components/History';
+import HistoryTab from './components/History';
 import { QueueEntry, WhatsAppRequest, Barber, Service, QueueStatus } from './types';
-import { 
-  INITIAL_BARBERS, 
-  INITIAL_QUEUE, 
-  INITIAL_REQUESTS, 
-  INITIAL_SERVICES 
+import {
+  INITIAL_BARBERS,
+  INITIAL_QUEUE,
+  INITIAL_REQUESTS,
+  INITIAL_SERVICES
 } from './data/mockData';
-import { 
-  Search, 
-  Clock, 
-  Sparkles, 
-  Bell, 
-  User, 
-  ChevronDown, 
-  CheckCircle, 
-  MessageSquare, 
+import {
+  Search,
+  Clock,
+  Sparkles,
+  Bell,
+  User,
+  ChevronDown,
+  CheckCircle,
+  MessageSquare,
   X,
   AlertCircle
 } from 'lucide-react';
@@ -88,44 +88,36 @@ export default function App() {
   const calculateEndTime = (startTimeStr: string, serviceName: string) => {
     const matchedService = services.find(s => s.name === serviceName);
     const duration = matchedService ? matchedService.duration : 45;
-    
+
     const [hours, minutes] = startTimeStr.split(':').map(Number);
     if (isNaN(hours) || isNaN(minutes)) {
       return '14:45'; // fallback
     }
     const startTotalMinutes = hours * 60 + minutes;
     const endTotalMinutes = startTotalMinutes + duration;
-    
+
     const endHours = Math.floor(endTotalMinutes / 60) % 24;
     const endMinutes = endTotalMinutes % 60;
-    
+
     return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
   };
 
   // Callback: Complete session
-  const handleCompleteSession = () => {
+  const handleCompleteSession = (id: string, actualDurationMinutes: number) => {
     if (!currentlyServing) return;
 
     const priceOfService = services.find(s => s.name === currentlyServing.service)?.price || 120000;
-    
+
     // Add to stats
     setCompletedCount(prev => prev + 1);
     setRevenueToday(prev => prev + priceOfService);
 
     // Toast
     triggerToast(
-      `Pangkas Selesai! ${currentlyServing.customerName} completed Classic Fade session. Collected Rp ${priceOfService.toLocaleString()}.`, 
+      `Pangkas Selesai! ${currentlyServing.customerName} completed Classic Fade session. Collected Rp ${priceOfService.toLocaleString()}.`,
       'success',
       'Session Completed'
     );
-
-    // Save to history before clearing
-    const completedEntry: QueueEntry = {
-      ...currentlyServing,
-      status: 'Completed',
-      completedAt: new Date().toISOString()
-    };
-    setCompletedEntries(prev => [...prev, completedEntry]);
 
     // Do NOT auto-call next customer. Just set currently serving to null.
     setCurrentlyServing(null);
@@ -135,7 +127,7 @@ export default function App() {
   const handleAddWalkIn = (name: string, serviceName: string, barberName: string) => {
     const todayQueue = queue.filter(q => q.day === todayKey);
     const queueNumber = todayQueue.length + 1;
-    
+
     // Calculate simulated dynamic estimate time
     let startMinutes = 15 * 60; // default to 15:00
     if (todayQueue.length > 0) {
@@ -271,7 +263,7 @@ export default function App() {
   const handleServeNow = (entry: QueueEntry) => {
     // If currently serving exists, return it back to queue
     const oldServing = currentlyServing;
-    
+
     setCurrentlyServing(entry);
     setQueue(prev => {
       let filtered = prev.filter(q => q.id !== entry.id);
@@ -385,7 +377,7 @@ export default function App() {
         );
       case 'history':
         return (
-          <History completedEntries={completedEntries} barbers={barbers} />
+          <HistoryTab completedEntries={completedEntries} barbers={barbers} />
         );
       case 'settings':
         return (
@@ -406,7 +398,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#070707] text-gray-100 flex flex-col md:flex-row font-sans selection:bg-amber-500/20 selection:text-amber-400">
-      
+
       {/* SIDEBAR NAVIGATION */}
       <Sidebar
         activeTab={activeTab}
@@ -420,16 +412,16 @@ export default function App() {
 
       {/* MAIN VIEW AREA */}
       <div className="flex-1 flex flex-col min-w-0">
-        
+
         {/* TOP INTEGRATION BAR (Sticky) */}
         <header className="bg-[#0A0A0A]/95 backdrop-blur border-b border-[#1A1A1A] h-[72px] px-6 flex items-center justify-between sticky top-0 z-20">
-          
+
           {/* Left: Quick search mockup */}
           <div className="hidden sm:flex items-center gap-2.5 bg-[#0F0F0F] border border-[#1A1A1A] rounded-xl px-3.5 py-2 w-72">
             <Search size={15} className="text-gray-500" />
-            <input 
-              type="text" 
-              placeholder="Search appointments, bookings..." 
+            <input
+              type="text"
+              placeholder="Search appointments, bookings..."
               className="bg-transparent text-xs text-gray-200 focus:outline-none w-full placeholder-gray-600"
               id="global-search-input"
             />
@@ -440,7 +432,7 @@ export default function App() {
 
           {/* Right: Date, Ticking clock, Quick Actions */}
           <div className="flex items-center gap-4">
-            
+
             {/* Live Clock Widget */}
             <div className="flex items-center gap-2 text-xs md:text-sm font-sans text-gray-400 bg-[#0F0F0F] border border-[#1A1A1A] rounded-xl px-3 py-2">
               <Clock size={14} className="text-amber-500" />
@@ -454,7 +446,7 @@ export default function App() {
             </div>
 
             {/* Quick Notification Ring Mock */}
-            <button 
+            <button
               onClick={() => triggerToast("All active seats are operating optimally.", "info", "System Scan")}
               className="relative p-2 bg-[#0F0F0F] border border-[#1A1A1A] hover:bg-[#151515] hover:text-amber-500 rounded-xl transition-all cursor-pointer"
               title="System Notifications"
@@ -492,13 +484,12 @@ export default function App() {
               initial={{ opacity: 0, y: 20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9, y: -10 }}
-              className={`rounded-2xl p-4 shadow-2xl flex items-start gap-3.5 border relative overflow-hidden backdrop-blur-md ${
-                toast.type === 'whatsapp'
+              className={`rounded-2xl p-4 shadow-2xl flex items-start gap-3.5 border relative overflow-hidden backdrop-blur-md ${toast.type === 'whatsapp'
                   ? 'bg-emerald-950/90 border-emerald-500/30 text-emerald-100'
                   : toast.type === 'info'
-                  ? 'bg-zinc-900/95 border-amber-500/30 text-gray-200'
-                  : 'bg-zinc-900/95 border-teal-500/30 text-gray-200'
-              }`}
+                    ? 'bg-zinc-900/95 border-amber-500/30 text-gray-200'
+                    : 'bg-zinc-900/95 border-teal-500/30 text-gray-200'
+                }`}
             >
               {/* Type Indicator Icon */}
               <div className="mt-0.5 shrink-0">
