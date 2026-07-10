@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Sidebar from './components/Sidebar';
 import Overview from './components/Overview';
 import Schedule from './components/Schedule';
@@ -81,6 +81,11 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
+  const todayKey = useMemo(() => {
+    return currentTime.toLocaleDateString('en-US', { weekday: 'short' }) as
+      'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
+  }, [currentTime.toDateString()]);
+
   // Helper: Calculate end time based on duration
   const calculateEndTime = (startTimeStr: string, serviceName: string) => {
     const matchedService = services.find(s => s.name === serviceName);
@@ -117,7 +122,7 @@ export default function App() {
     );
 
     // Call Next customer from today's list if available
-    const todayQueue = queue.filter(q => q.day === 'Wed');
+    const todayQueue = queue.filter(q => q.day === todayKey);
     if (todayQueue.length > 0) {
       const nextInLine = todayQueue[0];
       setCurrentlyServing(nextInLine);
@@ -134,7 +139,7 @@ export default function App() {
 
   // Callback: Add manual Walk-In
   const handleAddWalkIn = (name: string, serviceName: string, barberName: string) => {
-    const todayQueue = queue.filter(q => q.day === 'Wed');
+    const todayQueue = queue.filter(q => q.day === todayKey);
     const queueNumber = todayQueue.length + 1;
     
     // Calculate simulated dynamic estimate time
@@ -161,7 +166,7 @@ export default function App() {
       status: 'Estimated',
       timeRange: `~${startTimeStr} - ${endTimeStr}`,
       queueNumber,
-      day: 'Wed',
+      day: todayKey,
       service: serviceName,
       barber: barberName,
       phone: '+62 Walk-In',
@@ -232,7 +237,7 @@ export default function App() {
     serviceName: string,
     barberName: string
   ) => {
-    const isToday = day === 'Wed';
+    const isToday = day === todayKey;
     const todayQueue = queue.filter(q => q.day === day);
     const queueNumber = isToday ? todayQueue.length + 1 : undefined;
 
