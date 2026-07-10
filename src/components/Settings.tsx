@@ -14,6 +14,7 @@ import {
   BellRing
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useTranslation } from '../i18n';
 
 interface SettingsProps {
   services: Service[];
@@ -30,6 +31,7 @@ export default function SettingsView({
   onRemoveService,
   onUpdateBarberStatus
 }: SettingsProps) {
+  const { t } = useTranslation();
   // Service form states
   const [newServiceName, setNewServiceName] = useState('');
   const [newServicePrice, setNewServicePrice] = useState(100000);
@@ -67,9 +69,9 @@ export default function SettingsView({
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl md:text-3xl font-display font-bold text-white tracking-tight">System Settings</h1>
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-white tracking-tight">{t('settings.title')}</h1>
         <p className="text-sm text-gray-400 font-sans mt-0.5">
-          Configure services list, barber duty schedules, and smart messaging templates.
+          {t('settings.subtitle')}
         </p>
       </div>
 
@@ -79,19 +81,19 @@ export default function SettingsView({
         <div className="bg-card-bg border border-border-subtle rounded-2xl p-5 md:p-6 space-y-5">
           <div className="flex items-center gap-2 border-b border-border-subtle pb-3">
             <Scissors size={18} className="text-amber-500" />
-            <h2 className="text-lg font-display font-bold text-white tracking-tight">Services & Pricing</h2>
+            <h2 className="text-lg font-display font-bold text-white tracking-tight">{t('settings.servicesPricing')}</h2>
           </div>
 
           {/* Service Adder Form */}
           <form onSubmit={handleAddServiceSubmit} className="space-y-3 bg-[#070707] border border-border-subtle p-4 rounded-xl">
-            <span className="text-[10px] text-amber-500 font-mono font-bold uppercase block">Add Custom Service</span>
+            <span className="text-[10px] text-amber-500 font-mono font-bold uppercase block">{t('settings.addCustomService')}</span>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <input
                 type="text"
                 required
                 value={newServiceName}
                 onChange={(e) => setNewServiceName(e.target.value)}
-                placeholder="Service Name"
+                placeholder={t('settings.serviceName')}
                 className="col-span-1 sm:col-span-1 bg-[#121212] border border-border-subtle text-white text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500 font-sans placeholder-gray-600"
                 id="setting-service-name"
               />
@@ -100,7 +102,7 @@ export default function SettingsView({
                 required
                 value={newServicePrice}
                 onChange={(e) => setNewServicePrice(Number(e.target.value))}
-                placeholder="Price (IDR)"
+                placeholder={t('settings.priceIdr')}
                 className="bg-[#121212] border border-border-subtle text-white text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500 font-mono"
                 id="setting-service-price"
               />
@@ -109,7 +111,7 @@ export default function SettingsView({
                 required
                 value={newServiceDuration}
                 onChange={(e) => setNewServiceDuration(Number(e.target.value))}
-                placeholder="Duration (Min)"
+                placeholder={t('settings.durationMin')}
                 className="bg-[#121212] border border-border-subtle text-white text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500 font-mono"
                 id="setting-service-duration"
               />
@@ -120,7 +122,7 @@ export default function SettingsView({
               id="setting-service-add-btn"
             >
               <Plus size={14} />
-              Add Service Item
+              {t('settings.addServiceItem')}
             </button>
           </form>
 
@@ -133,14 +135,14 @@ export default function SettingsView({
                   <p className="text-xs text-gray-400 font-mono flex items-center gap-2">
                     <span>Rp {svc.price.toLocaleString()}</span>
                     <span className="text-gray-600">•</span>
-                    <span className="flex items-center gap-0.5"><Clock size={10} /> {svc.duration} mins</span>
+                    <span className="flex items-center gap-0.5"><Clock size={10} /> {svc.duration} {t('settings.mins')}</span>
                   </p>
                 </div>
                 
                 <button
                   onClick={() => onRemoveService(svc.id)}
                   className="p-2 bg-[#121212] border border-border-subtle text-red-400 hover:bg-red-500/15 hover:border-red-500/30 rounded-lg transition-all cursor-pointer"
-                  title="Delete Service"
+                  title={t('settings.deleteService')}
                   id={`remove-service-${svc.id}`}
                 >
                   <Trash size={12} />
@@ -154,7 +156,7 @@ export default function SettingsView({
         <div className="bg-card-bg border border-border-subtle rounded-2xl p-5 md:p-6 space-y-5">
           <div className="flex items-center gap-2 border-b border-border-subtle pb-3">
             <UserCheck size={18} className="text-teal-400" />
-            <h2 className="text-lg font-display font-bold text-white tracking-tight">Barber Duty Status</h2>
+            <h2 className="text-lg font-display font-bold text-white tracking-tight">{t('settings.barberDutyStatus')}</h2>
           </div>
 
           <div className="space-y-3">
@@ -189,7 +191,7 @@ export default function SettingsView({
                       }`}
                       id={`barber-status-${barber.id}-${statusOption}`}
                     >
-                      {statusOption === 'active' ? 'Active' : statusOption === 'break' ? 'Break' : 'Off'}
+                      {statusOption === 'active' ? t('settings.active') : statusOption === 'break' ? t('settings.break') : t('settings.off')}
                     </button>
                   ))}
                 </div>
@@ -203,7 +205,7 @@ export default function SettingsView({
           <div className="flex items-center justify-between border-b border-border-subtle pb-3">
             <div className="flex items-center gap-2">
               <MessageSquare size={18} className="text-amber-500" />
-              <h2 className="text-lg font-display font-bold text-white tracking-tight">WhatsApp Notification Templates</h2>
+              <h2 className="text-lg font-display font-bold text-white tracking-tight">{t('settings.whatsappTemplatesTitle')}</h2>
             </div>
             
             <button
@@ -212,14 +214,14 @@ export default function SettingsView({
               id="save-templates-btn"
             >
               {isTemplateSaved ? <Check size={14} /> : <Save size={14} />}
-              <span>{isTemplateSaved ? 'Saved!' : 'Save Templates'}</span>
+              <span>{isTemplateSaved ? t('settings.saved') : t('settings.saveTemplates')}</span>
             </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Template 1 */}
             <div className="space-y-2">
-              <label className="text-xs text-gray-400 uppercase tracking-wider font-mono block">Welcome & Confirmation Msg</label>
+              <label className="text-xs text-gray-400 uppercase tracking-wider font-mono block">{t('settings.welcomeTemplateLabel')}</label>
               <textarea
                 value={welcomeTemplate}
                 onChange={(e) => setWelcomeTemplate(e.target.value)}
@@ -227,12 +229,12 @@ export default function SettingsView({
                 className="w-full bg-[#070707] border border-border-subtle focus:border-amber-500 rounded-xl p-3 text-xs text-gray-300 font-sans focus:outline-none resize-none leading-relaxed"
                 id="template-welcome"
               />
-              <span className="text-[10px] text-gray-500 block">Available tags: [name], [day], [time]</span>
+              <span className="text-[10px] text-gray-500 block">{t('settings.welcomeTemplateHint')}</span>
             </div>
 
             {/* Template 2 */}
             <div className="space-y-2">
-              <label className="text-xs text-gray-400 uppercase tracking-wider font-mono block">Nudge / Next Customer Reminder</label>
+              <label className="text-xs text-gray-400 uppercase tracking-wider font-mono block">{t('settings.nudgeTemplateLabel')}</label>
               <textarea
                 value={nudgeTemplate}
                 onChange={(e) => setNudgeTemplate(e.target.value)}
@@ -240,7 +242,7 @@ export default function SettingsView({
                 className="w-full bg-[#070707] border border-border-subtle focus:border-amber-500 rounded-xl p-3 text-xs text-gray-300 font-sans focus:outline-none resize-none leading-relaxed"
                 id="template-nudge"
               />
-              <span className="text-[10px] text-gray-500 block">Available tags: [name]</span>
+              <span className="text-[10px] text-gray-500 block">{t('settings.nudgeTemplateHint')}</span>
             </div>
           </div>
         </div>
