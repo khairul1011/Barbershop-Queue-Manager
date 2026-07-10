@@ -20,6 +20,7 @@ import {
   Bell 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useTranslation } from '../i18n';
 
 interface ScheduleProps {
   queue: QueueEntry[];
@@ -64,6 +65,7 @@ export default function Schedule({
   onAddBooking,
   onRemoveBooking
 }: ScheduleProps) {
+  const { t } = useTranslation();
   const [viewMode, setViewMode] = useState<'Daily' | 'Weekly'>('Weekly');
   const [selectedDay, setSelectedDay] = useState<DayType>('Wed'); // Default to Wed (Today)
   const [weekOffset, setWeekOffset] = useState<number>(0);
@@ -225,7 +227,7 @@ export default function Schedule({
           Jakarta Selatan
         </span>
         <span className="bg-zinc-900 border border-zinc-800 text-gray-400 text-xs px-3.5 py-1.5 rounded-full font-medium">
-          Premium Barbershop
+          {t('schedule.premiumBarbershop')}
         </span>
         <div className="relative">
           <button className="bg-zinc-900 border border-zinc-800 text-white text-xs px-3.5 py-1.5 rounded-full font-medium flex items-center gap-1">
@@ -238,10 +240,10 @@ export default function Schedule({
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
           <h1 className="text-3xl md:text-4xl font-display font-extrabold text-white tracking-tight">
-            Golden Shears HQ
+            {t('schedule.hqTitle')}
           </h1>
           <p className="text-sm text-gray-400 font-sans mt-0.5">
-            Hourly slot scheduler Board. Seamlessly manage walk-ins and active queues.
+            {t('schedule.hqSubtitle')}
           </p>
         </div>
 
@@ -256,7 +258,7 @@ export default function Schedule({
             className="bg-white hover:bg-zinc-200 text-black text-xs font-bold px-4 py-2.5 rounded-full transition-all cursor-pointer flex items-center gap-1.5 shadow-md active:scale-95"
           >
             <Sparkles size={13} />
-            Generate report
+            {t('schedule.generateReport')}
           </button>
           
           <button 
@@ -281,7 +283,7 @@ export default function Schedule({
                 : 'text-gray-500 hover:text-gray-300'
             }`}
           >
-            Daily
+            {t('schedule.daily')}
           </button>
           <button
             onClick={() => setViewMode('Weekly')}
@@ -291,7 +293,7 @@ export default function Schedule({
                 : 'text-gray-500 hover:text-gray-300'
             }`}
           >
-            Weekly
+            {t('schedule.weekly')}
           </button>
         </div>
 
@@ -300,7 +302,7 @@ export default function Schedule({
           <button
             onClick={() => setWeekOffset(prev => prev - 1)}
             className="p-2 bg-zinc-950 hover:bg-zinc-900 border border-zinc-850 hover:border-zinc-700 text-gray-400 hover:text-white rounded-full transition-all cursor-pointer"
-            title="Previous Week"
+            title={t('schedule.previousWeek')}
           >
             <ChevronLeft size={16} />
           </button>
@@ -310,7 +312,7 @@ export default function Schedule({
           <button
             onClick={() => setWeekOffset(prev => prev + 1)}
             className="p-2 bg-zinc-950 hover:bg-zinc-900 border border-zinc-850 hover:border-zinc-700 text-gray-400 hover:text-white rounded-full transition-all cursor-pointer"
-            title="Next Week"
+            title={t('schedule.nextWeek')}
           >
             <ChevronRight size={16} />
           </button>
@@ -429,15 +431,15 @@ export default function Schedule({
               <Calendar size={20} className="text-amber-500" />
               <div>
                 <h3 className="text-lg font-bold text-white">
-                  Daily Schedule for {currentDailyDate?.label || selectedDay}
+                  {t('schedule.dailyScheduleFor')} {currentDailyDate?.label || selectedDay}
                 </h3>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  Detailed timeline view. Create, edit, and monitor active seat allocations.
+                  {t('schedule.detailedTimeline')}
                 </p>
               </div>
             </div>
             <span className="text-xs bg-zinc-900 border border-zinc-800 px-3 py-1 rounded-full text-amber-500 font-mono font-bold">
-              {queue.filter(q => q.day === selectedDay).length} Scheduled
+              {queue.filter(q => q.day === selectedDay).length} {t('schedule.scheduled')}
             </span>
           </div>
 
@@ -456,7 +458,7 @@ export default function Schedule({
                     <div className="flex items-start gap-4">
                       {/* Hour Indicator block */}
                       <div className="bg-[#121212] border border-zinc-800 rounded-xl px-3.5 py-2 text-center min-w-[70px]">
-                        <span className="font-mono text-xs text-gray-500 block">TIME</span>
+                        <span className="font-mono text-xs text-gray-500 block">{t('schedule.time')}</span>
                         <span className="font-mono text-sm font-bold text-white">{hour}</span>
                       </div>
 
@@ -464,7 +466,7 @@ export default function Schedule({
                         <div className="flex items-center gap-2">
                           <h4 className="font-bold text-white text-sm">{entry.customerName}</h4>
                           <span className={getStatusBadgeStyles(entry.status)}>
-                            {entry.status}
+                            {t(('status.' + entry.status.replace(' ', '')) as any)}
                           </span>
                         </div>
                         <p className="text-xs text-gray-400 font-sans flex items-center gap-4">
@@ -488,14 +490,14 @@ export default function Schedule({
                           className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-black text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
                         >
                           <MessageSquarePlus size={13} />
-                          Nudge
+                          {t('schedule.nudge')}
                         </button>
                       )}
                       
                       <button
                         onClick={() => setActiveSlotDetails({ day: selectedDay, hour, entry })}
                         className="p-2 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-amber-500 hover:text-white rounded-xl text-xs transition-all cursor-pointer"
-                        title="Edit Booking"
+                        title={t('schedule.editBooking')}
                       >
                         <Info size={13} />
                       </button>
@@ -503,7 +505,7 @@ export default function Schedule({
                       <button
                         onClick={() => handleCancelBooking(entry.id)}
                         className="p-2 bg-zinc-950 border border-red-950 text-red-400 hover:bg-red-900/10 rounded-xl text-xs transition-all cursor-pointer"
-                        title="Cancel Appointment"
+                        title={t('schedule.cancelAppointment')}
                       >
                         <Trash2 size={13} />
                       </button>
@@ -520,13 +522,13 @@ export default function Schedule({
                     <div className="flex items-center gap-4">
                       {/* Hour indicator block */}
                       <div className="bg-[#0A0A0A] border border-zinc-900 rounded-xl px-3.5 py-2 text-center min-w-[70px]">
-                        <span className="font-mono text-xs text-zinc-700 block">TIME</span>
+                        <span className="font-mono text-xs text-zinc-700 block">{t('schedule.time')}</span>
                         <span className="font-mono text-sm font-semibold text-zinc-500 group-hover:text-amber-500 transition-colors">
                           {hour}
                         </span>
                       </div>
                       <div>
-                        <span className="text-xs text-zinc-600 font-medium">Available Appointment Slot</span>
+                        <span className="text-xs text-zinc-600 font-medium">{t('schedule.availableSlot')}</span>
                         <div className="text-xs text-zinc-500 font-mono mt-0.5">Rp 150.000 (Standard)</div>
                       </div>
                     </div>
@@ -536,7 +538,7 @@ export default function Schedule({
                       className="px-3.5 py-2 bg-zinc-900 hover:bg-zinc-800 text-white hover:text-amber-500 text-xs font-bold rounded-xl flex items-center gap-1.5 border border-zinc-800 transition-all cursor-pointer"
                     >
                       <Plus size={13} />
-                      Book Slot
+                      {t('schedule.bookSlot')}
                     </button>
                   </div>
                 );
@@ -550,20 +552,20 @@ export default function Schedule({
       <div className="bg-[#0A0A0A] border border-zinc-900 rounded-2xl p-4 flex flex-wrap gap-4 items-center justify-between text-xs text-gray-400 font-sans">
         <div className="flex items-center gap-2">
           <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-          <span className="font-semibold text-white">Status badging guide:</span>
+          <span className="font-semibold text-white">{t('schedule.statusGuide')}</span>
         </div>
         <div className="flex flex-wrap gap-4">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span><strong>Confirmed</strong> (Exact slot locked)</span>
+            <span><strong>{t('status.Confirmed')}</strong> {t('schedule.exactSlotLocked')}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-amber-500" />
-            <span><strong>Estimated</strong> (Queue order)</span>
+            <span><strong>{t('status.Estimated')}</strong> {t('schedule.queueOrder')}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-sky-500" />
-            <span><strong>Pending Reply</strong> (Waiting response)</span>
+            <span><strong>{t('status.PendingReply')}</strong> {t('schedule.waitingResponse')}</span>
           </div>
         </div>
       </div>
@@ -584,9 +586,9 @@ export default function Schedule({
                     <Calendar size={16} />
                   </div>
                   <div>
-                    <h3 className="font-bold text-white text-base">Quick Book Appointment</h3>
+                    <h3 className="font-bold text-white text-base">{t('schedule.quickBookTitle')}</h3>
                     <p className="text-xs text-gray-500 font-sans mt-0.5">
-                      {bookingSlot.day} — Slot {bookingSlot.hour}
+                      {bookingSlot.day} — {t('schedule.slot')} {bookingSlot.hour}
                     </p>
                   </div>
                 </div>
@@ -602,14 +604,14 @@ export default function Schedule({
                 {/* Name */}
                 <div className="space-y-1.5">
                   <label className="text-[10px] text-gray-500 uppercase tracking-wider font-mono font-bold block">
-                    Customer Name
+                    {t('schedule.customerName')}
                   </label>
                   <input
                     type="text"
                     required
                     value={newCustomerName}
                     onChange={(e) => setNewCustomerName(e.target.value)}
-                    placeholder="e.g. Peter Parker"
+                    placeholder={t('schedule.customerNamePlaceholder')}
                     className="w-full bg-[#121212] border border-zinc-850 text-white text-sm rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500 font-sans placeholder-gray-600"
                     id="schedule-book-customer-name"
                   />
@@ -618,7 +620,7 @@ export default function Schedule({
                 {/* Service Selection */}
                 <div className="space-y-1.5">
                   <label className="text-[10px] text-gray-500 uppercase tracking-wider font-mono font-bold block">
-                    Select Service
+                    {t('schedule.selectService')}
                   </label>
                   <select
                     value={selectedServiceId}
@@ -637,7 +639,7 @@ export default function Schedule({
                 {/* Barber Selection */}
                 <div className="space-y-1.5">
                   <label className="text-[10px] text-gray-500 uppercase tracking-wider font-mono font-bold block">
-                    Select Barber
+                    {t('schedule.selectBarber')}
                   </label>
                   <select
                     value={selectedBarberId}
@@ -660,14 +662,14 @@ export default function Schedule({
                     className="flex-1 bg-amber-500 hover:bg-amber-600 text-black font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-lg shadow-amber-500/10 active:scale-95"
                   >
                     <Check size={14} />
-                    Confirm Booking
+                    {t('schedule.confirmBooking')}
                   </button>
                   <button
                     type="button"
                     onClick={() => setBookingSlot(null)}
                     className="px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-850 text-gray-400 hover:text-white rounded-xl text-xs transition-all cursor-pointer"
                   >
-                    Cancel
+                    {t('requests.cancel')}
                   </button>
                 </div>
               </form>
@@ -693,9 +695,9 @@ export default function Schedule({
                     <User size={16} />
                   </div>
                   <div>
-                    <h3 className="font-bold text-white text-base">Appointment Details</h3>
+                    <h3 className="font-bold text-white text-base">{t('schedule.appointmentDetails')}</h3>
                     <p className="text-xs text-gray-500 font-sans mt-0.5">
-                      {activeSlotDetails.day} — Slot {activeSlotDetails.hour}
+                      {activeSlotDetails.day} — {t('schedule.slot')} {activeSlotDetails.hour}
                     </p>
                   </div>
                 </div>
@@ -712,7 +714,7 @@ export default function Schedule({
                 {/* Customer name info box */}
                 <div className="bg-[#121212] border border-zinc-850 p-4 rounded-xl space-y-1">
                   <span className="text-[9px] text-gray-500 uppercase tracking-wider font-mono font-bold block">
-                    Customer Name
+                    {t('schedule.customerName')}
                   </span>
                   <div className="text-base font-bold text-white flex items-center gap-2">
                     {activeSlotDetails.entry.customerName}
@@ -723,7 +725,7 @@ export default function Schedule({
                     )}
                   </div>
                   <div className="text-xs text-gray-400 font-mono mt-1">
-                    Phone: {activeSlotDetails.entry.phone}
+                    {t('schedule.phone')} {activeSlotDetails.entry.phone}
                   </div>
                 </div>
 
@@ -731,7 +733,7 @@ export default function Schedule({
                 <div className="grid grid-cols-2 gap-3.5">
                   <div className="bg-[#121212] border border-zinc-850 p-3 rounded-xl space-y-1">
                     <span className="text-[9px] text-gray-500 uppercase tracking-wider font-mono font-bold block flex items-center gap-1">
-                      <Scissors size={10} className="text-amber-500" /> Service
+                      <Scissors size={10} className="text-amber-500" /> {t('requests.service')}
                     </span>
                     <span className="text-xs font-semibold text-gray-200 block truncate">
                       {activeSlotDetails.entry.service}
@@ -740,7 +742,7 @@ export default function Schedule({
 
                   <div className="bg-[#121212] border border-zinc-850 p-3 rounded-xl space-y-1">
                     <span className="text-[9px] text-gray-500 uppercase tracking-wider font-mono font-bold block flex items-center gap-1">
-                      <User size={10} className="text-teal-400" /> Assigned Barber
+                      <User size={10} className="text-teal-400" /> {t('schedule.assignedBarber')}
                     </span>
                     <span className="text-xs font-semibold text-gray-200 block truncate">
                       {activeSlotDetails.entry.barber}
@@ -752,7 +754,7 @@ export default function Schedule({
                 <div className="grid grid-cols-2 gap-3.5">
                   <div className="bg-[#121212] border border-zinc-850 p-3 rounded-xl space-y-1">
                     <span className="text-[9px] text-gray-500 uppercase tracking-wider font-mono font-bold block">
-                      Time Range
+                      {t('schedule.timeRange')}
                     </span>
                     <span className="text-xs font-semibold text-gray-200 block font-mono">
                       {activeSlotDetails.entry.timeRange}
@@ -761,11 +763,11 @@ export default function Schedule({
 
                   <div className="bg-[#121212] border border-zinc-850 p-3 rounded-xl space-y-1">
                     <span className="text-[9px] text-gray-500 uppercase tracking-wider font-mono font-bold block">
-                      Booking Status
+                      {t('schedule.bookingStatus')}
                     </span>
                     <div className="pt-0.5">
                       <span className={getStatusBadgeStyles(activeSlotDetails.entry.status)}>
-                        {activeSlotDetails.entry.status}
+                        {t(('status.' + activeSlotDetails.entry.status.replace(' ', '')) as any)}
                       </span>
                     </div>
                   </div>
@@ -779,7 +781,7 @@ export default function Schedule({
                       className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-lg shadow-emerald-500/10 active:scale-95"
                     >
                       <MessageSquarePlus size={14} />
-                      Send WhatsApp Nudge
+                      {t('schedule.sendWhatsAppNudge')}
                     </button>
                   )}
 
@@ -792,7 +794,7 @@ export default function Schedule({
                       }}
                       className="flex-1 bg-zinc-900 hover:bg-zinc-850 border border-zinc-850 text-emerald-400 hover:text-emerald-300 font-bold py-2 rounded-xl text-[11px] flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95"
                     >
-                      <Check size={11} /> Confirm
+                      <Check size={11} /> {t('schedule.confirm')}
                     </button>
                     <button
                       onClick={() => {
@@ -801,7 +803,7 @@ export default function Schedule({
                       }}
                       className="flex-1 bg-zinc-900 hover:bg-zinc-850 border border-zinc-850 text-amber-500 hover:text-amber-400 font-bold py-2 rounded-xl text-[11px] flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95"
                     >
-                      Set Estimate
+                      <Clock size={11} /> {t('schedule.estimate')}
                     </button>
                   </div>
 
