@@ -13,6 +13,7 @@ import {
   History
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useTranslation } from '../i18n';
 
 interface SidebarProps {
   activeTab: string;
@@ -34,13 +35,15 @@ export default function Sidebar({
   pendingRequestsCount
 }: SidebarProps) {
 
+  const { t } = useTranslation();
+
   const menuItems = [
-    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-    { id: 'queue', label: 'Live Queue', icon: Users },
-    { id: 'history', label: 'History', icon: History },
-    { id: 'requests', label: 'WhatsApp Bookings', icon: MessageSquare, badge: pendingRequestsCount },
-    { id: 'schedule', label: 'Weekly Schedule', icon: CalendarDays },
-    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'overview', label: t('sidebar.overview'), icon: LayoutDashboard },
+    { id: 'queue', label: t('sidebar.liveQueue'), icon: Users },
+    { id: 'history', label: t('sidebar.history'), icon: History },
+    { id: 'requests', label: t('sidebar.requests'), icon: MessageSquare, badge: pendingRequestsCount },
+    { id: 'schedule', label: t('sidebar.schedule'), icon: CalendarDays },
+    { id: 'settings', label: t('sidebar.settings'), icon: Settings },
   ];
 
   const handleNav = (id: string) => {
@@ -128,7 +131,7 @@ export default function Sidebar({
               <TrendingUp size={16} />
             </div>
             <div>
-              <p className="text-xs text-gray-400 font-sans">Queue Efficiency</p>
+              <p className="text-xs text-gray-400 font-sans">{t('sidebar.queueEfficiency')}</p>
               <p className="text-sm font-bold text-white font-mono">94.2% <span className="text-[10px] text-teal-400 font-normal">+1.4%</span></p>
             </div>
           </div>
