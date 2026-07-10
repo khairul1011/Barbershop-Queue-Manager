@@ -22,6 +22,7 @@ interface OverviewProps {
   currentlyServing: QueueEntry | null;
   onCompleteServing: (id: string, actualDuration: number) => void;
   onAddWalkIn: (name: string, service: string, barber: string) => void;
+  onServeNow: (entry: QueueEntry) => void;
   barbers: Barber[];
   services: Service[];
   completedCount: number;
@@ -33,6 +34,7 @@ export default function Overview({
   queue,
   currentlyServing,
   onCompleteServing,
+  onServeNow,
   onAddWalkIn,
   barbers,
   services,
@@ -275,7 +277,7 @@ export default function Overview({
                   </div>
                   {todayQueue.length > 0 && (
                     <button
-                      onClick={() => onCompleteServing('', 0)} // triggers pull next
+                      onClick={() => onServeNow(todayQueue[0])} // triggers pull next
                       className="flex items-center gap-1.5 bg-[#121212] hover:bg-[#1A1A1A] text-amber-500 font-semibold border border-border-subtle hover:border-amber-500/20 px-4 py-2.5 rounded-xl transition-all text-xs cursor-pointer"
                       id="serve-next-prompt-btn"
                     >

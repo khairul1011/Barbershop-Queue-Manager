@@ -338,6 +338,7 @@ export default function App() {
             queue={queue}
             currentlyServing={currentlyServing}
             onCompleteServing={handleCompleteServing}
+            onServeNow={handleServeNow}
             onAddWalkIn={handleAddWalkIn}
             barbers={barbers}
             services={services}
