@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { BentoCard } from './ui/BentoCard';
 import { motion, AnimatePresence } from 'motion/react';
+import { useTranslation } from '../i18n';
 
 interface HistoryProps {
   completedEntries: QueueEntry[];
@@ -18,8 +19,9 @@ interface HistoryProps {
 }
 
 export default function History({ completedEntries, barbers }: HistoryProps) {
+  const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedBarberFilter, setSelectedBarberFilter] = useState('All Barbers');
+  const [selectedBarberFilter, setSelectedBarberFilter] = useState(t('history.allBarbers'));
 
   // Sort completed entries by completedAt descending (newest first)
   const sortedEntries = [...completedEntries].sort((a, b) => {
@@ -31,7 +33,7 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
   const filteredEntries = sortedEntries.filter((item) => {
     const matchesSearch = item.customerName.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           item.service.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesBarber = selectedBarberFilter === 'All Barbers' || item.barber === selectedBarberFilter;
+    const matchesBarber = selectedBarberFilter === t('history.allBarbers') || item.barber === selectedBarberFilter;
     return matchesSearch && matchesBarber;
   });
 
@@ -45,9 +47,9 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl md:text-3xl font-display font-bold text-white tracking-tight">Customer History</h1>
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-white tracking-tight">{t('history.title')}</h1>
         <p className="text-sm text-gray-400 font-sans mt-0.5">
-          Record of all completed sessions today. {completedEntries.length} total completed.
+          {t('history.subtitle')} {completedEntries.length} {t('history.totalCompleted')}
         </p>
       </div>
 
@@ -60,7 +62,7 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search completed customer or service..."
+            placeholder={t('history.searchPlaceholder')}
             className="w-full bg-[#0A0A0A] border border-border-subtle rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors font-sans"
           />
         </div>
@@ -73,7 +75,7 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
             onChange={(e) => setSelectedBarberFilter(e.target.value)}
             className="w-full sm:w-auto min-w-[180px] bg-[#0A0A0A] border border-border-subtle rounded-xl pl-10 pr-10 py-3 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors font-sans appearance-none cursor-pointer"
           >
-            <option value="All Barbers">All Barbers</option>
+            <option value={t('history.allBarbers')}>{t('history.allBarbers')}</option>
             {barbers.map(b => (
               <option key={b.id} value={b.name}>{b.name}</option>
             ))}
@@ -94,11 +96,11 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
               <div className="w-16 h-16 rounded-full bg-[#121212] flex items-center justify-center mb-4">
                 <HistoryIcon size={24} className="text-gray-500" />
               </div>
-              <h3 className="text-lg font-bold text-white mb-1">No completed sessions</h3>
+              <h3 className="text-lg font-bold text-white mb-1">{t('history.noCompletedSessions')}</h3>
               <p className="text-gray-500 text-sm max-w-sm mx-auto">
-                {searchTerm || selectedBarberFilter !== 'All Barbers'
-                  ? "No matching completed sessions found."
-                  : "Completed customers will appear here."}
+                {searchTerm || selectedBarberFilter !== t('history.allBarbers')
+                  ? t('history.noMatchingFound')
+                  : t('history.appearHere')}
               </p>
             </motion.div>
           ) : (
@@ -113,7 +115,7 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
                 >
                   <BentoCard
                     variant="default"
-                    badge={{ label: 'Completed', color: 'blue' }}
+                    badge={{ label: t('status.Completed'), color: 'blue' }}
                   >
                     <div className="flex flex-col gap-4">
                       {/* Customer Info */}
