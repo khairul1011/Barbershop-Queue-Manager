@@ -13,8 +13,9 @@ import {
   Pause,
   RotateCcw
 } from 'lucide-react';
-import { QueueEntry, Service, Barber } from '../types';
+import { QueueEntry, Service, Barber, QueueStatus } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
+import { BentoCard } from './ui/BentoCard';
 
 interface OverviewProps {
   queue: QueueEntry[];
@@ -116,7 +117,7 @@ export default function Overview({
       {/* Top Stat Cards */}
       <div className="grid grid-cols-3 gap-4">
         {/* Stat 1: Total Customers Today */}
-        <div className="bg-card-bg border border-border-subtle rounded-2xl p-4 md:p-5 flex flex-col justify-between relative overflow-hidden group">
+        <BentoCard className="!p-4 md:!p-5 justify-between group">
           <div className="flex items-center justify-between">
             <span className="text-xs md:text-sm text-gray-400 font-sans">Today's Visits</span>
             <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500">
@@ -132,10 +133,10 @@ export default function Overview({
               <span>+{completedCount} completed</span>
             </p>
           </div>
-        </div>
+        </BentoCard>
 
         {/* Stat 2: Avg Wait Time */}
-        <div className="bg-card-bg border border-border-subtle rounded-2xl p-4 md:p-5 flex flex-col justify-between relative overflow-hidden group">
+        <BentoCard className="!p-4 md:!p-5 justify-between group">
           <div className="flex items-center justify-between">
             <span className="text-xs md:text-sm text-gray-400 font-sans">Avg. Wait Time</span>
             <div className="p-2 rounded-xl bg-teal-500/10 text-teal-400">
@@ -150,10 +151,10 @@ export default function Overview({
               Based on today's flow
             </p>
           </div>
-        </div>
+        </BentoCard>
 
         {/* Stat 3: Revenue Today */}
-        <div className="bg-card-bg border border-border-subtle rounded-2xl p-4 md:p-5 flex flex-col justify-between relative overflow-hidden group">
+        <BentoCard className="!p-4 md:!p-5 justify-between group">
           <div className="flex items-center justify-between">
             <span className="text-xs md:text-sm text-gray-400 font-sans">Revenue</span>
             <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
@@ -168,33 +169,20 @@ export default function Overview({
               Confirmed services
             </p>
           </div>
-        </div>
+        </BentoCard>
       </div>
 
       {/* Main Grid: Serving & AI assistant panels */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Column 1: Currently Serving (Left) */}
-        <div className="lg:col-span-7 space-y-6">
-          <div className="bg-card-bg border border-border-subtle rounded-2xl p-5 md:p-6 relative overflow-hidden">
-            {/* Ambient gold glow behind card content */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
-            
-            <div className="flex items-center justify-between border-b border-border-subtle pb-4">
-              <div className="flex items-center gap-2.5">
-                <span className="relative flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
-                </span>
-                <h2 className="text-lg font-display font-bold text-white tracking-tight">Currently Serving</h2>
-              </div>
-              {currentlyServing && (
-                <span className="px-3 py-1 text-xs rounded-full bg-amber-500/10 text-amber-500 font-mono border border-amber-500/20">
-                  Seat #1
-                </span>
-              )}
-            </div>
-
+        <div className="col-span-1 lg:col-span-2 space-y-6">
+          <BentoCard
+            variant="featured"
+            badge={{ label: 'LIVE', color: 'amber', dot: true }}
+            title="Currently Serving"
+            tags={currentlyServing ? ["Seat #1"] : []}
+          >
             <AnimatePresence mode="wait">
               {currentlyServing ? (
                 <motion.div
@@ -202,7 +190,7 @@ export default function Overview({
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="pt-6 space-y-6"
+                  className="space-y-6"
                 >
                   <div className="flex items-start justify-between">
                     <div>
@@ -295,17 +283,24 @@ export default function Overview({
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
+          </BentoCard>
 
           {/* Mini Next Customer Quick View */}
           {todayQueue.length > 0 && (
-            <div className="bg-card-bg border border-border-subtle rounded-2xl p-5 flex items-center justify-between">
+            <BentoCard 
+              variant="default"
+              badge={{ 
+                label: todayQueue[0].status, 
+                color: todayQueue[0].status === 'Confirmed' ? 'teal' : todayQueue[0].status === 'Estimated' ? 'amber' : 'gray' 
+              }}
+              tags={['UP NEXT IN QUEUE']}
+              className="!p-5"
+            >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-[#151515] border border-border-subtle flex items-center justify-center text-amber-500 text-sm font-bold font-mono">
                   #2
                 </div>
                 <div>
-                  <span className="text-[10px] text-gray-500 uppercase font-mono tracking-wider">UP NEXT IN QUEUE</span>
                   <h4 className="text-sm font-bold text-white font-sans mt-0.5">
                     {todayQueue[0].customerName}
                   </h4>
@@ -314,24 +309,21 @@ export default function Overview({
                   </p>
                 </div>
               </div>
-              <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-teal-500/10 text-teal-400 border border-teal-500/20 font-sans">
-                {todayQueue[0].status}
-              </span>
-            </div>
+            </BentoCard>
           )}
         </div>
 
         {/* Column 2: AI Panel & Quick Stats (Right) */}
-        <div className="lg:col-span-5 space-y-6">
+        <div className="col-span-1 space-y-6">
           {/* Glassmorphic AI assistant panel */}
-          <div className="bg-card-bg border border-border-subtle rounded-2xl p-6 relative overflow-hidden group">
+          <BentoCard 
+            variant="default"
+            title="AI Wait-Time Estimator"
+            icon={<Sparkles size={18} className="animate-pulse text-teal-400" />}
+            className="group"
+          >
             {/* Futuristic backing design details */}
             <div className="absolute -top-12 -left-12 w-40 h-40 bg-teal-500/5 rounded-full blur-2xl pointer-events-none" />
-            
-            <div className="flex items-center gap-2 text-teal-400 mb-4">
-              <Sparkles size={18} className="animate-pulse" />
-              <h3 className="font-display font-bold tracking-tight text-white text-base">AI Wait-Time Estimator</h3>
-            </div>
 
             <p className="text-sm text-gray-300 font-sans leading-relaxed">
               "AI is estimating wait times based on today's queue density. 
@@ -352,11 +344,13 @@ export default function Overview({
               <span className="text-xs text-gray-400 font-sans">Suggested Auto-Response:</span>
               <span className="text-[10px] text-teal-400 font-mono font-medium bg-teal-500/10 px-2 py-0.5 rounded-md">WhatsApp SmartReply Active</span>
             </div>
-          </div>
+          </BentoCard>
 
           {/* Barber Status Card */}
-          <div className="bg-card-bg border border-border-subtle rounded-2xl p-5 md:p-6">
-            <h3 className="font-display font-bold text-white text-base mb-4 tracking-tight">Active Barbers Today</h3>
+          <BentoCard 
+            variant="default"
+            title="Active Barbers Today"
+          >
             <div className="space-y-4">
               {barbers.map((barber) => (
                 <div key={barber.id} className="flex items-center justify-between p-2.5 rounded-xl bg-[#070707] border border-border-subtle">
@@ -384,7 +378,7 @@ export default function Overview({
                 </div>
               ))}
             </div>
-          </div>
+          </BentoCard>
         </div>
       </div>
 
