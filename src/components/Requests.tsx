@@ -3,6 +3,7 @@ import { WhatsAppRequest, Service, Barber, QueueEntry } from '../types';
 import { MessageSquare, Calendar, Clock, Scissors, UserCheck, ShieldCheck, Check, X, Edit3, Trash, Phone, CornerDownRight, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BentoCard } from './ui/BentoCard';
+import { useTranslation } from '../i18n';
 
 interface RequestsProps {
   requests: WhatsAppRequest[];
@@ -21,6 +22,7 @@ export default function Requests({
   services,
   barbers
 }: RequestsProps) {
+  const { t } = useTranslation();
   // Local state to track which card is currently being edited
   const [editingId, setEditingId] = useState<string | null>(null);
   
@@ -54,9 +56,9 @@ export default function Requests({
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl md:text-3xl font-display font-bold text-white tracking-tight">WhatsApp Booking Requests</h1>
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-white tracking-tight">{t('requests.title')}</h1>
         <p className="text-sm text-gray-400 font-sans mt-0.5">
-          Incoming booking intents parsed by AI from WhatsApp messages. Review and queue.
+          {t('requests.subtitle')}
         </p>
       </div>
 
@@ -76,7 +78,7 @@ export default function Requests({
                 >
                   <BentoCard
                     variant="default"
-                    badge={{ label: 'Incoming WA', color: 'emerald' }}
+                    badge={{ label: t('requests.incomingWA'), color: 'emerald' }}
                     tags={[req.extractedDay, req.extractedTime, req.extractedService]}
                     actions={
                       <div className="flex items-center gap-2">
@@ -88,14 +90,14 @@ export default function Requests({
                               id={`save-btn-${req.id}`}
                             >
                               <Save size={13} />
-                              Save changes
+                              {t('requests.saveChanges')}
                             </button>
                             <button
                               onClick={() => setEditingId(null)}
                               className="px-3 py-2 bg-[#121212] border border-border-subtle text-gray-400 hover:text-white rounded-xl text-xs cursor-pointer"
                               id={`cancel-edit-btn-${req.id}`}
                             >
-                              Cancel
+                              {t('requests.cancel')}
                             </button>
                           </>
                         ) : (
@@ -107,14 +109,14 @@ export default function Requests({
                               id={`approve-btn-${req.id}`}
                             >
                               <Check size={14} />
-                              Approve Book
+                              {t('requests.approveBook')}
                             </button>
   
                             {/* Edit Button */}
                             <button
                               onClick={() => startEdit(req)}
                               className="p-2.5 bg-[#121212] border border-border-subtle text-amber-500 hover:bg-[#1A1A1A] rounded-xl text-xs cursor-pointer"
-                              title="Modify Slots"
+                              title={t('requests.modifySlots')}
                               id={`edit-btn-${req.id}`}
                             >
                               <Edit3 size={14} />
@@ -124,7 +126,7 @@ export default function Requests({
                             <button
                               onClick={() => onReject(req.id)}
                               className="p-2.5 bg-[#121212] border border-red-500/20 hover:border-red-500/40 text-red-400 hover:bg-red-500/10 rounded-xl text-xs cursor-pointer"
-                              title="Reject Request"
+                              title={t('requests.rejectRequest')}
                               id={`reject-btn-${req.id}`}
                             >
                               <X size={14} />
@@ -173,7 +175,7 @@ export default function Requests({
                       <div className="bg-[#070707] border border-border-subtle rounded-xl p-3.5 space-y-3">
                         <span className="text-[10px] text-teal-400 uppercase tracking-wider font-mono font-bold flex items-center gap-1.5">
                           <ShieldCheck size={12} />
-                          AI Extracted Intent
+                          {t('requests.aiExtractedIntent')}
                         </span>
   
                         {isEditing ? (
@@ -181,7 +183,7 @@ export default function Requests({
                             {/* Day & Time Selection */}
                             <div className="grid grid-cols-2 gap-3">
                               <div>
-                                <label className="text-[10px] text-gray-500 block uppercase font-mono mb-1">Day</label>
+                                <label className="text-[10px] text-gray-500 block uppercase font-mono mb-1">{t('requests.day')}</label>
                                 <select
                                     value={editDay}
                                     onChange={(e) => setEditDay(e.target.value as any)}
@@ -194,7 +196,7 @@ export default function Requests({
                                   </select>
                                 </div>
                                 <div>
-                                  <label className="text-[10px] text-gray-500 block uppercase font-mono mb-1">Time</label>
+                                  <label className="text-[10px] text-gray-500 block uppercase font-mono mb-1">{t('requests.time')}</label>
                                   <input
                                     type="text"
                                     value={editTime}
@@ -208,7 +210,7 @@ export default function Requests({
   
                               {/* Service Selection */}
                               <div>
-                                <label className="text-[10px] text-gray-500 block uppercase font-mono mb-1">Service</label>
+                                <label className="text-[10px] text-gray-500 block uppercase font-mono mb-1">{t('requests.service')}</label>
                                 <select
                                   value={editService}
                                   onChange={(e) => setEditService(e.target.value)}
@@ -255,9 +257,9 @@ export default function Requests({
                   <ShieldCheck size={26} />
                 </div>
               <div>
-                <h4 className="text-base font-bold text-white font-sans">No Pending WhatsApp Requests</h4>
+                <h4 className="text-base font-bold text-white font-sans">{t('requests.noPending')}</h4>
                 <p className="text-xs text-gray-500 mt-1 max-w-sm font-sans mx-auto">
-                  Nice work! All incoming WhatsApp queue bookings are approved or addressed.
+                  {t('requests.noPendingDesc')}
                 </p>
               </div>
             </motion.div>
