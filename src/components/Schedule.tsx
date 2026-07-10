@@ -311,7 +311,7 @@ export default function Schedule({
       </div>
 
       {/* Mobile view only Horizontal Day Switcher */}
-      <div className="flex md:hidden overflow-x-auto pb-2 scrollbar-none gap-2">
+      <div className="flex xl:hidden overflow-x-auto pb-2 scrollbar-none gap-2">
         {weekDates.map((dateObj) => {
           const isSelected = selectedDay === dateObj.day;
           return (
@@ -334,7 +334,7 @@ export default function Schedule({
       {/* 4. CALENDAR SCHEDULER VIEWPORT */}
       {viewMode === 'Weekly' ? (
         /* ==================== WEEKLY 7-COLUMN VIEW ==================== */
-        <div className="grid grid-cols-1 md:grid-cols-7 gap-3.5 overflow-x-auto pb-4">
+        <div className="grid grid-cols-1 xl:grid-cols-7 gap-3.5 overflow-x-auto pb-4">
           {weekDates.map((dateObj) => {
             const isSelectedMobile = selectedDay === dateObj.day;
             const isToday = dateObj.isToday;
@@ -343,7 +343,7 @@ export default function Schedule({
               <div
                 key={dateObj.day}
                 className={`flex flex-col rounded-2xl min-w-[150px] min-h-[450px] transition-all duration-300 ${
-                  isSelectedMobile ? 'flex' : 'hidden md:flex'
+                  isSelectedMobile ? 'flex' : 'hidden xl:flex'
                 } ${
                   isToday 
                     ? 'bg-zinc-950 border border-amber-500/20 shadow-[0_0_20px_rgba(245,158,11,0.03)]' 
