@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useLocalStorageState } from './hooks/useLocalStorageState';
 import Sidebar from './components/Sidebar';
 import Overview from './components/Overview';
 import Schedule from './components/Schedule';
@@ -26,6 +27,11 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
+const INITIAL_SERVING = INITIAL_QUEUE.find(q => q.id === 'q1') || null;
+const INITIAL_QUEUE_WITHOUT_SERVING = INITIAL_QUEUE.filter(
+  q => q.id !== INITIAL_SERVING?.id
+);
+
 export default function App() {
   // Navigation Tabs
   const [activeTab, setActiveTab] = useState('overview');
@@ -33,27 +39,17 @@ export default function App() {
   const [isOpenMobile, setIsOpenMobile] = useState(false);
 
   // Core App States
-  const [queue, setQueue] = useState<QueueEntry[]>(INITIAL_QUEUE);
-  const [requests, setRequests] = useState<WhatsAppRequest[]>(INITIAL_REQUESTS);
-  const [barbers, setBarbers] = useState<Barber[]>(INITIAL_BARBERS);
-  const [services, setServices] = useState<Service[]>(INITIAL_SERVICES);
+  const [queue, setQueue] = useLocalStorageState<QueueEntry[]>('barberflow_queue', INITIAL_QUEUE_WITHOUT_SERVING);
+  const [requests, setRequests] = useLocalStorageState<WhatsAppRequest[]>('barberflow_requests', INITIAL_REQUESTS);
+  const [barbers, setBarbers] = useLocalStorageState<Barber[]>('barberflow_barbers', INITIAL_BARBERS);
+  const [services, setServices] = useLocalStorageState<Service[]>('barberflow_services', INITIAL_SERVICES);
 
   // "Currently Serving" Active slot state
-  const [currentlyServing, setCurrentlyServing] = useState<QueueEntry | null>(() => {
-    // Start with Dani Setiawan active (q1)
-    return INITIAL_QUEUE.find(q => q.id === 'q1') || null;
-  });
-
-  // Filter out the currently serving from the visible queue state
-  useEffect(() => {
-    if (currentlyServing) {
-      setQueue(prev => prev.filter(q => q.id !== currentlyServing.id));
-    }
-  }, []);
+  const [currentlyServing, setCurrentlyServing] = useLocalStorageState<QueueEntry | null>('barberflow_currentlyServing', INITIAL_SERVING);
 
   // Stats Counters
-  const [completedCount, setCompletedCount] = useState(3);
-  const [revenueToday, setRevenueToday] = useState(450000); // 450k starting IDR
+  const [completedCount, setCompletedCount] = useLocalStorageState('barberflow_completedCount', 3);
+  const [revenueToday, setRevenueToday] = useLocalStorageState('barberflow_revenueToday', 450000); // 450k starting IDR
 
   // Custom Toast System
   interface Toast {
