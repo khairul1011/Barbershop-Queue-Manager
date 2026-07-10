@@ -6,7 +6,8 @@ import Schedule from './components/Schedule';
 import Requests from './components/Requests';
 import QueueList from './components/QueueList';
 import SettingsView from './components/Settings';
-import HistoryTab from './components/History';
+import HistoryTab from './components/History.tsx';
+import LanguageSwitcher from './components/LanguageSwitcher';
 import { QueueEntry, WhatsAppRequest, Barber, Service, QueueStatus } from './types';
 import {
   INITIAL_BARBERS,
@@ -444,6 +445,8 @@ export default function App() {
                 </span>
               </span>
             </div>
+
+            <LanguageSwitcher />
 
             {/* Quick Notification Ring Mock */}
             <button
