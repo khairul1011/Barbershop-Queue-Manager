@@ -6,6 +6,7 @@ import Schedule from './components/Schedule';
 import Requests from './components/Requests';
 import QueueList from './components/QueueList';
 import SettingsView from './components/Settings';
+import History from './components/History';
 import { QueueEntry, WhatsAppRequest, Barber, Service, QueueStatus } from './types';
 import { 
   INITIAL_BARBERS, 
@@ -43,6 +44,7 @@ export default function App() {
   const [requests, setRequests] = useLocalStorageState<WhatsAppRequest[]>('barberflow_requests', INITIAL_REQUESTS);
   const [barbers, setBarbers] = useLocalStorageState<Barber[]>('barberflow_barbers', INITIAL_BARBERS);
   const [services, setServices] = useLocalStorageState<Service[]>('barberflow_services', INITIAL_SERVICES);
+  const [completedEntries, setCompletedEntries] = useLocalStorageState<QueueEntry[]>('barberflow_completedEntries', []);
 
   // "Currently Serving" Active slot state
   const [currentlyServing, setCurrentlyServing] = useLocalStorageState<QueueEntry | null>('barberflow_currentlyServing', INITIAL_SERVING);
@@ -119,6 +121,15 @@ export default function App() {
 
     // Call Next customer from today's list if available
     const todayQueue = queue.filter(q => q.day === todayKey);
+    
+    // Save to history before clearing
+    const completedEntry: QueueEntry = {
+      ...currentlyServing,
+      status: 'Completed',
+      completedAt: new Date().toISOString()
+    };
+    setCompletedEntries(prev => [...prev, completedEntry]);
+    
     if (todayQueue.length > 0) {
       const nextInLine = todayQueue[0];
       setCurrentlyServing(nextInLine);
@@ -373,6 +384,7 @@ export default function App() {
         return (
           <Schedule
             queue={queue}
+            completedEntries={completedEntries}
             onUpdateStatus={(id, status) => {
               setQueue(prev => prev.map(q => q.id === id ? { ...q, status } : q));
               triggerToast(`Queue entry status shifted to ${status}.`, 'info');
@@ -383,6 +395,10 @@ export default function App() {
             onAddBooking={handleAddBooking}
             onRemoveBooking={handleRemoveBooking}
           />
+        );
+      case 'history':
+        return (
+          <History completedEntries={completedEntries} barbers={barbers} />
         );
       case 'settings':
         return (

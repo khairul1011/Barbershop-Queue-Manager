@@ -8,7 +8,7 @@ interface BentoCardProps {
   variant?: 'default' | 'featured' | 'ghost';
   badge?: {
     label: string;
-    color: 'amber' | 'teal' | 'gray' | 'red' | 'emerald';
+    color: 'amber' | 'teal' | 'gray' | 'red' | 'emerald' | 'blue';
     dot?: boolean;
   };
   icon?: React.ReactNode;
@@ -46,7 +46,8 @@ export function BentoCard({
     teal: "bg-teal-500/10 text-teal-400 border-teal-500/20",
     gray: "bg-gray-500/10 text-gray-400 border-gray-500/20",
     red: "bg-red-500/10 text-red-400 border-red-500/20",
-    emerald: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+    emerald: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+    blue: "bg-blue-500/10 text-blue-400 border-blue-500/20"
   };
 
   return (

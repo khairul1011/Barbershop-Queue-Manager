@@ -23,6 +23,7 @@ import { motion, AnimatePresence } from 'motion/react';
 
 interface ScheduleProps {
   queue: QueueEntry[];
+  completedEntries: QueueEntry[];
   onUpdateStatus: (id: string, newStatus: QueueStatus) => void;
   onSendWhatsApp: (phone: string, text: string) => void;
   barbers: Barber[];
@@ -55,6 +56,7 @@ const HOURS = [
 
 export default function Schedule({ 
   queue, 
+  completedEntries,
   onUpdateStatus, 
   onSendWhatsApp,
   barbers,
@@ -132,9 +134,12 @@ export default function Schedule({
 
   const { dates: weekDates, rangeStr: weekRangeStr } = getDatesForWeek(weekOffset);
 
+  // Combine both active queue and completed history
+  const allEntries = [...queue, ...completedEntries];
+
   // Helper to find entry for a slot
   const getEntryForSlot = (day: DayType, hour: string) => {
-    return queue.find((item) => {
+    return allEntries.find((item) => {
       if (item.day !== day) return false;
       const cleanTime = item.timeRange.replace('~', '').trim(); // "14:00 - 14:45"
       const parts = cleanTime.split('-');
@@ -156,6 +161,8 @@ export default function Schedule({
         return 'bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[9px] font-bold px-1.5 py-0.5 rounded-full';
       case 'Pending Reply':
         return 'bg-sky-500/10 text-sky-400 border border-sky-500/20 text-[9px] font-bold px-1.5 py-0.5 rounded-full';
+      case 'Completed':
+        return 'bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[9px] font-bold px-1.5 py-0.5 rounded-full';
       default:
         return 'bg-gray-500/10 text-gray-400 border border-gray-500/20 text-[9px] font-bold px-1.5 py-0.5 rounded-full';
     }

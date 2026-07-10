@@ -9,7 +9,8 @@ import {
   X, 
   ChevronLeft, 
   ChevronRight,
-  TrendingUp
+  TrendingUp,
+  History
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -36,6 +37,7 @@ export default function Sidebar({
   const menuItems = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'queue', label: 'Live Queue', icon: Users },
+    { id: 'history', label: 'History', icon: History },
     { id: 'requests', label: 'WhatsApp Bookings', icon: MessageSquare, badge: pendingRequestsCount },
     { id: 'schedule', label: 'Weekly Schedule', icon: CalendarDays },
     { id: 'settings', label: 'Settings', icon: Settings },

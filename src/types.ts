@@ -1,4 +1,4 @@
-export type QueueStatus = 'Confirmed' | 'Estimated' | 'Pending Reply';
+export type QueueStatus = 'Confirmed' | 'Estimated' | 'Pending Reply' | 'Completed';
 
 export interface QueueEntry {
   id: string;
@@ -11,6 +11,7 @@ export interface QueueEntry {
   barber: string;
   phone: string;
   durationMinutes: number;
+  completedAt?: string;
 }
 
 export type RequestStatus = 'pending' | 'approved' | 'rejected';
