@@ -103,7 +103,7 @@ export default function App() {
   };
 
   // Callback: Complete session
-  const handleCompleteSession = (id: string, actualDurationMinutes: number) => {
+  const handleCompleteSession = () => {
     if (!currentlyServing) return;
 
     const priceOfService = services.find(s => s.name === currentlyServing.service)?.price || 120000;

@@ -20,7 +20,7 @@ import { BentoCard } from './ui/BentoCard';
 interface OverviewProps {
   queue: QueueEntry[];
   currentlyServing: QueueEntry | null;
-  onCompleteSession: (id: string, actualDuration: number) => void;
+  onCompleteSession: () => void;
   onAddWalkIn: (name: string, service: string, barber: string) => void;
   onServeNow: (entry: QueueEntry) => void;
   barbers: Barber[];
@@ -85,7 +85,7 @@ export default function Overview({
   // Session Handlers
   const handleDoneClick = () => {
     if (!currentlyServing) return;
-    onCompleteSession(currentlyServing.id, elapsedSeconds / 60);
+    onCompleteSession();
     setElapsedSeconds(0);
     setIsTimerRunning(false);
   };
