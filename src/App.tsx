@@ -8,6 +8,7 @@ import QueueList from './components/QueueList';
 import SettingsView from './components/Settings';
 import HistoryTab from './components/History.tsx';
 import LanguageSwitcher from './components/LanguageSwitcher';
+import { useTranslation } from './i18n';
 import { QueueEntry, WhatsAppRequest, Barber, Service, QueueStatus } from './types';
 import {
   INITIAL_BARBERS,
@@ -35,6 +36,8 @@ const INITIAL_QUEUE_WITHOUT_SERVING = INITIAL_QUEUE.filter(
 );
 
 export default function App() {
+  const { t } = useTranslation();
+
   // Navigation Tabs
   const [activeTab, setActiveTab] = useState('overview');
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -422,13 +425,13 @@ export default function App() {
             <Search size={15} className="text-gray-500" />
             <input
               type="text"
-              placeholder="Search appointments, bookings..."
+              placeholder={t('header.searchPlaceholder')}
               className="bg-transparent text-xs text-gray-200 focus:outline-none w-full placeholder-gray-600"
               id="global-search-input"
             />
           </div>
           <div className="sm:hidden text-amber-500 font-mono text-xs font-semibold uppercase tracking-wider">
-            {activeTab === 'overview' ? 'DASHBOARD' : activeTab.toUpperCase()}
+            {activeTab === 'overview' ? t('header.dashboard') : activeTab.toUpperCase()}
           </div>
 
           {/* Right: Date, Ticking clock, Quick Actions */}
@@ -465,7 +468,7 @@ export default function App() {
                 HQ
               </div>
               <div className="text-left">
-                <span className="text-xs font-semibold text-white block">HQ Operator</span>
+                <span className="text-xs font-semibold text-white block">{t('header.hqOperator')}</span>
                 <span className="text-[9px] text-teal-400 font-mono tracking-wider uppercase block">GOLDEN SHEARS</span>
               </div>
             </div>
