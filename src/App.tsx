@@ -103,7 +103,7 @@ export default function App() {
   };
 
   // Callback: Complete session
-  const handleCompleteServing = (id: string, actualDurationMinutes: number) => {
+  const handleCompleteSession = (id: string, actualDurationMinutes: number) => {
     if (!currentlyServing) return;
 
     const priceOfService = services.find(s => s.name === currentlyServing.service)?.price || 120000;
@@ -119,9 +119,6 @@ export default function App() {
       'Session Completed'
     );
 
-    // Call Next customer from today's list if available
-    const todayQueue = queue.filter(q => q.day === todayKey);
-    
     // Save to history before clearing
     const completedEntry: QueueEntry = {
       ...currentlyServing,
@@ -129,19 +126,9 @@ export default function App() {
       completedAt: new Date().toISOString()
     };
     setCompletedEntries(prev => [...prev, completedEntry]);
-    
-    if (todayQueue.length > 0) {
-      const nextInLine = todayQueue[0];
-      setCurrentlyServing(nextInLine);
-      setQueue(prev => prev.filter(q => q.id !== nextInLine.id));
-      triggerToast(
-        `Next customer ${nextInLine.customerName} is now up! Active Seat initialized.`, 
-        'info',
-        'Next Customer Called'
-      );
-    } else {
-      setCurrentlyServing(null);
-    }
+
+    // Do NOT auto-call next customer. Just set currently serving to null.
+    setCurrentlyServing(null);
   };
 
   // Callback: Add manual Walk-In
@@ -348,7 +335,7 @@ export default function App() {
           <Overview
             queue={queue}
             currentlyServing={currentlyServing}
-            onCompleteServing={handleCompleteServing}
+            onCompleteSession={handleCompleteSession}
             onServeNow={handleServeNow}
             onAddWalkIn={handleAddWalkIn}
             barbers={barbers}

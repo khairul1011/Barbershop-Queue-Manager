@@ -20,7 +20,7 @@ import { BentoCard } from './ui/BentoCard';
 interface OverviewProps {
   queue: QueueEntry[];
   currentlyServing: QueueEntry | null;
-  onCompleteServing: (id: string, actualDuration: number) => void;
+  onCompleteSession: (id: string, actualDuration: number) => void;
   onAddWalkIn: (name: string, service: string, barber: string) => void;
   onServeNow: (entry: QueueEntry) => void;
   barbers: Barber[];
@@ -33,7 +33,7 @@ interface OverviewProps {
 export default function Overview({
   queue,
   currentlyServing,
-  onCompleteServing,
+  onCompleteSession,
   onServeNow,
   onAddWalkIn,
   barbers,
@@ -82,10 +82,12 @@ export default function Overview({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Session Handlers
   const handleDoneClick = () => {
-    if (currentlyServing) {
-      onCompleteServing(currentlyServing.id, Math.ceil(elapsedSeconds / 60));
-    }
+    if (!currentlyServing) return;
+    onCompleteSession(currentlyServing.id, elapsedSeconds / 60);
+    setElapsedSeconds(0);
+    setIsTimerRunning(false);
   };
 
   const handleWalkInSubmit = (e: React.FormEvent) => {
@@ -257,7 +259,7 @@ export default function Overview({
                     id="complete-serving-btn"
                   >
                     <CheckCircle2 size={20} />
-                    Complete Session & Next Customer
+                    Complete Session
                   </button>
                 </motion.div>
               ) : (
