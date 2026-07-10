@@ -112,6 +112,13 @@ export default function App() {
 
     const priceOfService = services.find(s => s.name === currentlyServing.service)?.price || 120000;
 
+    const completedEntry: QueueEntry = {
+      ...currentlyServing,
+      status: 'Completed',
+      completedAt: new Date().toISOString()
+    };
+    setCompletedEntries(prev => [...prev, completedEntry]);
+
     // Add to stats
     setCompletedCount(prev => prev + 1);
     setRevenueToday(prev => prev + priceOfService);
@@ -323,6 +330,25 @@ export default function App() {
     triggerToast(`${name} is now marked [${status.toUpperCase()}].`, 'info', 'Duty Swapped');
   };
 
+  // Callback: Add custom barber
+  const handleAddBarber = (newBarber: Omit<Barber, 'id'>) => {
+    const id = `barber-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    setBarbers(prev => [...prev, { id, ...newBarber }]);
+    triggerToast(`Barber "${newBarber.name}" has been added.`, 'success', 'Barber Added');
+  };
+
+  // Callback: Edit custom barber
+  const handleEditBarber = (id: string, updatedBarber: Partial<Barber>) => {
+    setBarbers(prev => prev.map(b => b.id === id ? { ...b, ...updatedBarber } : b));
+    triggerToast(`Barber details updated.`, 'success', 'Barber Edited');
+  };
+
+  // Callback: Remove custom barber
+  const handleRemoveBarber = (id: string) => {
+    setBarbers(prev => prev.filter(b => b.id !== id));
+    triggerToast(`Barber has been removed.`, 'info', 'Barber Deleted');
+  };
+
   // Main navigation tabs render
   const renderActiveTab = () => {
     switch (activeTab) {
@@ -391,6 +417,9 @@ export default function App() {
             onAddService={handleAddService}
             onRemoveService={handleRemoveService}
             onUpdateBarberStatus={handleUpdateBarberStatus}
+            onAddBarber={handleAddBarber}
+            onEditBarber={handleEditBarber}
+            onRemoveBarber={handleRemoveBarber}
           />
         );
       default:

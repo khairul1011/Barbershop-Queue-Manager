@@ -11,7 +11,9 @@ import {
   Trash, 
   Save, 
   Check, 
-  BellRing
+  BellRing,
+  Edit3,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from '../i18n';
@@ -22,6 +24,9 @@ interface SettingsProps {
   onAddService: (newService: Omit<Service, 'id'>) => void;
   onRemoveService: (id: string) => void;
   onUpdateBarberStatus: (id: string, status: 'active' | 'break' | 'off') => void;
+  onAddBarber: (newBarber: Omit<Barber, 'id'>) => void;
+  onEditBarber: (id: string, updatedBarber: Partial<Barber>) => void;
+  onRemoveBarber: (id: string) => void;
 }
 
 export default function SettingsView({
@@ -29,13 +34,23 @@ export default function SettingsView({
   barbers,
   onAddService,
   onRemoveService,
-  onUpdateBarberStatus
+  onUpdateBarberStatus,
+  onAddBarber,
+  onEditBarber,
+  onRemoveBarber
 }: SettingsProps) {
   const { t } = useTranslation();
   // Service form states
   const [newServiceName, setNewServiceName] = useState('');
   const [newServicePrice, setNewServicePrice] = useState(100000);
   const [newServiceDuration, setNewServiceDuration] = useState(30);
+
+  // Barber form states
+  const [isBarberFormOpen, setIsBarberFormOpen] = useState(false);
+  const [editingBarberId, setEditingBarberId] = useState<string | null>(null);
+  const [barberName, setBarberName] = useState('');
+  const [barberSpecialty, setBarberSpecialty] = useState('');
+  const [barberAvatar, setBarberAvatar] = useState('');
 
   // Template states
   const [welcomeTemplate, setWelcomeTemplate] = useState(
@@ -63,6 +78,49 @@ export default function SettingsView({
   const handleSaveTemplates = () => {
     setIsTemplateSaved(true);
     setTimeout(() => setIsTemplateSaved(false), 2000);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 500 * 1024) {
+      alert('Peringatan: Ukuran file melebihi 500KB. Harap pilih gambar yang lebih kecil untuk menjaga kapasitas localStorage.');
+      e.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setBarberAvatar(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleBarberSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!barberName.trim() || !barberSpecialty.trim() || !barberAvatar) return;
+    
+    if (editingBarberId) {
+      onEditBarber(editingBarberId, { name: barberName, specialty: barberSpecialty, avatar: barberAvatar });
+    } else {
+      onAddBarber({ name: barberName, specialty: barberSpecialty, avatar: barberAvatar, status: 'active' });
+    }
+    resetBarberForm();
+  };
+
+  const resetBarberForm = () => {
+    setBarberName('');
+    setBarberSpecialty('');
+    setBarberAvatar('');
+    setEditingBarberId(null);
+    setIsBarberFormOpen(false);
+  };
+
+  const startEditBarber = (b: Barber) => {
+    setBarberName(b.name);
+    setBarberSpecialty(b.specialty);
+    setBarberAvatar(b.avatar);
+    setEditingBarberId(b.id);
+    setIsBarberFormOpen(true);
   };
 
   return (
@@ -154,28 +212,101 @@ export default function SettingsView({
 
         {/* Barber Duty / Status Panel */}
         <div className="bg-card-bg border border-border-subtle rounded-2xl p-5 md:p-6 space-y-5">
-          <div className="flex items-center gap-2 border-b border-border-subtle pb-3">
-            <UserCheck size={18} className="text-teal-400" />
-            <h2 className="text-lg font-display font-bold text-white tracking-tight">{t('settings.barberDutyStatus')}</h2>
+          <div className="flex items-center justify-between border-b border-border-subtle pb-3">
+            <div className="flex items-center gap-2">
+              <UserCheck size={18} className="text-teal-400" />
+              <h2 className="text-lg font-display font-bold text-white tracking-tight">{t('settings.barberDutyStatus')}</h2>
+            </div>
+            {!isBarberFormOpen && (
+              <button
+                onClick={() => setIsBarberFormOpen(true)}
+                className="bg-teal-500 hover:bg-teal-600 text-black font-semibold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1 transition-colors cursor-pointer"
+              >
+                <Plus size={14} /> Add Barber
+              </button>
+            )}
           </div>
 
-          <div className="space-y-3">
+          <AnimatePresence>
+            {isBarberFormOpen && (
+              <motion.form
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                onSubmit={handleBarberSubmit}
+                className="space-y-3 bg-[#070707] border border-border-subtle p-4 rounded-xl overflow-hidden"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-teal-400 font-mono font-bold uppercase block">
+                    {editingBarberId ? 'Edit Barber' : 'Add New Barber'}
+                  </span>
+                  <button type="button" onClick={resetBarberForm} className="text-gray-500 hover:text-white">
+                    <X size={14} />
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <input
+                    type="text"
+                    required
+                    value={barberName}
+                    onChange={(e) => setBarberName(e.target.value)}
+                    placeholder="Barber Name"
+                    className="bg-[#121212] border border-border-subtle text-white text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-teal-400 font-sans"
+                  />
+                  <input
+                    type="text"
+                    required
+                    value={barberSpecialty}
+                    onChange={(e) => setBarberSpecialty(e.target.value)}
+                    placeholder="Specialty (e.g. Master Fade)"
+                    className="bg-[#121212] border border-border-subtle text-white text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-teal-400 font-sans"
+                  />
+                  <div className="sm:col-span-2">
+                    <label className="text-[10px] text-gray-400 uppercase tracking-wider font-mono block mb-1">
+                      Upload Photo (Max 500KB)
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="w-full text-xs text-gray-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-teal-500/10 file:text-teal-400 hover:file:bg-teal-500/20 cursor-pointer"
+                    />
+                    {barberAvatar && (
+                      <div className="mt-2">
+                        <img src={barberAvatar} alt="Preview" className="w-10 h-10 rounded-lg object-cover border border-border-subtle" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  className="w-full bg-teal-500 hover:bg-teal-600 text-black font-bold py-2 rounded-lg text-xs flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                >
+                  <Save size={14} />
+                  {editingBarberId ? 'Save Changes' : 'Save Barber'}
+                </button>
+              </motion.form>
+            )}
+          </AnimatePresence>
+
+          <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
             {barbers.map((barber) => (
-              <div key={barber.id} className="flex items-center justify-between p-3.5 rounded-xl bg-[#070707] border border-border-subtle">
-                <div className="flex items-center gap-3">
+              <div key={barber.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3.5 rounded-xl bg-[#070707] border border-border-subtle gap-3">
+                <div className="flex items-center gap-3 w-full sm:w-auto overflow-hidden">
                   <img
                     src={barber.avatar}
                     alt={barber.name}
-                    className="w-10 h-10 rounded-xl object-cover border border-border-subtle"
+                    className="w-10 h-10 shrink-0 rounded-xl object-cover border border-border-subtle"
                     referrerPolicy="no-referrer"
                   />
-                  <div>
-                    <h4 className="text-sm font-bold text-white font-sans">{barber.name}</h4>
-                    <p className="text-xs text-gray-400 font-sans">{barber.specialty}</p>
+                  <div className="min-w-0">
+                    <h4 className="text-sm font-bold text-white font-sans truncate">{barber.name}</h4>
+                    <p className="text-xs text-gray-400 font-sans truncate">{barber.specialty}</p>
                   </div>
                 </div>
 
-                <div className="flex gap-1 bg-[#121212] border border-border-subtle p-1 rounded-xl">
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end shrink-0">
+                  <div className="flex gap-1 bg-[#121212] border border-border-subtle p-1 rounded-xl">
                   {(['active', 'break', 'off'] as const).map((statusOption) => (
                     <button
                       key={statusOption}
@@ -194,6 +325,23 @@ export default function SettingsView({
                       {statusOption === 'active' ? t('settings.active') : statusOption === 'break' ? t('settings.break') : t('settings.off')}
                     </button>
                   ))}
+                  </div>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => startEditBarber(barber)}
+                      className="p-1.5 bg-[#121212] border border-border-subtle text-amber-500 hover:bg-amber-500/15 rounded-lg transition-all cursor-pointer"
+                      title="Edit"
+                    >
+                      <Edit3 size={12} />
+                    </button>
+                    <button
+                      onClick={() => onRemoveBarber(barber.id)}
+                      className="p-1.5 bg-[#121212] border border-border-subtle text-red-400 hover:bg-red-500/15 hover:border-red-500/30 rounded-lg transition-all cursor-pointer"
+                      title="Delete"
+                    >
+                      <Trash size={12} />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
