@@ -26,6 +26,7 @@ interface OverviewProps {
   services: Service[];
   completedCount: number;
   revenueToday: number;
+  todayKey: string;
 }
 
 export default function Overview({
@@ -36,7 +37,8 @@ export default function Overview({
   barbers,
   services,
   completedCount,
-  revenueToday
+  revenueToday,
+  todayKey
 }: OverviewProps) {
   // Timer State
   const [elapsedSeconds, setElapsedSeconds] = useState(720); // starts at 12 minutes (720s) for demonstration
@@ -93,7 +95,8 @@ export default function Overview({
   };
 
   // Calculate live average wait time based on queue length
-  const todayQueue = queue.filter(q => q.day === 'Wed');
+  // Filter today's queue using todayKey from App.tsx (single source of truth)
+  const todayQueue = queue.filter(q => q.day === todayKey);
   const estimatedWaitTime = todayQueue.length * 20 + (currentlyServing ? 15 : 0);
 
   return (

@@ -343,6 +343,7 @@ export default function App() {
             services={services}
             completedCount={completedCount}
             revenueToday={revenueToday}
+            todayKey={todayKey}
           />
         );
       case 'queue':
@@ -350,6 +351,7 @@ export default function App() {
           <QueueList
             queue={queue}
             barbers={barbers}
+            todayKey={todayKey}
             onServeNow={handleServeNow}
             onRemove={handleRemoveQueueEntry}
             onSendWhatsApp={handleSendWhatsAppSimulated}

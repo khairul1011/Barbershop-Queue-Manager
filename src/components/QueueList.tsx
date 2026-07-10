@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from 'motion/react';
 interface QueueListProps {
   queue: QueueEntry[];
   barbers: Barber[];
+  todayKey: string;
   onServeNow: (entry: QueueEntry) => void;
   onRemove: (id: string) => void;
   onSendWhatsApp: (phone: string, text: string) => void;
@@ -26,6 +27,7 @@ interface QueueListProps {
 export default function QueueList({
   queue,
   barbers,
+  todayKey,
   onServeNow,
   onRemove,
   onSendWhatsApp
@@ -33,8 +35,8 @@ export default function QueueList({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBarberFilter, setSelectedBarberFilter] = useState('All Barbers');
 
-  // Today is Wednesday
-  const todayQueue = queue.filter(q => q.day === 'Wed');
+  // Filter today's queue using todayKey from App.tsx (single source of truth)
+  const todayQueue = queue.filter(q => q.day === todayKey);
 
   const filteredQueue = todayQueue.filter((item) => {
     const matchesSearch = item.customerName.toLowerCase().includes(searchTerm.toLowerCase()) || 
