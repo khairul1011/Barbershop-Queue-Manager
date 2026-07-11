@@ -86,7 +86,7 @@ export default function Requests({
                           <>
                             <button
                               onClick={() => saveEdit(req.id)}
-                              className="flex-1 bg-teal-500 text-black hover:bg-teal-600 font-bold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                              className="flex-1 bg-teal-500 text-black hover:bg-teal-600 font-bold min-h-[44px] px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer"
                               id={`save-btn-${req.id}`}
                             >
                               <Save size={13} />
@@ -94,7 +94,7 @@ export default function Requests({
                             </button>
                             <button
                               onClick={() => setEditingId(null)}
-                              className="px-3 py-2 bg-[#121212] border border-border-subtle text-gray-400 hover:text-white rounded-xl text-xs cursor-pointer"
+                              className="px-3 min-h-[44px] bg-[#121212] border border-border-subtle text-gray-400 hover:text-white rounded-xl text-xs cursor-pointer flex items-center justify-center"
                               id={`cancel-edit-btn-${req.id}`}
                             >
                               {t('requests.cancel')}
@@ -105,7 +105,7 @@ export default function Requests({
                             {/* Approve Button */}
                             <button
                               onClick={() => onApprove(req.id)}
-                              className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1 shadow-lg shadow-teal-500/5 hover:shadow-teal-500/15 cursor-pointer active:scale-95"
+                              className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold min-h-[44px] px-3 rounded-xl text-xs flex items-center justify-center gap-1 shadow-lg shadow-teal-500/5 hover:shadow-teal-500/15 cursor-pointer active:scale-95"
                               id={`approve-btn-${req.id}`}
                             >
                               <Check size={14} />
@@ -115,7 +115,7 @@ export default function Requests({
                             {/* Edit Button */}
                             <button
                               onClick={() => startEdit(req)}
-                              className="p-2.5 bg-[#121212] border border-border-subtle text-amber-500 hover:bg-[#1A1A1A] rounded-xl text-xs cursor-pointer"
+                              className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-[#121212] border border-border-subtle text-amber-500 hover:bg-[#1A1A1A] rounded-xl text-xs cursor-pointer"
                               title={t('requests.modifySlots')}
                               id={`edit-btn-${req.id}`}
                             >
@@ -125,7 +125,7 @@ export default function Requests({
                             {/* Reject Button */}
                             <button
                               onClick={() => onReject(req.id)}
-                              className="p-2.5 bg-[#121212] border border-red-500/20 hover:border-red-500/40 text-red-400 hover:bg-red-500/10 rounded-xl text-xs cursor-pointer"
+                              className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-[#121212] border border-red-500/20 hover:border-red-500/40 text-red-400 hover:bg-red-500/10 rounded-xl text-xs cursor-pointer"
                               title={t('requests.rejectRequest')}
                               id={`reject-btn-${req.id}`}
                             >
