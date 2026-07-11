@@ -1,23 +1,9 @@
 import React, { useState } from 'react';
 import { QueueEntry, QueueStatus, Barber, Service } from '../types';
 import { 
-  Calendar, 
-  Clock, 
-  MapPin, 
-  User, 
-  ChevronRight, 
-  ChevronLeft, 
-  ChevronDown, 
-  Phone, 
-  MessageSquarePlus, 
-  Info, 
-  X, 
-  Plus, 
-  Trash2, 
-  Check, 
-  Sparkles, 
-  Scissors, 
-  Bell 
+  Calendar, Clock, MapPin, User, ChevronRight, ChevronLeft, ChevronDown, 
+  Phone, MessageSquarePlus, Info, X, Plus, Trash2, Check, Sparkles, 
+  Scissors, Bell, Filter
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from '../i18n';
@@ -37,23 +23,15 @@ interface ScheduleProps {
     barber: string
   ) => void;
   onRemoveBooking?: (id: string) => void;
+  todayKey?: string;
 }
 
 const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 type DayType = typeof DAYS_OF_WEEK[number];
 
-const HOURS = [
-  '09:00',
-  '10:00',
-  '11:00',
-  '12:00',
-  '13:00',
-  '14:00',
-  '15:00',
-  '16:00',
-  '17:00',
-  '18:00'
-];
+const GRID_START_HOUR = 9;
+const GRID_END_HOUR = 20;
+const PIXELS_PER_MINUTE = 1.5;
 
 export default function Schedule({ 
   queue, 
@@ -63,123 +41,136 @@ export default function Schedule({
   barbers,
   services,
   onAddBooking,
-  onRemoveBooking
+  onRemoveBooking,
+  todayKey = 'Wed'
 }: ScheduleProps) {
   const { t } = useTranslation();
-  const [viewMode, setViewMode] = useState<'Daily' | 'Weekly'>('Weekly');
-  const [selectedDay, setSelectedDay] = useState<DayType>('Wed'); // Default to Wed (Today)
+  
+  const [viewMode, setViewMode] = useState<'Daily' | 'Weekly' | 'Monthly'>('Daily');
+  const [selectedDay, setSelectedDay] = useState<DayType>(todayKey as DayType);
   const [weekOffset, setWeekOffset] = useState<number>(0);
+  const [monthOffset, setMonthOffset] = useState<number>(0);
+  
+  const [filterBarberId, setFilterBarberId] = useState<string>('all');
+  const [filterServiceId, setFilterServiceId] = useState<string>('all');
+  const [activeMobileBarberIndex, setActiveMobileBarberIndex] = useState<number>(0);
 
-  // States for Modals
-  const [activeSlotDetails, setActiveSlotDetails] = useState<{ day: DayType; hour: string; entry: QueueEntry } | null>(null);
-  const [bookingSlot, setBookingSlot] = useState<{ day: DayType; hour: string } | null>(null);
+  // Modals state
+  const [activeSlotDetails, setActiveSlotDetails] = useState<{ day: DayType; timeRange: string; entry: QueueEntry } | null>(null);
+  const [bookingSlot, setBookingSlot] = useState<{ day: DayType; hour: string; barberName: string } | null>(null);
 
   // Quick book form states
   const [newCustomerName, setNewCustomerName] = useState('');
   const [selectedServiceId, setSelectedServiceId] = useState(services[0]?.id || '');
-  const [selectedBarberId, setSelectedBarberId] = useState(barbers[0]?.id || '');
+  const [selectedBarberId, setSelectedBarberId] = useState(''); // Populated dynamically
 
-  // Calculate dates of the week dynamically based on the current weekOffset
+  // Date calculation helpers
   const getDatesForWeek = (offsetWeeks: number) => {
-    // Standard system anchor date (Wednesday, July 8th, 2026)
-    const systemToday = new Date('2026-07-08T12:00:00');
+    const systemToday = new Date('2026-07-08T12:00:00'); // Our anchored today is a Wed
     const anchorDate = new Date(systemToday);
     anchorDate.setDate(systemToday.getDate() + offsetWeeks * 7);
 
-    // Find the Monday of that week
-    const dayOfWeek = anchorDate.getDay(); // 0 = Sun, 1 = Mon, etc.
+    const dayOfWeek = anchorDate.getDay(); 
     const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
     const monday = new Date(anchorDate);
     monday.setDate(anchorDate.getDate() + diffToMonday);
 
-    const dates: { day: DayType; label: string; dayNum: number; suffix: string; isToday: boolean }[] = [];
+    const dates: { day: DayType; label: string; dayNum: number; fullDate: Date; isToday: boolean }[] = [];
 
     for (let i = 0; i < 7; i++) {
       const d = new Date(monday);
       d.setDate(monday.getDate() + i);
-
-      const dayNum = d.getDate();
-      let suffix = 'th';
-      if (dayNum === 1 || dayNum === 21 || dayNum === 31) suffix = 'st';
-      else if (dayNum === 2 || dayNum === 22) suffix = 'nd';
-      else if (dayNum === 3 || dayNum === 23) suffix = 'rd';
-
-      // Check if it's the exact anchor today date (July 8, 2026)
       const isToday = d.toDateString() === systemToday.toDateString();
-
+      
       dates.push({
         day: DAYS_OF_WEEK[i],
-        label: `${DAYS_OF_WEEK[i]} ${dayNum}${suffix}`,
-        dayNum,
-        suffix,
+        label: `${DAYS_OF_WEEK[i]} ${d.getDate()}`,
+        dayNum: d.getDate(),
+        fullDate: d,
         isToday
       });
     }
 
-    // Generate date range string: e.g. "6 — 12 July 2026"
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
-
-    const monMonth = monday.toLocaleDateString('en-US', { month: 'long' });
-    const sunMonth = sunday.toLocaleDateString('en-US', { month: 'long' });
+    const monMonth = monday.toLocaleDateString('en-US', { month: 'short' });
+    const sunMonth = sunday.toLocaleDateString('en-US', { month: 'short' });
     const yearStr = monday.getFullYear();
 
-    let rangeStr = '';
-    if (monMonth === sunMonth) {
-      rangeStr = `${monday.getDate()} — ${sunday.getDate()} ${monMonth} ${yearStr}`;
-    } else {
-      rangeStr = `${monday.getDate()} ${monMonth} — ${sunday.getDate()} ${sunMonth} ${yearStr}`;
-    }
+    const rangeStr = monMonth === sunMonth 
+      ? `${monday.getDate()} — ${sunday.getDate()} ${monMonth} ${yearStr}`
+      : `${monday.getDate()} ${monMonth} — ${sunday.getDate()} ${sunMonth} ${yearStr}`;
 
     return { dates, rangeStr };
   };
 
-  const { dates: weekDates, rangeStr: weekRangeStr } = getDatesForWeek(weekOffset);
+  const getDatesForMonth = (offsetMonths: number) => {
+    const systemToday = new Date('2026-07-08T12:00:00');
+    const targetDate = new Date(systemToday.getFullYear(), systemToday.getMonth() + offsetMonths, 1);
+    
+    const year = targetDate.getFullYear();
+    const month = targetDate.getMonth();
+    const monthName = targetDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    
+    // Get first day of month (0 = Sun, 1 = Mon)
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+    const diffToMonday = firstDay === 0 ? 6 : firstDay - 1;
+    const days = [];
+    
+    // Padding from previous month
+    for(let i = 0; i < diffToMonday; i++) {
+       days.push(null);
+    }
+    
+    for(let i = 1; i <= daysInMonth; i++) {
+       const d = new Date(year, month, i);
+       days.push({
+         dayNum: i,
+         day: DAYS_OF_WEEK[d.getDay() === 0 ? 6 : d.getDay() - 1],
+         isToday: d.toDateString() === systemToday.toDateString(),
+         fullDate: d
+       });
+    }
+    
+    return { days, monthName };
+  };
 
-  // Combine both active queue and completed history
+  const { dates: weekDates, rangeStr: weekRangeStr } = getDatesForWeek(weekOffset);
+  const { days: monthDays, monthName } = getDatesForMonth(monthOffset);
+
+  // Time calculation helpers
+  const parseStartMinutes = (timeRange: string): number | null => {
+    const match = timeRange.replace('~', '').trim().match(/^(\d{1,2}):(\d{2})/);
+    if (!match) return null;
+    return (parseInt(match[1]) - GRID_START_HOUR) * 60 + parseInt(match[2]);
+  };
+
   const allEntries = [...queue, ...completedEntries];
 
-  // Helper to find entry for a slot
-  const getEntryForSlot = (day: DayType, hour: string) => {
-    return allEntries.find((item) => {
-      if (item.day !== day) return false;
-      const cleanTime = item.timeRange.replace('~', '').trim(); // "14:00 - 14:45"
-      const parts = cleanTime.split('-');
-      if (parts.length > 0) {
-        const startTime = parts[0].trim(); // "14:00"
-        const [startHour] = startTime.split(':');
-        const [targetHour] = hour.split(':');
-        return startHour === targetHour;
-      }
-      return false;
-    });
-  };
+  const filteredEntries = allEntries.filter(entry => {
+    if (filterBarberId !== 'all') {
+      const b = barbers.find(b => b.id === filterBarberId);
+      if (b && entry.barber !== b.name) return false;
+    }
+    if (filterServiceId !== 'all') {
+      const s = services.find(s => s.id === filterServiceId);
+      if (s && entry.service !== s.name) return false;
+    }
+    return true;
+  });
 
   const getStatusBadgeStyles = (status: QueueStatus) => {
     switch (status) {
-      case 'Confirmed':
-        return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-bold px-1.5 py-0.5 rounded-full';
-      case 'Estimated':
-        return 'bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[9px] font-bold px-1.5 py-0.5 rounded-full';
-      case 'Pending Reply':
-        return 'bg-sky-500/10 text-sky-400 border border-sky-500/20 text-[9px] font-bold px-1.5 py-0.5 rounded-full';
-      case 'Completed':
-        return 'bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[9px] font-bold px-1.5 py-0.5 rounded-full';
-      default:
-        return 'bg-gray-500/10 text-gray-400 border border-gray-500/20 text-[9px] font-bold px-1.5 py-0.5 rounded-full';
+      case 'Confirmed': return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+      case 'Estimated': return 'bg-amber-500/10 text-amber-500 border border-amber-500/20';
+      case 'Pending Reply': return 'bg-sky-500/10 text-sky-400 border border-sky-500/20';
+      case 'Completed': return 'bg-blue-500/10 text-blue-400 border border-blue-500/20 opacity-50';
+      default: return 'bg-gray-500/10 text-gray-400 border border-gray-500/20';
     }
   };
 
-  // WhatsApp nudge handler
-  const handleWhatsAppAction = (entry: QueueEntry) => {
-    const text = `Halo ${entry.customerName}, konfirmasi jadwal pangkas Anda di Golden Shears untuk hari ${entry.day} ${entry.timeRange}. Apakah sudah sesuai?`;
-    onSendWhatsApp(entry.phone, text);
-    if (activeSlotDetails && activeSlotDetails.entry.id === entry.id) {
-      setActiveSlotDetails(prev => prev ? { ...prev, entry: { ...prev.entry, status: 'Confirmed' } } : null);
-    }
-  };
-
-  // Quick book slot confirm action
   const handleConfirmQuickBook = (e: React.FormEvent) => {
     e.preventDefault();
     if (!bookingSlot || !newCustomerName.trim() || !onAddBooking) return;
@@ -202,375 +193,304 @@ export default function Schedule({
       matchedBarber.name
     );
 
-    // reset and close
     setNewCustomerName('');
     setBookingSlot(null);
   };
 
-  // Quick cancel booking
-  const handleCancelBooking = (id: string) => {
-    if (onRemoveBooking) {
-      onRemoveBooking(id);
-      setActiveSlotDetails(null);
+  const handleWhatsAppAction = (entry: QueueEntry) => {
+    const text = `Halo ${entry.customerName}, konfirmasi jadwal pangkas Anda di Golden Shears untuk hari ${entry.day} ${entry.timeRange}.`;
+    onSendWhatsApp(entry.phone, text);
+    if (activeSlotDetails && activeSlotDetails.entry.id === entry.id) {
+      setActiveSlotDetails(prev => prev ? { ...prev, entry: { ...prev.entry, status: 'Confirmed' } } : null);
     }
   };
 
-  // Get active day label for Daily view
-  const currentDailyDate = weekDates.find(d => d.day === selectedDay);
+  // Rendering logic for Time Grid Columns
+  const renderTimeGridColumn = (barber: Barber, day: DayType) => {
+    const barberEntries = filteredEntries.filter(e => e.barber === barber.name && e.day === day && e.status !== 'Estimated');
+    const hours = Array.from({ length: GRID_END_HOUR - GRID_START_HOUR + 1 }, (_, i) => i + GRID_START_HOUR);
 
-  return (
-    <div className="space-y-6">
-      {/* 1. TOP PREMIUM LOCATION BAR */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="bg-zinc-900 border border-zinc-800 text-gray-400 text-xs px-3.5 py-1.5 rounded-full font-medium flex items-center gap-1.5">
-          <MapPin size={12} className="text-amber-500" />
-          Jakarta Selatan
-        </span>
-        <span className="bg-zinc-900 border border-zinc-800 text-gray-400 text-xs px-3.5 py-1.5 rounded-full font-medium">
-          {t('schedule.premiumBarbershop')}
-        </span>
-        <div className="relative">
-          <button className="bg-zinc-900 border border-zinc-800 text-white text-xs px-3.5 py-1.5 rounded-full font-medium flex items-center gap-1">
-            Golden Shears HQ <ChevronDown size={12} className="text-gray-400" />
-          </button>
-        </div>
-      </div>
-
-      {/* 2. MAIN HEADER TITLE & REPORT ACTIONS */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl md:text-4xl font-display font-extrabold text-white tracking-tight">
-            {t('schedule.hqTitle')}
-          </h1>
-          <p className="text-sm text-gray-400 font-sans mt-0.5">
-            {t('schedule.hqSubtitle')}
-          </p>
-        </div>
-
-        {/* Generate Report & Notification Icon */}
-        <div className="flex items-center gap-2 lg:self-end">
-          <button 
-            onClick={() => {
-              // Simulated dynamic report trigger
-              const totalScheduled = queue.length;
-              alert(`Report generated successfully!\nTotal Active Appointments this Week: ${totalScheduled}`);
-            }}
-            className="bg-white hover:bg-zinc-200 text-black text-xs font-bold px-4 py-2.5 rounded-full transition-all cursor-pointer flex items-center gap-1.5 shadow-md active:scale-95"
-          >
-            <Sparkles size={13} />
-            {t('schedule.generateReport')}
-          </button>
-          
-          <button 
-            onClick={() => alert("Notification center: All active barber seats are running optimally.")}
-            className="p-2.5 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-white rounded-full relative transition-all cursor-pointer"
-          >
-            <Bell size={15} />
-            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-500 border border-zinc-900" />
-          </button>
-        </div>
-      </div>
-
-      {/* 3. SWITCHER ROW (Daily / Weekly toggle + Date range navigation) */}
-      <div className="flex flex-wrap gap-4 items-center justify-between border-t border-b border-zinc-900 py-4">
-        {/* Toggle Pills */}
-        <div className="flex bg-zinc-950 p-1 rounded-full border border-zinc-900 w-fit">
-          <button
-            onClick={() => setViewMode('Daily')}
-            className={`px-5 py-2 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-              viewMode === 'Daily'
-                ? 'bg-zinc-800 text-white shadow-sm'
-                : 'text-gray-500 hover:text-gray-300'
-            }`}
-          >
-            {t('schedule.daily')}
-          </button>
-          <button
-            onClick={() => setViewMode('Weekly')}
-            className={`px-5 py-2 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-              viewMode === 'Weekly'
-                ? 'bg-zinc-800 text-white shadow-sm'
-                : 'text-gray-500 hover:text-gray-300'
-            }`}
-          >
-            {t('schedule.weekly')}
-          </button>
-        </div>
-
-        {/* Date Selector navigation */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setWeekOffset(prev => prev - 1)}
-            className="p-2 bg-zinc-950 hover:bg-zinc-900 border border-zinc-850 hover:border-zinc-700 text-gray-400 hover:text-white rounded-full transition-all cursor-pointer"
-            title={t('schedule.previousWeek')}
-          >
-            <ChevronLeft size={16} />
-          </button>
-          <div className="bg-zinc-950 border border-zinc-850 px-5 py-2 rounded-full text-xs font-semibold font-mono text-gray-300 min-w-[140px] text-center shadow-inner">
-            {weekRangeStr}
+    return (
+      <div className="flex-1 min-w-[200px] border-r border-zinc-900/50 relative">
+        {/* Column Header */}
+        <div className="sticky top-0 z-20 bg-[#0A0A0A] border-b border-zinc-900 p-3 text-center backdrop-blur-md bg-opacity-90">
+          <div className="font-bold text-sm text-white">{barber.name}</div>
+          <div className="text-[10px] text-gray-500 uppercase font-mono tracking-wider mt-0.5 flex justify-center gap-1">
+            {barber.status === 'break' && <span className="text-amber-500">{t('overview.statusBreak')}</span>}
+            {barber.status === 'active' && <span className="text-teal-500">{t('overview.statusOnSeat')}</span>}
           </div>
-          <button
-            onClick={() => setWeekOffset(prev => prev + 1)}
-            className="p-2 bg-zinc-950 hover:bg-zinc-900 border border-zinc-850 hover:border-zinc-700 text-gray-400 hover:text-white rounded-full transition-all cursor-pointer"
-            title={t('schedule.nextWeek')}
-          >
-            <ChevronRight size={16} />
-          </button>
         </div>
-      </div>
 
-      {/* Mobile view only Horizontal Day Switcher */}
-      <div className="flex xl:hidden overflow-x-auto pb-2 scrollbar-none gap-2">
-        {weekDates.map((dateObj) => {
-          const isSelected = selectedDay === dateObj.day;
-          return (
-            <button
-              key={dateObj.day}
-              onClick={() => setSelectedDay(dateObj.day)}
-              className={`flex-none flex flex-col items-center justify-center w-16 py-3 rounded-2xl border transition-all cursor-pointer ${
-                isSelected
-                  ? 'bg-amber-500 border-amber-500 text-black shadow-lg shadow-amber-500/20'
-                  : 'bg-[#121212] border-zinc-800/80 text-gray-400 hover:text-white'
-              }`}
+        {/* Grid Background Lines */}
+        <div className="relative" style={{ height: (GRID_END_HOUR - GRID_START_HOUR + 1) * 60 * PIXELS_PER_MINUTE }}>
+          {hours.map(hour => (
+            <div 
+              key={hour} 
+              className="absolute w-full border-t border-zinc-900/40"
+              style={{ top: (hour - GRID_START_HOUR) * 60 * PIXELS_PER_MINUTE }}
+              onClick={() => {
+                setBookingSlot({ day, hour: `${hour.toString().padStart(2, '0')}:00`, barberName: barber.name });
+                setSelectedBarberId(barber.id);
+              }}
             >
-              <span className="text-[10px] uppercase tracking-wider font-mono font-bold">{dateObj.day}</span>
-              <span className="text-sm font-bold mt-1">{dateObj.dayNum}</span>
-            </button>
-          );
-        })}
-      </div>
+              <div className="absolute inset-0 hover:bg-zinc-900/20 transition-colors cursor-pointer" style={{ height: 60 * PIXELS_PER_MINUTE }} />
+            </div>
+          ))}
 
-      {/* 4. CALENDAR SCHEDULER VIEWPORT */}
-      {viewMode === 'Weekly' ? (
-        /* ==================== WEEKLY 7-COLUMN VIEW ==================== */
-        <div className="grid grid-cols-1 xl:grid-cols-7 gap-3.5 overflow-x-auto pb-4">
-          {weekDates.map((dateObj) => {
-            const isSelectedMobile = selectedDay === dateObj.day;
-            const isToday = dateObj.isToday;
+          {/* Render Blocks */}
+          {barberEntries.map(entry => {
+            const startM = parseStartMinutes(entry.timeRange);
+            if (startM === null) return null;
+            const topPx = startM * PIXELS_PER_MINUTE;
+            const heightPx = Math.max((entry.durationMinutes || 30) * PIXELS_PER_MINUTE, 24);
 
             return (
               <div
-                key={dateObj.day}
-                className={`flex flex-col rounded-2xl min-w-[150px] min-h-[450px] transition-all duration-300 ${
-                  isSelectedMobile ? 'flex' : 'hidden xl:flex'
-                } ${
-                  isToday 
-                    ? 'bg-zinc-950 border border-amber-500/20 shadow-[0_0_20px_rgba(245,158,11,0.03)]' 
-                    : 'bg-[#0A0A0A] border border-zinc-900'
-                }`}
+                key={entry.id}
+                onClick={() => setActiveSlotDetails({ day, timeRange: entry.timeRange, entry })}
+                className={`absolute left-1 right-1 rounded-xl p-2 cursor-pointer transition-all hover:z-10 hover:shadow-lg ${getStatusBadgeStyles(entry.status)} shadow-black/40 backdrop-blur-sm bg-opacity-80 overflow-hidden`}
+                style={{ top: topPx, height: heightPx }}
               >
-                {/* Column Header */}
-                <div className="flex items-center justify-between p-3.5 border-b border-zinc-900">
-                  <span className={`font-display font-bold text-xs ${isToday ? 'text-amber-500' : 'text-gray-400'}`}>
-                    {dateObj.label}
-                  </span>
-                  {isToday && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                  )}
-                </div>
-
-                {/* Slots List */}
-                <div className="p-2 space-y-2.5">
-                  {HOURS.map((hour) => {
-                    const entry = getEntryForSlot(dateObj.day, hour);
-
-                    if (entry) {
-                      // BOOKED SLOT
-                      return (
-                        <div
-                          key={hour}
-                          onClick={() => setActiveSlotDetails({ day: dateObj.day, hour, entry })}
-                          className="bg-zinc-900 hover:bg-zinc-850 border border-zinc-800/80 hover:border-zinc-700/80 rounded-2xl p-3 h-[78px] flex flex-col justify-between transition-all cursor-pointer relative group"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="font-mono text-xs text-gray-500 font-medium">{hour}</span>
-                            <div className="flex items-center gap-1">
-                              <span className={getStatusBadgeStyles(entry.status)}>
-                                {entry.status === 'Pending Reply' ? 'Pending' : entry.status}
-                              </span>
-                              <Info size={10} className="text-gray-500 opacity-60 group-hover:opacity-100 transition-opacity" />
-                            </div>
-                          </div>
-                          <div className="text-xs font-bold text-gray-200 truncate pr-1">
-                            {entry.customerName}
-                          </div>
-                        </div>
-                      );
-                    } else {
-                      // AVAILABLE SLOT
-                      return (
-                        <div
-                          key={hour}
-                          onClick={() => setBookingSlot({ day: dateObj.day, hour })}
-                          className="bg-[#121212]/70 hover:bg-zinc-900 border border-zinc-900 hover:border-amber-500/10 rounded-2xl p-3 h-[78px] flex flex-col justify-between transition-all cursor-pointer group"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="font-mono text-xs font-bold text-gray-400 group-hover:text-amber-500 transition-colors">
-                              {hour}
-                            </span>
-                            <Plus size={11} className="text-gray-700 group-hover:text-amber-500 group-hover:scale-110 transition-all opacity-0 group-hover:opacity-100" />
-                          </div>
-                          <span className="text-[10px] text-zinc-600 group-hover:text-zinc-500 font-mono font-medium transition-colors">
-                            Rp 150.000
-                          </span>
-                        </div>
-                      );
-                    }
-                  })}
+                <div className="font-bold text-[11px] text-white truncate leading-tight">{entry.customerName}</div>
+                <div className="text-[9px] mt-0.5 truncate flex items-center gap-1 opacity-80">
+                  <span className="font-mono">{entry.timeRange.replace('~', '')}</span>
                 </div>
               </div>
             );
           })}
         </div>
-      ) : (
-        /* ==================== DAILY VIEW TIMELINE ==================== */
-        <div className="bg-[#0A0A0A] border border-zinc-900 rounded-2xl p-6 space-y-6 max-w-3xl mx-auto">
-          {/* Header Row */}
-          <div className="flex items-center justify-between border-b border-zinc-900 pb-4">
-            <div className="flex items-center gap-3">
-              <Calendar size={20} className="text-amber-500" />
-              <div>
-                <h3 className="text-lg font-bold text-white">
-                  {t('schedule.dailyScheduleFor')} {currentDailyDate?.label || selectedDay}
-                </h3>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {t('schedule.detailedTimeline')}
-                </p>
-              </div>
+      </div>
+    );
+  };
+
+  const activeBarbers = barbers.filter(b => b.status !== 'off');
+
+  return (
+    <div className="space-y-6 max-w-full overflow-hidden flex flex-col h-[calc(100vh-120px)]">
+      {/* HEADER & FILTERS */}
+      <div className="flex-none space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-display font-extrabold text-white tracking-tight">
+              {t('schedule.hqTitle')}
+            </h1>
+            <p className="text-sm text-gray-400 font-sans mt-0.5">
+              {t('schedule.hqSubtitle')}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 bg-[#0A0A0A] p-2 rounded-2xl border border-zinc-900 justify-between">
+          <div className="flex items-center gap-2">
+            <div className="flex bg-zinc-950 p-1 rounded-xl border border-zinc-800">
+              <button
+                onClick={() => setViewMode('Daily')}
+                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${viewMode === 'Daily' ? 'bg-zinc-800 text-white' : 'text-gray-500 hover:text-gray-300'}`}
+              >
+                {t('schedule.daily')}
+              </button>
+              <button
+                onClick={() => setViewMode('Weekly')}
+                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${viewMode === 'Weekly' ? 'bg-zinc-800 text-white' : 'text-gray-500 hover:text-gray-300'}`}
+              >
+                {t('schedule.weekly')}
+              </button>
+              <button
+                onClick={() => setViewMode('Monthly')}
+                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${viewMode === 'Monthly' ? 'bg-zinc-800 text-white' : 'text-gray-500 hover:text-gray-300'}`}
+              >
+                {t('schedule.monthly')}
+              </button>
             </div>
-            <span className="text-xs bg-zinc-900 border border-zinc-800 px-3 py-1 rounded-full text-amber-500 font-mono font-bold">
-              {queue.filter(q => q.day === selectedDay).length} {t('schedule.scheduled')}
-            </span>
+            
+            <button
+              onClick={() => {
+                setWeekOffset(0);
+                setMonthOffset(0);
+                setSelectedDay(todayKey as DayType);
+                setViewMode('Daily');
+              }}
+              className="px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-gray-300 text-xs font-semibold rounded-xl transition-all cursor-pointer"
+            >
+              {t('schedule.today')}
+            </button>
           </div>
 
-          {/* Timeline Stack */}
-          <div className="space-y-4">
-            {HOURS.map((hour) => {
-              const entry = getEntryForSlot(selectedDay, hour);
-
-              if (entry) {
-                // Booked Slot Detailed Row
-                return (
-                  <div
-                    key={hour}
-                    className="bg-zinc-900 border border-zinc-800/80 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 hover:border-zinc-700 transition-all"
-                  >
-                    <div className="flex items-start gap-4">
-                      {/* Hour Indicator block */}
-                      <div className="bg-[#121212] border border-zinc-800 rounded-xl px-3.5 py-2 text-center min-w-[70px]">
-                        <span className="font-mono text-xs text-gray-500 block">{t('schedule.time')}</span>
-                        <span className="font-mono text-sm font-bold text-white">{hour}</span>
-                      </div>
-
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-bold text-white text-sm">{entry.customerName}</h4>
-                          <span className={getStatusBadgeStyles(entry.status)}>
-                            {t(('status.' + entry.status.replace(' ', '')) as any)}
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-400 font-sans flex items-center gap-4">
-                          <span className="flex items-center gap-1">
-                            <Scissors size={11} className="text-amber-500" />
-                            {entry.service}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <User size={11} className="text-teal-400" />
-                            {entry.barber}
-                          </span>
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Action Panel directly shown */}
-                    <div className="flex items-center gap-2 sm:self-center">
-                      {entry.status === 'Pending Reply' && (
-                        <button
-                          onClick={() => handleWhatsAppAction(entry)}
-                          className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-black text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                        >
-                          <MessageSquarePlus size={13} />
-                          {t('schedule.nudge')}
-                        </button>
-                      )}
-                      
-                      <button
-                        onClick={() => setActiveSlotDetails({ day: selectedDay, hour, entry })}
-                        className="p-2 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-amber-500 hover:text-white rounded-xl text-xs transition-all cursor-pointer"
-                        title={t('schedule.editBooking')}
-                      >
-                        <Info size={13} />
-                      </button>
-
-                      <button
-                        onClick={() => handleCancelBooking(entry.id)}
-                        className="p-2 bg-zinc-950 border border-red-950 text-red-400 hover:bg-red-900/10 rounded-xl text-xs transition-all cursor-pointer"
-                        title={t('schedule.cancelAppointment')}
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  </div>
-                );
-              } else {
-                // Available Slot Row
-                return (
-                  <div
-                    key={hour}
-                    className="border border-dashed border-zinc-900 rounded-2xl p-4 flex items-center justify-between hover:border-amber-500/20 transition-all group"
-                  >
-                    <div className="flex items-center gap-4">
-                      {/* Hour indicator block */}
-                      <div className="bg-[#0A0A0A] border border-zinc-900 rounded-xl px-3.5 py-2 text-center min-w-[70px]">
-                        <span className="font-mono text-xs text-zinc-700 block">{t('schedule.time')}</span>
-                        <span className="font-mono text-sm font-semibold text-zinc-500 group-hover:text-amber-500 transition-colors">
-                          {hour}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-xs text-zinc-600 font-medium">{t('schedule.availableSlot')}</span>
-                        <div className="text-xs text-zinc-500 font-mono mt-0.5">Rp 150.000 (Standard)</div>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => setBookingSlot({ day: selectedDay, hour })}
-                      className="px-3.5 py-2 bg-zinc-900 hover:bg-zinc-800 text-white hover:text-amber-500 text-xs font-bold rounded-xl flex items-center gap-1.5 border border-zinc-800 transition-all cursor-pointer"
-                    >
-                      <Plus size={13} />
-                      {t('schedule.bookSlot')}
-                    </button>
-                  </div>
-                );
-              }
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* 5. LEGEND & STATS BADGES */}
-      <div className="bg-[#0A0A0A] border border-zinc-900 rounded-2xl p-4 flex flex-wrap gap-4 items-center justify-between text-xs text-gray-400 font-sans">
-        <div className="flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-          <span className="font-semibold text-white">{t('schedule.statusGuide')}</span>
-        </div>
-        <div className="flex flex-wrap gap-4">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span><strong>{t('status.Confirmed')}</strong> {t('schedule.exactSlotLocked')}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-amber-500" />
-            <span><strong>{t('status.Estimated')}</strong> {t('schedule.queueOrder')}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-sky-500" />
-            <span><strong>{t('status.PendingReply')}</strong> {t('schedule.waitingResponse')}</span>
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-950 border border-zinc-800 rounded-xl">
+              <Filter size={12} className="text-gray-500" />
+              <select 
+                value={filterBarberId} 
+                onChange={e => setFilterBarberId(e.target.value)}
+                className="bg-transparent text-xs text-gray-300 outline-none cursor-pointer"
+              >
+                <option value="all">{t('schedule.filterBarber')}: {t('schedule.filterAll')}</option>
+                {barbers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-950 border border-zinc-800 rounded-xl">
+              <select 
+                value={filterServiceId} 
+                onChange={e => setFilterServiceId(e.target.value)}
+                className="bg-transparent text-xs text-gray-300 outline-none cursor-pointer"
+              >
+                <option value="all">{t('schedule.filterService')}: {t('schedule.filterAll')}</option>
+                {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ==================== MODAL: QUICK BOOK SLOT ==================== */}
+      {/* VIEWS */}
+      <div className="flex-1 min-h-0 flex flex-col">
+        {viewMode === 'Daily' && (
+          <div className="flex-1 flex flex-col bg-[#050505] border border-zinc-900 rounded-2xl overflow-hidden relative">
+            <div className="flex items-center justify-between p-3 border-b border-zinc-900 bg-[#0A0A0A]">
+              <div className="flex items-center gap-3">
+                <button onClick={() => setWeekOffset(o => o - 1)} className="min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-zinc-800 rounded-lg text-gray-400 cursor-pointer"><ChevronLeft size={16}/></button>
+                <span className="font-bold text-white min-w-[120px] text-center">{weekDates.find(d => d.day === selectedDay)?.label}</span>
+                <button onClick={() => setWeekOffset(o => o + 1)} className="min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-zinc-800 rounded-lg text-gray-400 cursor-pointer"><ChevronRight size={16}/></button>
+              </div>
+              
+              {/* Mobile Barber Tabs */}
+              <div className="flex lg:hidden bg-zinc-950 rounded-xl border border-zinc-800 p-1 gap-1">
+                {activeBarbers.map((b, idx) => (
+                  <button
+                    key={b.id}
+                    onClick={() => setActiveMobileBarberIndex(idx)}
+                    className={`px-3 py-1 text-[10px] rounded-lg font-bold uppercase transition-all ${activeMobileBarberIndex === idx ? 'bg-amber-500 text-black' : 'text-gray-500'}`}
+                  >
+                    {b.name.split(' ')[0]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto flex">
+              {/* Time Axis */}
+              <div className="w-[60px] flex-none border-r border-zinc-900 relative bg-[#0A0A0A]">
+                 <div className="h-[45px]" /> {/* Header spacer */}
+                 {Array.from({ length: GRID_END_HOUR - GRID_START_HOUR + 1 }, (_, i) => i + GRID_START_HOUR).map(hour => (
+                   <div key={hour} className="absolute w-full text-right pr-2 text-[10px] text-gray-500 font-mono -translate-y-2" style={{ top: (hour - GRID_START_HOUR) * 60 * PIXELS_PER_MINUTE + 45 }}>
+                     {hour.toString().padStart(2, '0')}:00
+                   </div>
+                 ))}
+              </div>
+              
+              {/* Columns */}
+              <div className="flex-1 flex overflow-x-auto min-w-0">
+                {activeBarbers.map((b, idx) => (
+                  <div key={b.id} className={`flex-1 min-w-[200px] ${activeMobileBarberIndex === idx ? 'block' : 'hidden lg:block'}`}>
+                    {renderTimeGridColumn(b, selectedDay)}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {viewMode === 'Weekly' && (
+          <div className="flex-1 overflow-y-auto bg-[#050505] rounded-2xl border border-zinc-900 p-4 space-y-4">
+             <div className="flex items-center gap-3 mb-4">
+                <button onClick={() => setWeekOffset(o => o - 1)} className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-zinc-900 rounded-full text-gray-400 hover:text-white cursor-pointer"><ChevronLeft size={16}/></button>
+                <span className="font-bold text-white text-lg">{weekRangeStr}</span>
+                <button onClick={() => setWeekOffset(o => o + 1)} className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-zinc-900 rounded-full text-gray-400 hover:text-white cursor-pointer"><ChevronRight size={16}/></button>
+             </div>
+             
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
+               {weekDates.map(date => {
+                 const dayEntries = filteredEntries.filter(e => e.day === date.day && e.status !== 'Estimated');
+                 return (
+                   <div key={date.day} className={`bg-[#0A0A0A] border rounded-2xl p-4 flex flex-col gap-3 ${date.isToday ? 'border-amber-500/50 shadow-lg shadow-amber-500/5' : 'border-zinc-900'}`}>
+                     <div className="flex justify-between items-center">
+                       <div>
+                         <div className="text-[10px] font-mono uppercase text-gray-500">{date.day}</div>
+                         <div className={`font-bold text-xl ${date.isToday ? 'text-amber-500' : 'text-white'}`}>{date.dayNum}</div>
+                       </div>
+                       <button onClick={() => { setSelectedDay(date.day); setViewMode('Daily'); }} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-xs bg-zinc-900 rounded-xl text-gray-400 hover:text-white cursor-pointer transition-colors">View</button>
+                     </div>
+                     <div className="space-y-2 flex-1">
+                       {dayEntries.length === 0 ? (
+                         <div className="text-xs text-zinc-400 italic py-2">{t('schedule.noEntriesForDay')}</div>
+                       ) : (
+                         dayEntries.slice(0, 5).map(e => (
+                           <div key={e.id} onClick={() => { setSelectedDay(date.day); setViewMode('Daily'); }} className={`p-2 rounded-xl border text-xs flex justify-between items-center cursor-pointer hover:opacity-80 transition-opacity ${getStatusBadgeStyles(e.status)}`}>
+                             <span className="font-bold truncate">{e.customerName}</span>
+                             <span className="font-mono text-[9px] opacity-80 shrink-0 ml-2">{e.timeRange.replace('~','').split('-')[0]}</span>
+                           </div>
+                         ))
+                       )}
+                       {dayEntries.length > 5 && (
+                         <div className="text-[10px] text-center text-gray-500 py-1">{t('schedule.moreEntries').replace('{n}', (dayEntries.length - 5).toString())}</div>
+                       )}
+                     </div>
+                   </div>
+                 );
+               })}
+             </div>
+          </div>
+        )}
+
+        {viewMode === 'Monthly' && (
+          <div className="flex-1 flex flex-col bg-[#050505] rounded-2xl border border-zinc-900 p-4 min-h-0">
+             <div className="flex items-center justify-between mb-4 flex-none">
+                <h2 className="text-xl font-bold text-white flex items-center gap-3">
+                  <button onClick={() => setMonthOffset(o => o - 1)} className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-zinc-900 rounded-full text-gray-400 hover:text-white cursor-pointer"><ChevronLeft size={16}/></button>
+                  {monthName}
+                  <button onClick={() => setMonthOffset(o => o + 1)} className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-zinc-900 rounded-full text-gray-400 hover:text-white cursor-pointer"><ChevronRight size={16}/></button>
+                </h2>
+             </div>
+             
+             <div className="grid grid-cols-7 gap-2 mb-2 flex-none">
+               {DAYS_OF_WEEK.map(d => <div key={d} className="text-center text-xs font-mono font-bold text-gray-500 uppercase">{d}</div>)}
+             </div>
+             
+             <div className="flex-1 grid grid-cols-7 gap-2 overflow-y-auto pb-4 content-start">
+               {monthDays.map((md, idx) => {
+                 if (!md) return <div key={`empty-${idx}`} className="bg-transparent border border-transparent rounded-2xl min-h-[100px]" />;
+                 const dayEntries = filteredEntries.filter(e => e.day === md.day && e.status !== 'Estimated');
+                 return (
+                   <div key={idx} onClick={() => { setSelectedDay(md.day); setViewMode('Daily'); }} className={`bg-[#0A0A0A] hover:bg-zinc-900 border rounded-2xl p-2 min-h-[100px] cursor-pointer transition-colors flex flex-col gap-1 ${md.isToday ? 'border-amber-500/50' : 'border-zinc-900'}`}>
+                     <div className={`text-right text-xs font-bold ${md.isToday ? 'text-amber-500' : 'text-gray-400'}`}>{md.dayNum}</div>
+                     {dayEntries.slice(0, 3).map(e => (
+                        <div key={e.id} className={`px-1.5 py-0.5 rounded text-[9px] truncate border ${getStatusBadgeStyles(e.status)}`}>
+                          {e.timeRange.split('-')[0].replace('~','')} {e.customerName}
+                        </div>
+                     ))}
+                     {dayEntries.length > 3 && <div className="text-[9px] text-gray-500 text-center">{t('schedule.moreEntries').replace('{n}', (dayEntries.length - 3).toString())}</div>}
+                   </div>
+                 );
+               })}
+             </div>
+          </div>
+        )}
+      </div>
+
+      {/* ESTIMATED QUEUE PANEL */}
+      {filteredEntries.some(e => e.day === selectedDay && e.status === 'Estimated') && (
+        <div className="flex-none bg-amber-500/5 border border-amber-500/20 rounded-2xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+             <Clock size={16} className="text-amber-500" />
+             <h3 className="font-bold text-amber-500 text-sm">{t('schedule.estimatedQueue')}</h3>
+             <span className="text-xs text-amber-500/70 ml-2 hidden sm:inline">({t('schedule.estimatedQueueDesc')})</span>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
+            {filteredEntries.filter(e => e.day === selectedDay && e.status === 'Estimated').map(entry => (
+              <div key={entry.id} onClick={() => setActiveSlotDetails({ day: selectedDay, timeRange: entry.timeRange, entry })} className="flex-none bg-[#0A0A0A] border border-amber-500/30 rounded-xl p-3 w-[200px] cursor-pointer hover:bg-zinc-900 transition-colors">
+                <div className="flex justify-between items-start mb-2">
+                  <div className="font-bold text-white text-sm truncate">{entry.customerName}</div>
+                  {entry.queueNumber && <div className="bg-amber-500 text-black text-[10px] font-bold px-1.5 py-0.5 rounded">No. {entry.queueNumber}</div>}
+                </div>
+                <div className="text-xs text-gray-400 truncate flex items-center gap-1.5"><User size={10}/> {entry.barber}</div>
+                <div className="text-xs text-gray-400 truncate flex items-center gap-1.5"><Scissors size={10}/> {entry.service}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* MODALS */}
       <AnimatePresence>
         {bookingSlot && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -594,83 +514,32 @@ export default function Schedule({
                 </div>
                 <button
                   onClick={() => setBookingSlot(null)}
-                  className="p-1.5 bg-zinc-900 hover:bg-zinc-800 text-gray-400 hover:text-white rounded-lg transition-all cursor-pointer"
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-zinc-900 hover:bg-zinc-800 text-gray-400 hover:text-white rounded-lg transition-all cursor-pointer"
                 >
                   <X size={15} />
                 </button>
               </div>
 
               <form onSubmit={handleConfirmQuickBook} className="p-5 space-y-4">
-                {/* Name */}
                 <div className="space-y-1.5">
-                  <label className="text-[10px] text-gray-500 uppercase tracking-wider font-mono font-bold block">
-                    {t('schedule.customerName')}
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={newCustomerName}
-                    onChange={(e) => setNewCustomerName(e.target.value)}
-                    placeholder={t('schedule.customerNamePlaceholder')}
-                    className="w-full bg-[#121212] border border-zinc-850 text-white text-sm rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500 font-sans placeholder-gray-600"
-                    id="schedule-book-customer-name"
-                  />
+                  <label className="text-[10px] text-gray-500 uppercase tracking-wider font-mono font-bold block">{t('schedule.customerName')}</label>
+                  <input type="text" required value={newCustomerName} onChange={e => setNewCustomerName(e.target.value)} placeholder={t('schedule.customerNamePlaceholder')} className="w-full bg-[#121212] border border-zinc-850 text-white text-sm rounded-xl px-3.5 py-2.5 focus:border-amber-500 outline-none" />
                 </div>
-
-                {/* Service Selection */}
                 <div className="space-y-1.5">
-                  <label className="text-[10px] text-gray-500 uppercase tracking-wider font-mono font-bold block">
-                    {t('schedule.selectService')}
-                  </label>
-                  <select
-                    value={selectedServiceId}
-                    onChange={(e) => setSelectedServiceId(e.target.value)}
-                    className="w-full bg-[#121212] border border-zinc-850 text-white text-sm rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500 cursor-pointer"
-                    id="schedule-book-service-select"
-                  >
-                    {services.map(s => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} — Rp {s.price.toLocaleString()}
-                      </option>
-                    ))}
+                  <label className="text-[10px] text-gray-500 uppercase tracking-wider font-mono font-bold block">{t('schedule.selectService')}</label>
+                  <select value={selectedServiceId} onChange={e => setSelectedServiceId(e.target.value)} className="w-full bg-[#121212] border border-zinc-850 text-white text-sm rounded-xl px-3.5 py-2.5 focus:border-amber-500 outline-none cursor-pointer">
+                    {services.map(s => <option key={s.id} value={s.id}>{s.name} — Rp {s.price.toLocaleString()}</option>)}
                   </select>
                 </div>
-
-                {/* Barber Selection */}
                 <div className="space-y-1.5">
-                  <label className="text-[10px] text-gray-500 uppercase tracking-wider font-mono font-bold block">
-                    {t('schedule.selectBarber')}
-                  </label>
-                  <select
-                    value={selectedBarberId}
-                    onChange={(e) => setSelectedBarberId(e.target.value)}
-                    className="w-full bg-[#121212] border border-zinc-850 text-white text-sm rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-500 cursor-pointer"
-                    id="schedule-book-barber-select"
-                  >
-                    {barbers.map(b => (
-                      <option key={b.id} value={b.id}>
-                        {b.name} ({b.specialty})
-                      </option>
-                    ))}
+                  <label className="text-[10px] text-gray-500 uppercase tracking-wider font-mono font-bold block">{t('schedule.selectBarber')}</label>
+                  <select value={selectedBarberId} onChange={e => setSelectedBarberId(e.target.value)} className="w-full bg-[#121212] border border-zinc-850 text-white text-sm rounded-xl px-3.5 py-2.5 focus:border-amber-500 outline-none cursor-pointer">
+                    {barbers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                   </select>
                 </div>
-
-                {/* Actions */}
                 <div className="flex gap-2.5 pt-2">
-                  <button
-                    type="submit"
-                    className="flex-1 bg-amber-500 hover:bg-amber-600 text-black font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-lg shadow-amber-500/10 active:scale-95"
-                  >
-                    <Check size={14} />
-                    {t('schedule.confirmBooking')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBookingSlot(null)}
-                    className="px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-850 text-gray-400 hover:text-white rounded-xl text-xs transition-all cursor-pointer"
-                  >
-                    {t('requests.cancel')}
-                  </button>
+                  <button type="submit" className="flex-1 bg-amber-500 hover:bg-amber-600 text-black font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/10 cursor-pointer"><Check size={14} /> {t('schedule.confirmBooking')}</button>
+                  <button type="button" onClick={() => setBookingSlot(null)} className="px-4 py-2.5 bg-zinc-900 border border-zinc-850 text-gray-400 hover:text-white rounded-xl text-xs cursor-pointer">{t('requests.cancel')}</button>
                 </div>
               </form>
             </motion.div>
@@ -678,147 +547,54 @@ export default function Schedule({
         )}
       </AnimatePresence>
 
-      {/* ==================== MODAL: BOOKED SLOT DETAILS ==================== */}
       <AnimatePresence>
         {activeSlotDetails && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="bg-[#0F0F0F] border border-zinc-800 w-full max-w-md rounded-2xl overflow-hidden shadow-2xl"
-            >
-              {/* Header */}
-              <div className="p-5 border-b border-zinc-900 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-xl bg-teal-500/10 text-teal-400">
-                    <User size={16} />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-white text-base">{t('schedule.appointmentDetails')}</h3>
-                    <p className="text-xs text-gray-500 font-sans mt-0.5">
-                      {activeSlotDetails.day} — {t('schedule.slot')} {activeSlotDetails.hour}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setActiveSlotDetails(null)}
-                  className="p-1.5 bg-zinc-900 hover:bg-zinc-800 text-gray-400 hover:text-white rounded-lg transition-all cursor-pointer"
-                >
-                  <X size={15} />
-                </button>
-              </div>
-
-              {/* Body */}
-              <div className="p-5 space-y-4">
-                {/* Customer name info box */}
-                <div className="bg-[#121212] border border-zinc-850 p-4 rounded-xl space-y-1">
-                  <span className="text-[9px] text-gray-500 uppercase tracking-wider font-mono font-bold block">
-                    {t('schedule.customerName')}
-                  </span>
-                  <div className="text-base font-bold text-white flex items-center gap-2">
-                    {activeSlotDetails.entry.customerName}
-                    {activeSlotDetails.entry.queueNumber && (
-                      <span className="text-[10px] bg-amber-500/10 text-amber-500 font-mono px-1.5 py-0.5 rounded">
-                        No. {activeSlotDetails.entry.queueNumber}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-xs text-gray-400 font-mono mt-1">
-                    {t('schedule.phone')} {activeSlotDetails.entry.phone}
-                  </div>
-                </div>
-
-                {/* Details layout */}
-                <div className="grid grid-cols-2 gap-3.5">
-                  <div className="bg-[#121212] border border-zinc-850 p-3 rounded-xl space-y-1">
-                    <span className="text-[9px] text-gray-500 uppercase tracking-wider font-mono font-bold block flex items-center gap-1">
-                      <Scissors size={10} className="text-amber-500" /> {t('requests.service')}
-                    </span>
-                    <span className="text-xs font-semibold text-gray-200 block truncate">
-                      {activeSlotDetails.entry.service}
-                    </span>
-                  </div>
-
-                  <div className="bg-[#121212] border border-zinc-850 p-3 rounded-xl space-y-1">
-                    <span className="text-[9px] text-gray-500 uppercase tracking-wider font-mono font-bold block flex items-center gap-1">
-                      <User size={10} className="text-teal-400" /> {t('schedule.assignedBarber')}
-                    </span>
-                    <span className="text-xs font-semibold text-gray-200 block truncate">
-                      {activeSlotDetails.entry.barber}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Time range & Status */}
-                <div className="grid grid-cols-2 gap-3.5">
-                  <div className="bg-[#121212] border border-zinc-850 p-3 rounded-xl space-y-1">
-                    <span className="text-[9px] text-gray-500 uppercase tracking-wider font-mono font-bold block">
-                      {t('schedule.timeRange')}
-                    </span>
-                    <span className="text-xs font-semibold text-gray-200 block font-mono">
-                      {activeSlotDetails.entry.timeRange}
-                    </span>
-                  </div>
-
-                  <div className="bg-[#121212] border border-zinc-850 p-3 rounded-xl space-y-1">
-                    <span className="text-[9px] text-gray-500 uppercase tracking-wider font-mono font-bold block">
-                      {t('schedule.bookingStatus')}
-                    </span>
-                    <div className="pt-0.5">
-                      <span className={getStatusBadgeStyles(activeSlotDetails.entry.status)}>
-                        {t(('status.' + activeSlotDetails.entry.status.replace(' ', '')) as any)}
-                      </span>
+             <motion.div initial={{ opacity: 0, scale: 0.95, y: 15 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 15 }} className="bg-[#0F0F0F] border border-zinc-800 w-full max-w-md rounded-2xl overflow-hidden shadow-2xl">
+               <div className="p-5 border-b border-zinc-900 flex justify-between items-center">
+                 <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-xl bg-teal-500/10 text-teal-400"><User size={16}/></div>
+                    <div>
+                      <div className="font-bold text-white text-base">{t('schedule.appointmentDetails')}</div>
+                      <div className="text-xs text-gray-500 font-sans mt-0.5">{activeSlotDetails.day} — {activeSlotDetails.timeRange}</div>
                     </div>
-                  </div>
-                </div>
-
-                {/* Actions Toolbar */}
-                <div className="border-t border-zinc-900 pt-4 space-y-2.5">
-                  {activeSlotDetails.entry.status === 'Pending Reply' && (
-                    <button
-                      onClick={() => handleWhatsAppAction(activeSlotDetails.entry)}
-                      className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-lg shadow-emerald-500/10 active:scale-95"
-                    >
-                      <MessageSquarePlus size={14} />
-                      {t('schedule.sendWhatsAppNudge')}
-                    </button>
-                  )}
-
-                  {/* Status update selector inside details */}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        onUpdateStatus(activeSlotDetails.entry.id, 'Confirmed');
-                        setActiveSlotDetails(prev => prev ? { ...prev, entry: { ...prev.entry, status: 'Confirmed' } } : null);
-                      }}
-                      className="flex-1 bg-zinc-900 hover:bg-zinc-850 border border-zinc-850 text-emerald-400 hover:text-emerald-300 font-bold py-2 rounded-xl text-[11px] flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95"
-                    >
-                      <Check size={11} /> {t('schedule.confirm')}
-                    </button>
-                    <button
-                      onClick={() => {
-                        onUpdateStatus(activeSlotDetails.entry.id, 'Estimated');
-                        setActiveSlotDetails(prev => prev ? { ...prev, entry: { ...prev.entry, status: 'Estimated' } } : null);
-                      }}
-                      className="flex-1 bg-zinc-900 hover:bg-zinc-850 border border-zinc-850 text-amber-500 hover:text-amber-400 font-bold py-2 rounded-xl text-[11px] flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95"
-                    >
-                      <Clock size={11} /> {t('schedule.estimate')}
-                    </button>
-                  </div>
-
-                  {/* Cancel Booking option */}
-                  <button
-                    type="button"
-                    onClick={() => handleCancelBooking(activeSlotDetails.entry.id)}
-                    className="w-full bg-red-950/20 hover:bg-red-950/40 border border-red-900/30 text-red-400 hover:text-red-300 font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
-                  >
-                    <Trash2 size={13} />
-                    Cancel Appointment
-                  </button>
-                </div>
-              </div>
-            </motion.div>
+                 </div>
+                 <button onClick={() => setActiveSlotDetails(null)} className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-zinc-900 hover:bg-zinc-800 rounded-lg text-gray-400 cursor-pointer"><X size={15}/></button>
+               </div>
+               
+               <div className="p-5 space-y-4">
+                 <div className="bg-[#121212] border border-zinc-850 p-4 rounded-xl space-y-1">
+                   <div className="text-[9px] text-gray-500 uppercase font-mono font-bold">{t('schedule.customerName')}</div>
+                   <div className="text-base font-bold text-white flex items-center gap-2">
+                     {activeSlotDetails.entry.customerName}
+                     {activeSlotDetails.entry.queueNumber && <span className="text-[10px] bg-amber-500/10 text-amber-500 font-mono px-1.5 py-0.5 rounded">No. {activeSlotDetails.entry.queueNumber}</span>}
+                   </div>
+                   <div className="text-xs text-gray-400 font-mono">{t('schedule.phone')} {activeSlotDetails.entry.phone}</div>
+                 </div>
+                 <div className="grid grid-cols-2 gap-3.5">
+                   <div className="bg-[#121212] border border-zinc-850 p-3 rounded-xl">
+                     <div className="text-[9px] text-gray-500 uppercase font-mono font-bold mb-1 flex items-center gap-1"><Scissors size={10} className="text-amber-500"/> {t('requests.service')}</div>
+                     <div className="text-xs font-semibold text-gray-200 truncate">{activeSlotDetails.entry.service}</div>
+                   </div>
+                   <div className="bg-[#121212] border border-zinc-850 p-3 rounded-xl">
+                     <div className="text-[9px] text-gray-500 uppercase font-mono font-bold mb-1 flex items-center gap-1"><User size={10} className="text-teal-400"/> {t('schedule.assignedBarber')}</div>
+                     <div className="text-xs font-semibold text-gray-200 truncate">{activeSlotDetails.entry.barber}</div>
+                   </div>
+                 </div>
+                 
+                 <div className="border-t border-zinc-900 pt-4 space-y-2.5">
+                    {activeSlotDetails.entry.status === 'Pending Reply' && (
+                      <button onClick={() => handleWhatsAppAction(activeSlotDetails.entry)} className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-bold py-2.5 px-4 rounded-xl text-xs flex justify-center gap-1.5 cursor-pointer transition-colors">
+                        <MessageSquarePlus size={14} /> {t('schedule.sendWhatsAppNudge')}
+                      </button>
+                    )}
+                    <div className="flex gap-2">
+                      <button onClick={() => { onUpdateStatus(activeSlotDetails.entry.id, 'Confirmed'); setActiveSlotDetails(null); }} className="flex-1 bg-zinc-900 hover:bg-zinc-850 border border-zinc-850 text-emerald-400 font-bold rounded-xl text-[11px] flex justify-center items-center min-h-[44px] gap-1 cursor-pointer transition-colors"><Check size={11} /> {t('schedule.confirm')}</button>
+                      <button onClick={() => { onRemoveBooking && onRemoveBooking(activeSlotDetails.entry.id); setActiveSlotDetails(null); }} className="min-w-[44px] min-h-[44px] bg-zinc-900 hover:bg-red-900/20 border border-red-950 text-red-400 rounded-xl flex justify-center items-center cursor-pointer transition-colors"><Trash2 size={13}/></button>
+                    </div>
+                 </div>
+               </div>
+             </motion.div>
           </div>
         )}
       </AnimatePresence>
