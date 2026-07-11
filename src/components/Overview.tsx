@@ -13,17 +13,18 @@ import {
   Pause,
   RotateCcw
 } from 'lucide-react';
-import { QueueEntry, Service, Barber, QueueStatus } from '../types';
+import { QueueEntry, Service, Barber } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { BentoCard } from './ui/BentoCard';
 import { useTranslation } from '../i18n';
 
 interface OverviewProps {
   queue: QueueEntry[];
-  currentlyServing: QueueEntry | null;
-  onCompleteSession: (id: string, actualDuration: number) => void;
+  servingSessions: Record<string, QueueEntry | null>;
+  onCompleteSession: (barberId: string, actualDuration: number) => void;
+  onCallNextForBarber: (barberId: string) => void;
+  onServeNow: (entry: QueueEntry, barberId: string) => void;
   onAddWalkIn: (name: string, service: string, barber: string) => void;
-  onServeNow: (entry: QueueEntry) => void;
   barbers: Barber[];
   services: Service[];
   completedCount: number;
@@ -31,11 +32,183 @@ interface OverviewProps {
   todayKey: string;
 }
 
+interface BarberSeatCardProps {
+  barber: Barber;
+  session: QueueEntry | null;
+  todayQueue: QueueEntry[];
+  onCompleteSession: (barberId: string, duration: number) => void;
+  onCallNext: (barberId: string) => void;
+}
+
+const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
+  barber,
+  session,
+  todayQueue,
+  onCompleteSession,
+  onCallNext
+}) => {
+  const { t } = useTranslation();
+  const [elapsedSeconds, setElapsedSeconds] = useState(session ? 420 : 0);
+  const [isTimerRunning, setIsTimerRunning] = useState(!!session);
+
+  useEffect(() => {
+    let interval: any = null;
+    if (session && isTimerRunning) {
+      interval = setInterval(() => {
+        setElapsedSeconds((prev) => prev + 1);
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [session, isTimerRunning]);
+
+  useEffect(() => {
+    if (session) {
+      setElapsedSeconds(420);
+      setIsTimerRunning(true);
+    } else {
+      setElapsedSeconds(0);
+      setIsTimerRunning(false);
+    }
+  }, [session]);
+
+  const formatTime = (totalSeconds: number) => {
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleDoneClick = () => {
+    if (!session) return;
+    onCompleteSession(barber.id, elapsedSeconds / 60);
+    setElapsedSeconds(0);
+    setIsTimerRunning(false);
+  };
+
+  const nextInLine = todayQueue.find(q => q.barber === barber.name);
+
+  if (barber.status === 'off') {
+    return null; // Do not render seat for off barbers
+  }
+
+  if (barber.status === 'break') {
+    return (
+      <BentoCard variant="default" badge={{ label: t('overview.statusBreak') as string || 'BREAK', color: 'gray' }} title={barber.name}>
+        <div className="py-6 flex flex-col items-center justify-center text-gray-500">
+          <UserCheck size={24} className="mb-2 opacity-50" />
+          <p className="font-sans text-sm font-medium">{t('overview.onBreak') as string || 'On Break'}</p>
+        </div>
+      </BentoCard>
+    );
+  }
+
+  return (
+    <BentoCard
+      variant={session ? "featured" : "default"}
+      badge={session ? { label: 'LIVE', color: 'amber', dot: true } : undefined}
+      title={barber.name}
+    >
+      <AnimatePresence mode="wait">
+        {session ? (
+          <motion.div
+            key={session.id}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-5"
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <h4 className="text-xl font-bold text-white font-sans tracking-tight">
+                  {session.customerName}
+                </h4>
+                <p className="text-sm text-gray-400 mt-1 flex items-center gap-1.5 font-sans">
+                  <span className="text-amber-500 font-medium">{session.service}</span>
+                </p>
+              </div>
+
+              <div className="text-right">
+                <span className="text-xs text-gray-500 font-mono block">{t('overview.estimatedTime')}</span>
+                <span className="text-sm font-semibold text-gray-300 font-mono block mt-0.5">
+                  {session.timeRange}
+                </span>
+              </div>
+            </div>
+
+            {/* Active Timer Display */}
+            <div className="bg-[#050505] border border-border-subtle rounded-xl p-3 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] text-gray-500 font-sans uppercase tracking-wider block">{t('overview.serviceTimer')}</span>
+                <span className="text-2xl font-bold font-mono text-white tracking-widest block mt-0.5">
+                  {formatTime(elapsedSeconds)}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setIsTimerRunning(!isTimerRunning)}
+                  className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl border transition-all cursor-pointer ${isTimerRunning
+                      ? 'bg-transparent border-border-subtle text-amber-500 hover:bg-[#151515]'
+                      : 'bg-amber-500 border-amber-500 text-black hover:bg-amber-600 shadow-md shadow-amber-500/10'
+                    }`}
+                  title={isTimerRunning ? "Pause Timer" : "Resume Timer"}
+                >
+                  {isTimerRunning ? <Pause size={16} /> : <Play size={16} />}
+                </button>
+                <button
+                  onClick={() => setElapsedSeconds(0)}
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl border border-border-subtle hover:bg-[#151515] text-gray-400 hover:text-white transition-all cursor-pointer"
+                  title="Reset Timer"
+                >
+                  <RotateCcw size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* Done Action Button */}
+            <button
+              onClick={handleDoneClick}
+              className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-black font-bold py-3 rounded-xl shadow-xl shadow-amber-500/5 hover:shadow-amber-500/15 transition-all text-sm flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
+            >
+              <CheckCircle2 size={18} />
+              {t('overview.completeSession')}
+            </button>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="empty"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="py-6 flex flex-col items-center text-center space-y-3"
+          >
+            <div className="w-12 h-12 rounded-2xl bg-[#151515] flex items-center justify-center text-gray-500 border border-border-subtle">
+              <UserCheck size={24} />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-white font-sans">{t('overview.seatEmpty') as string || 'Seat Available'}</h4>
+            </div>
+            {nextInLine && (
+              <button
+                onClick={() => onCallNext(barber.id)}
+                className="flex items-center gap-1.5 bg-[#121212] hover:bg-[#1A1A1A] text-amber-500 font-semibold border border-border-subtle hover:border-amber-500/20 px-4 py-2 rounded-xl transition-all text-xs cursor-pointer"
+              >
+                <span>{t('overview.callNextFor') as string || 'Call'} {nextInLine.customerName}</span>
+                <ArrowRight size={14} />
+              </button>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </BentoCard>
+  );
+}
+
 export default function Overview({
   queue,
-  currentlyServing,
+  servingSessions,
   onCompleteSession,
-  onServeNow,
+  onCallNextForBarber,
   onAddWalkIn,
   barbers,
   services,
@@ -45,53 +218,11 @@ export default function Overview({
 }: OverviewProps) {
   const { t } = useTranslation();
   
-  // Timer State
-  const [elapsedSeconds, setElapsedSeconds] = useState(720); // starts at 12 minutes (720s) for demonstration
-  const [isTimerRunning, setIsTimerRunning] = useState(true);
-
   // Walk-in form modal
   const [showWalkInModal, setShowWalkInModal] = useState(false);
   const [walkInName, setWalkInName] = useState('');
   const [walkInService, setWalkInService] = useState(services[0]?.name || '');
   const [walkInBarber, setWalkInBarber] = useState(barbers[0]?.name || '');
-
-  // Live Timer Effect
-  useEffect(() => {
-    let interval: any = null;
-    if (currentlyServing && isTimerRunning) {
-      interval = setInterval(() => {
-        setElapsedSeconds((prev) => prev + 1);
-      }, 1000);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [currentlyServing, isTimerRunning]);
-
-  // Reset timer if currently serving customer changes
-  useEffect(() => {
-    if (currentlyServing) {
-      setElapsedSeconds(420); // 7 minutes already passed as simulation
-      setIsTimerRunning(true);
-    } else {
-      setElapsedSeconds(0);
-      setIsTimerRunning(false);
-    }
-  }, [currentlyServing]);
-
-  const formatTime = (totalSeconds: number) => {
-    const mins = Math.floor(totalSeconds / 60);
-    const secs = totalSeconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  // Session Handlers
-  const handleDoneClick = () => {
-    if (!currentlyServing) return;
-    onCompleteSession(currentlyServing.id, elapsedSeconds / 60);
-    setElapsedSeconds(0);
-    setIsTimerRunning(false);
-  };
 
   const handleWalkInSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,10 +232,14 @@ export default function Overview({
     setShowWalkInModal(false);
   };
 
-  // Calculate live average wait time based on queue length
-  // Filter today's queue using todayKey from App.tsx (single source of truth)
   const todayQueue = queue.filter(q => q.day === todayKey);
-  const estimatedWaitTime = todayQueue.length * 20 + (currentlyServing ? 15 : 0);
+  
+  // Active seats calculation
+  const activeBarberCount = barbers.filter(b => b.status === 'active').length || 1;
+  const occupiedSeats = Object.values(servingSessions).filter(Boolean).length;
+  const estimatedWaitTime = Math.ceil(todayQueue.length / activeBarberCount) * 20 + (occupiedSeats > 0 ? 10 : 0);
+  
+  const totalVisits = completedCount + todayQueue.length + occupiedSeats;
 
   return (
     <div className="space-y-6">
@@ -136,7 +271,7 @@ export default function Overview({
           </div>
           <div className="mt-4 md:mt-6">
             <h3 className="text-2xl md:text-4xl font-display font-bold text-white font-mono leading-none">
-              {completedCount + todayQueue.length + (currentlyServing ? 1 : 0)}
+              {totalVisits}
             </h3>
             <p className="text-[10px] md:text-xs text-teal-400 font-sans mt-1 flex items-center gap-1">
               <TrendingUp size={12} />
@@ -182,148 +317,30 @@ export default function Overview({
         </BentoCard>
       </div>
 
-      {/* Main Grid: Serving & AI assistant panels */}
+      {/* Main Grid: Seats & AI assistant panels */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* Column 1: Currently Serving (Left) */}
-        <div className="col-span-1 lg:col-span-2 space-y-6">
-          <BentoCard
-            variant="featured"
-            badge={{ label: 'LIVE', color: 'amber', dot: true }}
-            title={t('overview.currentlyServing')}
-            tags={currentlyServing ? [t('overview.seat1')] : []}
-          >
-            <AnimatePresence mode="wait">
-              {currentlyServing ? (
-                <motion.div
-                  key={currentlyServing.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="space-y-6"
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h4 className="text-2xl font-bold text-white font-sans tracking-tight">
-                        {currentlyServing.customerName}
-                      </h4>
-                      <p className="text-sm text-gray-400 mt-1 flex items-center gap-1.5 font-sans">
-                        <span className="text-amber-500 font-medium">{currentlyServing.service}</span>
-                        <span className="text-gray-600">•</span>
-                        <span>{t('overview.barber')}: {currentlyServing.barber}</span>
-                      </p>
-                    </div>
-
-                    <div className="text-right">
-                      <span className="text-xs text-gray-500 font-mono block">{t('overview.estimatedTime')}</span>
-                      <span className="text-sm font-semibold text-gray-300 font-mono block mt-0.5">
-                        {currentlyServing.timeRange}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Active Timer Display */}
-                  <div className="bg-[#050505] border border-border-subtle rounded-xl p-4 flex items-center justify-between">
-                    <div>
-                      <span className="text-xs text-gray-500 font-sans uppercase tracking-wider block">{t('overview.serviceTimer')}</span>
-                      <span className="text-3xl md:text-4xl font-bold font-mono text-white tracking-widest block mt-1">
-                        {formatTime(elapsedSeconds)}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setIsTimerRunning(!isTimerRunning)}
-                        className={`p-3 rounded-xl border transition-all cursor-pointer ${isTimerRunning
-                            ? 'bg-transparent border-border-subtle text-amber-500 hover:bg-[#151515]'
-                            : 'bg-amber-500 border-amber-500 text-black hover:bg-amber-600 shadow-md shadow-amber-500/10'
-                          }`}
-                        title={isTimerRunning ? "Pause Timer" : "Resume Timer"}
-                        id="toggle-timer-btn"
-                      >
-                        {isTimerRunning ? <Pause size={18} /> : <Play size={18} />}
-                      </button>
-                      <button
-                        onClick={() => setElapsedSeconds(0)}
-                        className="p-3 rounded-xl border border-border-subtle hover:bg-[#151515] text-gray-400 hover:text-white transition-all cursor-pointer"
-                        title="Reset Timer"
-                        id="reset-timer-btn"
-                      >
-                        <RotateCcw size={18} />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Big Done Action Button */}
-                  <button
-                    onClick={handleDoneClick}
-                    className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-black font-bold py-4 rounded-xl shadow-xl shadow-amber-500/5 hover:shadow-amber-500/15 transition-all text-base flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
-                    id="complete-serving-btn"
-                  >
-                    <CheckCircle2 size={20} />
-                    {t('overview.completeSession')}
-                  </button>
-                </motion.div>
-              ) : (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="py-12 flex flex-col items-center text-center space-y-4"
-                >
-                  <div className="w-16 h-16 rounded-2xl bg-[#151515] flex items-center justify-center text-gray-500 border border-border-subtle">
-                    <UserCheck size={28} />
-                  </div>
-                  <div>
-                    <h4 className="text-lg font-bold text-white font-sans">{t('overview.noCustomerActive')}</h4>
-                    <p className="text-sm text-gray-500 mt-1 max-w-sm font-sans">
-                      {t('overview.noCustomerDesc')}
-                    </p>
-                  </div>
-                  {todayQueue.length > 0 && (
-                    <button
-                      onClick={() => onServeNow(todayQueue[0])} // triggers pull next
-                      className="flex items-center gap-1.5 bg-[#121212] hover:bg-[#1A1A1A] text-amber-500 font-semibold border border-border-subtle hover:border-amber-500/20 px-4 py-2.5 rounded-xl transition-all text-xs cursor-pointer"
-                      id="serve-next-prompt-btn"
-                    >
-                      <span>{t('overview.callNext')} ({todayQueue[0].customerName})</span>
-                      <ArrowRight size={14} />
-                    </button>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </BentoCard>
-
-          {/* Mini Next Customer Quick View */}
-          {todayQueue.length > 0 && (
-            <BentoCard
-              variant="default"
-              badge={{
-                label: todayQueue[0].status,
-                color: todayQueue[0].status === 'Confirmed' ? 'teal' : todayQueue[0].status === 'Estimated' ? 'amber' : 'gray'
-              }}
-              tags={[t('overview.upNext')]}
-              className="!p-5"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#151515] border border-border-subtle flex items-center justify-center text-amber-500 text-sm font-bold font-mono">
-                  #2
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-white font-sans mt-0.5">
-                    {todayQueue[0].customerName}
-                  </h4>
-                  <p className="text-xs text-gray-400 mt-0.5 font-sans">
-                    {todayQueue[0].service} • {todayQueue[0].barber}
-                  </p>
-                </div>
-              </div>
-            </BentoCard>
-          )}
+        {/* Column 1: Seats Grid (Left) */}
+        <div className="col-span-1 lg:col-span-2">
+          <div className="flex items-center gap-2 mb-4">
+             <h2 className="text-lg font-bold text-white font-display tracking-tight">{t('overview.allSeats') as string || 'Active Barber Seats'}</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {barbers.map(barber => (
+              <BarberSeatCard
+                key={barber.id}
+                barber={barber}
+                session={servingSessions[barber.id] || null}
+                todayQueue={todayQueue}
+                onCompleteSession={onCompleteSession}
+                onCallNext={onCallNextForBarber}
+              />
+            ))}
+          </div>
         </div>
 
         {/* Column 2: AI Panel & Quick Stats (Right) */}
-        <div className="col-span-1 space-y-6">
+        <div className="col-span-1 space-y-6 lg:pt-[44px]">
           {/* Glassmorphic AI assistant panel */}
           <BentoCard
             variant="default"
@@ -336,7 +353,7 @@ export default function Overview({
 
             <p className="text-sm text-gray-300 font-sans leading-relaxed">
               "{t('overview.aiEstimatorDesc1')}
-              <span className="text-teal-400 font-medium"> Marcus Vance</span>{t('overview.aiEstimatorDesc2')} <span className="text-amber-500 font-medium font-mono">38 {t('overview.mins')}</span> {t('overview.aiEstimatorDesc3')}"
+              <span className="text-teal-400 font-medium"> {barbers.filter(b => b.status === 'active').length} Barbers</span>{t('overview.aiEstimatorDesc2')} <span className="text-amber-500 font-medium font-mono">{estimatedWaitTime} {t('overview.mins')}</span> {t('overview.aiEstimatorDesc3')}"
             </p>
 
             <div className="mt-5 space-y-3 pt-4 border-t border-border-subtle">
