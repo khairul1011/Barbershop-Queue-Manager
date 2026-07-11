@@ -359,24 +359,26 @@ export default function Schedule({
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto flex">
-              {/* Time Axis */}
-              <div className="w-[60px] flex-none border-r border-zinc-900 relative bg-[#0A0A0A]">
-                 <div className="h-[45px]" /> {/* Header spacer */}
-                 {Array.from({ length: GRID_END_HOUR - GRID_START_HOUR + 1 }, (_, i) => i + GRID_START_HOUR).map(hour => (
-                   <div key={hour} className="absolute w-full text-right pr-2 text-[10px] text-gray-500 font-mono -translate-y-2" style={{ top: (hour - GRID_START_HOUR) * 60 * PIXELS_PER_MINUTE + 45 }}>
-                     {hour.toString().padStart(2, '0')}:00
-                   </div>
-                 ))}
-              </div>
-              
-              {/* Columns */}
-              <div className="flex-1 flex overflow-x-auto min-w-0">
-                {activeBarbers.map((b, idx) => (
-                  <div key={b.id} className={`flex-1 min-w-[200px] ${activeMobileBarberIndex === idx ? 'block' : 'hidden lg:block'}`}>
-                    {renderTimeGridColumn(b, selectedDay)}
-                  </div>
-                ))}
+            <div className="flex-1 overflow-auto min-h-0">
+              <div className="flex min-w-max relative">
+                {/* Time Axis */}
+                <div className="w-[60px] flex-none border-r border-zinc-900 bg-[#0A0A0A] sticky left-0 z-10">
+                   <div className="h-[45px]" /> {/* Header spacer */}
+                   {Array.from({ length: GRID_END_HOUR - GRID_START_HOUR + 1 }, (_, i) => i + GRID_START_HOUR).map(hour => (
+                     <div key={hour} className="absolute w-full text-right pr-2 text-[10px] text-gray-500 font-mono -translate-y-2" style={{ top: (hour - GRID_START_HOUR) * 60 * PIXELS_PER_MINUTE + 45 }}>
+                       {hour.toString().padStart(2, '0')}:00
+                     </div>
+                   ))}
+                </div>
+                
+                {/* Columns */}
+                <div className="flex">
+                  {activeBarbers.map((b, idx) => (
+                    <div key={b.id} className={`w-[250px] lg:flex-1 lg:min-w-[200px] ${activeMobileBarberIndex === idx ? 'block' : 'hidden lg:block'}`}>
+                      {renderTimeGridColumn(b, selectedDay)}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
