@@ -382,7 +382,7 @@ export default function Schedule({
                   {/* Time Axis */}
                   <div className="w-[60px] flex-none border-r border-zinc-900 bg-[#0A0A0A] sticky left-0 z-10">
                    {Array.from({ length: businessHours.closeHour - businessHours.openHour + 1 }, (_, i) => i + businessHours.openHour).map(hour => (
-                     <div key={hour} className="absolute w-full text-right pr-2 text-[10px] text-gray-500 font-mono -translate-y-2" style={{ top: (hour - businessHours.openHour) * 60 * PIXELS_PER_MINUTE }}>
+                     <div key={hour} className={`absolute w-full text-right pr-2 text-[10px] text-gray-500 font-mono ${hour === businessHours.openHour ? 'translate-y-1' : '-translate-y-2'}`} style={{ top: (hour - businessHours.openHour) * 60 * PIXELS_PER_MINUTE }}>
                        {hour.toString().padStart(2, '0')}:00
                      </div>
                    ))}
