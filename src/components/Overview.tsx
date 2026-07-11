@@ -154,14 +154,14 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
                     }`}
                   title={isTimerRunning ? "Pause Timer" : "Resume Timer"}
                 >
-                  {isTimerRunning ? <Pause size={16} /> : <Play size={16} />}
+                  {isTimerRunning ? <Pause size={18} /> : <Play size={18} />}
                 </button>
                 <button
                   onClick={() => setElapsedSeconds(0)}
                   className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl border border-border-subtle hover:bg-[#151515] text-gray-400 hover:text-white transition-all cursor-pointer"
                   title="Reset Timer"
                 >
-                  <RotateCcw size={16} />
+                  <RotateCcw size={18} />
                 </button>
               </div>
             </div>

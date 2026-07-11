@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from '../i18n';
+import { SegmentedToggle } from './ui/SegmentedToggle';
 
 interface ScheduleProps {
   queue: QueueEntry[];
@@ -282,26 +283,17 @@ export default function Schedule({
 
         <div className="flex flex-wrap items-center gap-3 bg-[#0A0A0A] p-2 rounded-2xl border border-zinc-900 justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex bg-zinc-950 p-1 rounded-xl border border-zinc-800">
-              <button
-                onClick={() => setViewMode('Daily')}
-                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${viewMode === 'Daily' ? 'bg-zinc-800 text-white' : 'text-gray-500 hover:text-gray-300'}`}
-              >
-                {t('schedule.daily')}
-              </button>
-              <button
-                onClick={() => setViewMode('Weekly')}
-                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${viewMode === 'Weekly' ? 'bg-zinc-800 text-white' : 'text-gray-500 hover:text-gray-300'}`}
-              >
-                {t('schedule.weekly')}
-              </button>
-              <button
-                onClick={() => setViewMode('Monthly')}
-                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${viewMode === 'Monthly' ? 'bg-zinc-800 text-white' : 'text-gray-500 hover:text-gray-300'}`}
-              >
-                {t('schedule.monthly')}
-              </button>
-            </div>
+            <SegmentedToggle
+              options={[
+                { value: 'Daily', label: t('schedule.daily') as string },
+                { value: 'Weekly', label: t('schedule.weekly') as string },
+                { value: 'Monthly', label: t('schedule.monthly') as string },
+              ]}
+              value={viewMode}
+              onChange={(v: string) => setViewMode(v as 'Daily' | 'Weekly' | 'Monthly')}
+              size="md"
+              idPrefix="schedule-view"
+            />
             
             <button
               onClick={() => {
@@ -348,9 +340,9 @@ export default function Schedule({
           <div className="flex-1 flex flex-col bg-[#050505] border border-zinc-900 rounded-2xl overflow-hidden relative">
             <div className="flex items-center justify-between p-3 border-b border-zinc-900 bg-[#0A0A0A]">
               <div className="flex items-center gap-3">
-                <button onClick={() => setWeekOffset(o => o - 1)} className="min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-zinc-800 rounded-lg text-gray-400 cursor-pointer"><ChevronLeft size={16}/></button>
+                <button onClick={() => setWeekOffset(o => o - 1)} className="min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-zinc-800 rounded-lg text-gray-400 cursor-pointer"><ChevronLeft size={18}/></button>
                 <span className="font-bold text-white min-w-[120px] text-center">{weekDates.find(d => d.day === selectedDay)?.label}</span>
-                <button onClick={() => setWeekOffset(o => o + 1)} className="min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-zinc-800 rounded-lg text-gray-400 cursor-pointer"><ChevronRight size={16}/></button>
+                <button onClick={() => setWeekOffset(o => o + 1)} className="min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-zinc-800 rounded-lg text-gray-400 cursor-pointer"><ChevronRight size={18}/></button>
               </div>
               
               {/* Mobile Barber Tabs */}
@@ -393,9 +385,9 @@ export default function Schedule({
         {viewMode === 'Weekly' && (
           <div className="flex-1 overflow-y-auto bg-[#050505] rounded-2xl border border-zinc-900 p-4 space-y-4">
              <div className="flex items-center gap-3 mb-4">
-                <button onClick={() => setWeekOffset(o => o - 1)} className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-zinc-900 rounded-full text-gray-400 hover:text-white cursor-pointer"><ChevronLeft size={16}/></button>
+                <button onClick={() => setWeekOffset(o => o - 1)} className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-zinc-900 rounded-full text-gray-400 hover:text-white cursor-pointer"><ChevronLeft size={18}/></button>
                 <span className="font-bold text-white text-lg">{weekRangeStr}</span>
-                <button onClick={() => setWeekOffset(o => o + 1)} className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-zinc-900 rounded-full text-gray-400 hover:text-white cursor-pointer"><ChevronRight size={16}/></button>
+                <button onClick={() => setWeekOffset(o => o + 1)} className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-zinc-900 rounded-full text-gray-400 hover:text-white cursor-pointer"><ChevronRight size={18}/></button>
              </div>
              
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
@@ -436,9 +428,9 @@ export default function Schedule({
           <div className="flex-1 flex flex-col bg-[#050505] rounded-2xl border border-zinc-900 p-4 min-h-0">
              <div className="flex items-center justify-between mb-4 flex-none">
                 <h2 className="text-xl font-bold text-white flex items-center gap-3">
-                  <button onClick={() => setMonthOffset(o => o - 1)} className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-zinc-900 rounded-full text-gray-400 hover:text-white cursor-pointer"><ChevronLeft size={16}/></button>
+                  <button onClick={() => setMonthOffset(o => o - 1)} className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-zinc-900 rounded-full text-gray-400 hover:text-white cursor-pointer"><ChevronLeft size={18}/></button>
                   {monthName}
-                  <button onClick={() => setMonthOffset(o => o + 1)} className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-zinc-900 rounded-full text-gray-400 hover:text-white cursor-pointer"><ChevronRight size={16}/></button>
+                  <button onClick={() => setMonthOffset(o => o + 1)} className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-zinc-900 rounded-full text-gray-400 hover:text-white cursor-pointer"><ChevronRight size={18}/></button>
                 </h2>
              </div>
              

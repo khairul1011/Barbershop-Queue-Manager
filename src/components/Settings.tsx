@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from '../i18n';
+import { SegmentedToggle, SegmentOption } from './ui/SegmentedToggle';
 
 interface SettingsProps {
   services: Service[];
@@ -203,7 +204,7 @@ export default function SettingsView({
                   title={t('settings.deleteService')}
                   id={`remove-service-${svc.id}`}
                 >
-                  <Trash size={12} />
+                  <Trash size={14} />
                 </button>
               </div>
             ))}
@@ -306,40 +307,31 @@ export default function SettingsView({
                 </div>
 
                 <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end shrink-0">
-                  <div className="flex gap-1 bg-[#121212] border border-border-subtle p-1 rounded-xl">
-                  {(['active', 'break', 'off'] as const).map((statusOption) => (
-                    <button
-                      key={statusOption}
-                      onClick={() => onUpdateBarberStatus(barber.id, statusOption)}
-                      className={`px-2.5 py-1 text-[10px] font-mono font-bold rounded-lg uppercase cursor-pointer transition-all ${
-                        barber.status === statusOption
-                          ? statusOption === 'active'
-                            ? 'bg-teal-500 text-black font-semibold'
-                            : statusOption === 'break'
-                            ? 'bg-amber-500 text-black font-semibold'
-                            : 'bg-gray-500 text-black font-semibold'
-                          : 'text-gray-500 hover:text-white'
-                      }`}
-                      id={`barber-status-${barber.id}-${statusOption}`}
-                    >
-                      {statusOption === 'active' ? t('settings.active') : statusOption === 'break' ? t('settings.break') : t('settings.off')}
-                    </button>
-                  ))}
-                  </div>
-                  <div className="flex gap-1">
+                  <SegmentedToggle
+                    options={[
+                      { value: 'active', label: t('settings.active') as string, activeColor: 'teal' },
+                      { value: 'break', label: t('settings.break') as string, activeColor: 'amber' },
+                      { value: 'off', label: t('settings.off') as string, activeColor: 'gray' },
+                    ]}
+                    value={barber.status}
+                    onChange={(v: string) => onUpdateBarberStatus(barber.id, v as 'active' | 'break' | 'off')}
+                    size="sm"
+                    idPrefix={`barber-status-${barber.id}`}
+                  />
+                  <div className="flex gap-2">
                     <button
                       onClick={() => startEditBarber(barber)}
                       className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-[#121212] border border-border-subtle text-amber-500 hover:bg-amber-500/15 rounded-lg transition-all cursor-pointer"
                       title="Edit"
                     >
-                      <Edit3 size={12} />
+                      <Edit3 size={14} />
                     </button>
                     <button
                       onClick={() => onRemoveBarber(barber.id)}
                       className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-[#121212] border border-border-subtle text-red-400 hover:bg-red-500/15 hover:border-red-500/30 rounded-lg transition-all cursor-pointer"
                       title="Delete"
                     >
-                      <Trash size={12} />
+                      <Trash size={14} />
                     </button>
                   </div>
                 </div>

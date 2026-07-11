@@ -193,7 +193,7 @@ export default function QueueList({
                           title="WhatsApp Nudge"
                           id={`nudge-btn-${item.id}`}
                         >
-                          <MessageCircle size={14} />
+                          <MessageCircle size={16} />
                         </button>
 
                         {/* Delete */}
@@ -203,7 +203,7 @@ export default function QueueList({
                           title="Remove from queue"
                           id={`delete-btn-${item.id}`}
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={16} />
                         </button>
                       </td>
                     </motion.tr>
