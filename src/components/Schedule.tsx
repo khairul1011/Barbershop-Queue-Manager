@@ -357,27 +357,30 @@ export default function Schedule({
               ))}
             </div>
 
-            {/* Fixed Barber Header Row */}
-            <div className="flex flex-none border-b border-zinc-900 bg-[#0A0A0A]">
-              <div className="w-[60px] flex-none" /> {/* Spacer for time axis */}
-              <div className="flex w-full">
-                {activeBarbers.map((b, idx) => (
-                  <div key={b.id} className={`w-[250px] lg:min-w-[200px] lg:flex-1 p-3 text-center border-r border-zinc-900/50 ${activeMobileBarberIndex === idx ? 'block' : 'hidden lg:block'}`}>
-                    <div className="font-bold text-sm text-white">{b.name}</div>
-                    <div className="text-[10px] text-gray-500 uppercase font-mono tracking-wider mt-0.5 flex justify-center gap-1">
-                      {b.status === 'break' && <span className="text-amber-500">{t('overview.statusBreak')}</span>}
-                      {b.status === 'active' && <span className="text-teal-500">{t('overview.statusOnSeat')}</span>}
-                    </div>
+            {/* Scrollable Grid Area (Handles both H & V scrolling, ensuring perfect alignment) */}
+            <div className="flex-1 overflow-auto min-h-0 relative">
+              <div className="flex flex-col min-w-max">
+                
+                {/* Fixed Barber Header Row (Inside scroll container to sync widths) */}
+                <div className="flex flex-none border-b border-zinc-900 bg-[#0A0A0A] sticky top-0 z-20">
+                  <div className="w-[60px] flex-none bg-[#0A0A0A] sticky left-0 z-30" /> {/* Spacer for time axis */}
+                  <div className="flex w-full">
+                    {activeBarbers.map((b, idx) => (
+                      <div key={b.id} className={`w-[250px] lg:min-w-[200px] lg:flex-1 p-3 text-center border-r border-zinc-900/50 ${activeMobileBarberIndex === idx ? 'block' : 'hidden lg:block'}`}>
+                        <div className="font-bold text-sm text-white">{b.name}</div>
+                        <div className="text-[10px] text-gray-500 uppercase font-mono tracking-wider mt-0.5 flex justify-center gap-1">
+                          {b.status === 'break' && <span className="text-amber-500">{t('overview.statusBreak')}</span>}
+                          {b.status === 'active' && <span className="text-teal-500">{t('overview.statusOnSeat')}</span>}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
 
-            {/* Scrollable Grid Area */}
-            <div className="flex-1 overflow-auto min-h-0">
-              <div className="flex min-w-max relative">
-                {/* Time Axis */}
-                <div className="w-[60px] flex-none border-r border-zinc-900 bg-[#0A0A0A] sticky left-0 z-10">
+                {/* Grid Body */}
+                <div className="flex flex-1 relative">
+                  {/* Time Axis */}
+                  <div className="w-[60px] flex-none border-r border-zinc-900 bg-[#0A0A0A] sticky left-0 z-10">
                    {Array.from({ length: businessHours.closeHour - businessHours.openHour + 1 }, (_, i) => i + businessHours.openHour).map(hour => (
                      <div key={hour} className="absolute w-full text-right pr-2 text-[10px] text-gray-500 font-mono -translate-y-2" style={{ top: (hour - businessHours.openHour) * 60 * PIXELS_PER_MINUTE }}>
                        {hour.toString().padStart(2, '0')}:00
@@ -392,6 +395,7 @@ export default function Schedule({
                       {renderTimeGridColumn(b, selectedDay)}
                     </div>
                   ))}
+                  </div>
                 </div>
               </div>
             </div>
