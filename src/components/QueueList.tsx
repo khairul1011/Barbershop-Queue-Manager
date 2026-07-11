@@ -106,7 +106,91 @@ export default function QueueList({
       </div>
 
       {/* Queue Listing Container */}
-      <div className="bg-card-bg border border-border-subtle rounded-2xl overflow-hidden">
+      
+      {/* Mobile Card List (< md) */}
+      <div className="md:hidden space-y-3">
+        <AnimatePresence mode="popLayout">
+          {filteredQueue.length > 0 ? filteredQueue.map((item, index) => (
+            <motion.div
+              key={item.id}
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, x: -30 }}
+              className="bg-card-bg border border-border-subtle rounded-2xl overflow-hidden"
+            >
+              {/* Card Header: name + badge */}
+              <div className="flex items-start justify-between p-4 pb-3">
+                <div className="flex items-center gap-3">
+                  <span className="w-7 h-7 rounded-full bg-[#151515] border border-border-subtle flex items-center justify-center font-mono text-[11px] text-gray-400 flex-none">
+                    {index + 1}
+                  </span>
+                  <div>
+                    <div className="font-bold text-gray-100 font-sans">{item.customerName}</div>
+                    <div className="text-xs text-gray-500 font-mono">{item.phone}</div>
+                  </div>
+                </div>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ml-2 ${getStatusBadge(item.status)}`}>
+                  {item.status}
+                </span>
+              </div>
+              
+              {/* Card Body: service, barber, time */}
+              <div className="px-4 pb-3 space-y-1">
+                <div className="text-xs text-gray-400 font-sans flex items-center gap-2">
+                  <Sparkles size={11} className="text-amber-500" />
+                  {item.service}
+                  <span className="text-gray-600">•</span>
+                  <span className="text-amber-500 font-medium">{item.barber}</span>
+                </div>
+                <div className="text-xs text-gray-500 font-mono flex items-center gap-2">
+                  <Clock size={11} />
+                  {item.timeRange}
+                </div>
+              </div>
+              
+              {/* Card Footer: actions */}
+              <div className="flex items-center gap-2 px-4 py-3 bg-[#070707] border-t border-border-subtle">
+                <button
+                  onClick={() => { const b = barbers.find(b => b.name === item.barber); if (b) onServeNow(item, b.id); }}
+                  disabled={!!(barbers.find(b => b.name === item.barber) && servingSessions[barbers.find(b => b.name === item.barber)!.id])}
+                  className={`flex-1 inline-flex items-center justify-center min-h-[44px] gap-1.5 rounded-xl text-xs font-semibold transition-all ${
+                    (barbers.find(b => b.name === item.barber) && servingSessions[barbers.find(b => b.name === item.barber)!.id])
+                      ? 'bg-gray-800/50 text-gray-500 cursor-not-allowed border border-gray-800'
+                      : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500 hover:text-black border border-amber-500/20 cursor-pointer'
+                  }`}
+                  title={(barbers.find(b => b.name === item.barber) && servingSessions[barbers.find(b => b.name === item.barber)!.id]) ? "Seat is currently occupied" : "Call to chair"}
+                >
+                  <Play size={13} fill="currentColor" className="stroke-none" />
+                  Serve
+                </button>
+                <button
+                  onClick={() => handleWhatsAppNudge(item)}
+                  className="min-w-[44px] min-h-[44px] bg-[#121212] border border-border-subtle text-teal-400 hover:bg-teal-500/10 rounded-xl transition-colors cursor-pointer inline-flex items-center justify-center"
+                  title="WhatsApp Nudge"
+                >
+                  <MessageCircle size={16} />
+                </button>
+                <button
+                  onClick={() => onRemove(item.id)}
+                  className="min-w-[44px] min-h-[44px] bg-[#121212] border border-red-500/10 text-red-400 hover:bg-red-500/10 rounded-xl transition-colors cursor-pointer inline-flex items-center justify-center"
+                  title="Remove from queue"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </motion.div>
+          )) : (
+            <div className="py-12 text-center text-gray-500 font-sans bg-card-bg border border-border-subtle rounded-2xl">
+              <div className="flex flex-col items-center gap-2">
+                <Users size={24} className="text-gray-700" />
+                <span>No queue entries match your search filters today.</span>
+              </div>
+            </div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      <div className="hidden md:block bg-card-bg border border-border-subtle rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
