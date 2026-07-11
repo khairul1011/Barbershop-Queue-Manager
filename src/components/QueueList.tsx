@@ -17,15 +17,17 @@ import { motion, AnimatePresence } from 'motion/react';
 
 interface QueueListProps {
   queue: QueueEntry[];
+  servingSessions: Record<string, QueueEntry | null>;
   barbers: Barber[];
   todayKey: string;
-  onServeNow: (entry: QueueEntry) => void;
+  onServeNow: (entry: QueueEntry, barberId: string) => void;
   onRemove: (id: string) => void;
   onSendWhatsApp: (phone: string, text: string) => void;
 }
 
 export default function QueueList({
   queue,
+  servingSessions,
   barbers,
   todayKey,
   onServeNow,
@@ -167,9 +169,17 @@ export default function QueueList({
                       <td className="py-4 px-5 text-right space-x-2">
                         {/* Serve Now */}
                         <button
-                          onClick={() => onServeNow(item)}
-                          className="inline-flex items-center gap-1 bg-amber-500/10 text-amber-400 hover:bg-amber-500 hover:text-black hover:font-bold border border-amber-500/20 px-2.5 py-1.5 rounded-xl text-xs transition-all cursor-pointer"
-                          title="Call to chair"
+                          onClick={() => {
+                            const targetBarber = barbers.find(b => b.name === item.barber);
+                            if (targetBarber) onServeNow(item, targetBarber.id);
+                          }}
+                          disabled={!!(barbers.find(b => b.name === item.barber) && servingSessions[barbers.find(b => b.name === item.barber)!.id])}
+                          className={`inline-flex items-center justify-center min-h-[44px] min-w-[80px] px-3 gap-1 rounded-xl text-xs transition-all ${
+                            (barbers.find(b => b.name === item.barber) && servingSessions[barbers.find(b => b.name === item.barber)!.id])
+                              ? 'bg-gray-800/50 text-gray-500 cursor-not-allowed border border-gray-800'
+                              : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500 hover:text-black hover:font-bold border border-amber-500/20 cursor-pointer'
+                          }`}
+                          title={(barbers.find(b => b.name === item.barber) && servingSessions[barbers.find(b => b.name === item.barber)!.id]) ? "Seat is currently occupied" : "Call to chair"}
                           id={`serve-btn-${item.id}`}
                         >
                           <Play size={12} fill="currentColor" className="stroke-none" />
@@ -179,7 +189,7 @@ export default function QueueList({
                         {/* WhatsApp nudge */}
                         <button
                           onClick={() => handleWhatsAppNudge(item)}
-                          className="p-1.5 bg-[#121212] border border-border-subtle text-teal-400 hover:bg-teal-500/10 rounded-xl transition-colors cursor-pointer inline-flex items-center"
+                          className="min-w-[44px] min-h-[44px] bg-[#121212] border border-border-subtle text-teal-400 hover:bg-teal-500/10 rounded-xl transition-colors cursor-pointer inline-flex items-center justify-center"
                           title="WhatsApp Nudge"
                           id={`nudge-btn-${item.id}`}
                         >
@@ -189,7 +199,7 @@ export default function QueueList({
                         {/* Delete */}
                         <button
                           onClick={() => onRemove(item.id)}
-                          className="p-1.5 bg-[#121212] border border-red-500/10 text-red-400 hover:bg-red-500/10 rounded-xl transition-colors cursor-pointer inline-flex items-center"
+                          className="min-w-[44px] min-h-[44px] bg-[#121212] border border-red-500/10 text-red-400 hover:bg-red-500/10 rounded-xl transition-colors cursor-pointer inline-flex items-center justify-center"
                           title="Remove from queue"
                           id={`delete-btn-${item.id}`}
                         >
