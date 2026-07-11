@@ -562,10 +562,17 @@ export default function App() {
             <div className="flex items-center gap-2 text-xs md:text-sm font-sans text-gray-400 bg-[#0F0F0F] border border-[#1A1A1A] rounded-xl px-3 py-2">
               <Clock size={14} className="text-amber-500" />
               <span className="font-mono text-gray-300">
-                {currentTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                <span className="text-gray-600 mx-1.5">•</span>
+                <span className="hidden sm:inline">
+                  {currentTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                  <span className="text-gray-600 mx-1.5">•</span>
+                </span>
                 <span className="text-white font-bold">
-                  {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  <span className="sm:hidden">
+                    {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                  <span className="hidden sm:inline">
+                    {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </span>
                 </span>
               </span>
             </div>

@@ -35,7 +35,7 @@ export default function LanguageSwitcher() {
       >
         <span className="text-base leading-none">{currentLang.flag}</span>
         <span className="hidden sm:inline font-sans font-medium">{currentLang.label}</span>
-        <ChevronDown size={14} className={`text-gray-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown size={14} className={`hidden sm:block text-gray-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       <AnimatePresence>
