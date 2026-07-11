@@ -25,13 +25,12 @@ interface ScheduleProps {
   ) => void;
   onRemoveBooking?: (id: string) => void;
   todayKey?: string;
+  businessHours: { openHour: number; closeHour: number };
 }
 
 const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 type DayType = typeof DAYS_OF_WEEK[number];
 
-const GRID_START_HOUR = 9;
-const GRID_END_HOUR = 20;
 const PIXELS_PER_MINUTE = 1.5;
 
 export default function Schedule({ 
@@ -43,7 +42,8 @@ export default function Schedule({
   services,
   onAddBooking,
   onRemoveBooking,
-  todayKey = 'Wed'
+  todayKey = 'Wed',
+  businessHours
 }: ScheduleProps) {
   const { t } = useTranslation();
   
@@ -145,7 +145,7 @@ export default function Schedule({
   const parseStartMinutes = (timeRange: string): number | null => {
     const match = timeRange.replace('~', '').trim().match(/^(\d{1,2}):(\d{2})/);
     if (!match) return null;
-    return (parseInt(match[1]) - GRID_START_HOUR) * 60 + parseInt(match[2]);
+    return (parseInt(match[1]) - businessHours.openHour) * 60 + parseInt(match[2]);
   };
 
   const allEntries = [...queue, ...completedEntries];
@@ -209,18 +209,18 @@ export default function Schedule({
   // Rendering logic for Time Grid Columns
   const renderTimeGridColumn = (barber: Barber, day: DayType) => {
     const barberEntries = filteredEntries.filter(e => e.barber === barber.name && e.day === day && e.status !== 'Estimated');
-    const hours = Array.from({ length: GRID_END_HOUR - GRID_START_HOUR + 1 }, (_, i) => i + GRID_START_HOUR);
+    const hours = Array.from({ length: businessHours.closeHour - businessHours.openHour + 1 }, (_, i) => i + businessHours.openHour);
 
     return (
       <div className="flex-1 min-w-[200px] border-r border-zinc-900/50 relative">
 
         {/* Grid Background Lines */}
-        <div className="relative" style={{ height: (GRID_END_HOUR - GRID_START_HOUR + 1) * 60 * PIXELS_PER_MINUTE }}>
+        <div className="relative" style={{ height: (businessHours.closeHour - businessHours.openHour + 1) * 60 * PIXELS_PER_MINUTE }}>
           {hours.map(hour => (
             <div 
               key={hour} 
               className="absolute w-full border-t border-zinc-900/40"
-              style={{ top: (hour - GRID_START_HOUR) * 60 * PIXELS_PER_MINUTE }}
+              style={{ top: (hour - businessHours.openHour) * 60 * PIXELS_PER_MINUTE }}
               onClick={() => {
                 setBookingSlot({ day, hour: `${hour.toString().padStart(2, '0')}:00`, barberName: barber.name });
                 setSelectedBarberId(barber.id);
@@ -378,8 +378,8 @@ export default function Schedule({
               <div className="flex min-w-max relative">
                 {/* Time Axis */}
                 <div className="w-[60px] flex-none border-r border-zinc-900 bg-[#0A0A0A] sticky left-0 z-10">
-                   {Array.from({ length: GRID_END_HOUR - GRID_START_HOUR + 1 }, (_, i) => i + GRID_START_HOUR).map(hour => (
-                     <div key={hour} className="absolute w-full text-right pr-2 text-[10px] text-gray-500 font-mono -translate-y-2" style={{ top: (hour - GRID_START_HOUR) * 60 * PIXELS_PER_MINUTE }}>
+                   {Array.from({ length: businessHours.closeHour - businessHours.openHour + 1 }, (_, i) => i + businessHours.openHour).map(hour => (
+                     <div key={hour} className="absolute w-full text-right pr-2 text-[10px] text-gray-500 font-mono -translate-y-2" style={{ top: (hour - businessHours.openHour) * 60 * PIXELS_PER_MINUTE }}>
                        {hour.toString().padStart(2, '0')}:00
                      </div>
                    ))}

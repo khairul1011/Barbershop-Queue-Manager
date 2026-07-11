@@ -13,7 +13,9 @@ import {
   Check, 
   BellRing,
   Edit3,
-  X
+  X,
+  AlertCircle,
+  ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from '../i18n';
@@ -28,6 +30,8 @@ interface SettingsProps {
   onAddBarber: (newBarber: Omit<Barber, 'id'>) => void;
   onEditBarber: (id: string, updatedBarber: Partial<Barber>) => void;
   onRemoveBarber: (id: string) => void;
+  businessHours: { openHour: number; closeHour: number };
+  onUpdateBusinessHours: (newHours: { openHour: number; closeHour: number }) => void;
 }
 
 export default function SettingsView({
@@ -38,7 +42,9 @@ export default function SettingsView({
   onUpdateBarberStatus,
   onAddBarber,
   onEditBarber,
-  onRemoveBarber
+  onRemoveBarber,
+  businessHours,
+  onUpdateBusinessHours
 }: SettingsProps) {
   const { t } = useTranslation();
   // Service form states
@@ -385,6 +391,74 @@ export default function SettingsView({
               <span className="text-[10px] text-gray-500 block">{t('settings.nudgeTemplateHint')}</span>
             </div>
           </div>
+        </div>
+
+        {/* BUSINESS HOURS */}
+        <div className="bg-[#0A0A0A] border border-zinc-900 rounded-2xl p-6">
+           <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-sky-500/10 flex items-center justify-center text-sky-400">
+                <Clock size={20} />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white font-display">Jam Operasional (Global)</h2>
+                <p className="text-sm text-gray-500 font-sans">Mengatur jam kerja untuk seluruh kapster</p>
+              </div>
+           </div>
+           
+           <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 mb-6 flex gap-3">
+             <AlertCircle size={20} className="text-amber-500 flex-shrink-0 mt-0.5" />
+             <p className="text-xs text-amber-500/90 leading-relaxed font-sans">
+               Catatan: Mengubah jam operasional tidak membatalkan booking yang sudah masuk sebelumnya di luar jam baru ini.
+             </p>
+           </div>
+
+           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+             <div className="space-y-2">
+               <label className="text-xs font-bold text-gray-400 uppercase tracking-wider font-mono">Jam Buka</label>
+               <div className="relative">
+                 <select 
+                   value={businessHours.openHour}
+                   onChange={e => {
+                     const newOpen = parseInt(e.target.value);
+                     if (newOpen < businessHours.closeHour) {
+                       onUpdateBusinessHours({ ...businessHours, openHour: newOpen });
+                     }
+                   }}
+                   className="w-full bg-[#050505] border border-zinc-900 text-white text-sm rounded-xl px-4 py-3 appearance-none focus:outline-none focus:border-amber-500 cursor-pointer"
+                 >
+                   {Array.from({ length: 24 }).map((_, i) => (
+                     <option key={`open-${i}`} value={i} disabled={i >= businessHours.closeHour}>
+                       {i.toString().padStart(2, '0')}:00
+                     </option>
+                   ))}
+                 </select>
+                 <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+               </div>
+             </div>
+
+             <div className="space-y-2">
+               <label className="text-xs font-bold text-gray-400 uppercase tracking-wider font-mono">Jam Tutup</label>
+               <div className="relative">
+                 <select 
+                   value={businessHours.closeHour}
+                   onChange={e => {
+                     const newClose = parseInt(e.target.value);
+                     if (newClose > businessHours.openHour) {
+                       onUpdateBusinessHours({ ...businessHours, closeHour: newClose });
+                     }
+                   }}
+                   className="w-full bg-[#050505] border border-zinc-900 text-white text-sm rounded-xl px-4 py-3 appearance-none focus:outline-none focus:border-amber-500 cursor-pointer"
+                 >
+                   {Array.from({ length: 24 }).map((_, i) => (
+                     <option key={`close-${i}`} value={i} disabled={i <= businessHours.openHour}>
+                       {i.toString().padStart(2, '0')}:00
+                     </option>
+                   ))}
+                 </select>
+                 <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+               </div>
+             </div>
+           </div>
         </div>
 
       </div>

@@ -49,6 +49,7 @@ export default function App() {
   const [barbers, setBarbers] = useLocalStorageState<Barber[]>('barberflow_barbers', INITIAL_BARBERS);
   const [services, setServices] = useLocalStorageState<Service[]>('barberflow_services', INITIAL_SERVICES);
   const [completedEntries, setCompletedEntries] = useLocalStorageState<QueueEntry[]>('barberflow_completedEntries', []);
+  const [businessHours, setBusinessHours] = useLocalStorageState<{ openHour: number; closeHour: number }>('barberflow_businessHours', { openHour: 9, closeHour: 20 });
 
   // "Currently Serving" Active slots state (per barber)
   const [servingSessions, setServingSessions] = useLocalStorageState<Record<string, QueueEntry | null>>('barberflow_serving', INITIAL_SERVING_SESSIONS);
@@ -172,7 +173,7 @@ export default function App() {
     const queueNumber = todayQueue.length + 1;
 
     // Calculate simulated dynamic estimate time
-    let startMinutes = 15 * 60; // default to 15:00
+    let startMinutes = businessHours.openHour * 60; // default to openHour
     if (todayQueue.length > 0) {
       // parse last item time
       const lastItem = todayQueue[todayQueue.length - 1];
@@ -493,6 +494,7 @@ export default function App() {
             onSendWhatsApp={handleSendWhatsAppSimulated}
             barbers={barbers}
             services={services}
+            businessHours={businessHours}
             onAddBooking={handleAddBooking}
             onRemoveBooking={handleRemoveBooking}
           />
@@ -512,6 +514,8 @@ export default function App() {
             onAddBarber={handleAddBarber}
             onEditBarber={handleEditBarber}
             onRemoveBarber={handleRemoveBarber}
+            businessHours={businessHours}
+            onUpdateBusinessHours={setBusinessHours}
           />
         );
       default:
