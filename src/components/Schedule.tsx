@@ -439,7 +439,7 @@ export default function Schedule({
         )}
 
         {viewMode === 'Monthly' && (
-          <div className="flex-1 flex flex-col bg-[#050505] rounded-2xl border border-zinc-900 p-4 min-h-0">
+          <div className="bg-[#050505] rounded-2xl border border-zinc-900 p-4">
              <div className="flex items-center justify-between mb-4 flex-none">
                 <h2 className="text-xl font-bold text-white flex items-center gap-3">
                   <button onClick={() => setMonthOffset(o => o - 1)} className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-zinc-900 rounded-full text-gray-400 hover:text-white cursor-pointer"><ChevronLeft size={18}/></button>
@@ -448,23 +448,38 @@ export default function Schedule({
                 </h2>
              </div>
              
-             <div className="grid grid-cols-7 gap-2 mb-2 flex-none">
+             <div className="grid grid-cols-7 gap-2 mb-2">
                {DAYS_OF_WEEK.map(d => <div key={d} className="text-center text-xs font-mono font-bold text-gray-500 uppercase">{d}</div>)}
              </div>
              
-             <div className="flex-1 grid grid-cols-7 gap-2 overflow-y-auto pb-4 content-start">
+             <div className="grid grid-cols-7 gap-[1px] bg-zinc-900/50 rounded-xl overflow-hidden">
                {monthDays.map((md, idx) => {
-                 if (!md) return <div key={`empty-${idx}`} className="bg-transparent border border-transparent rounded-2xl min-h-[100px]" />;
-                 const dayEntries = filteredEntries.filter(e => e.day === md.day && e.status !== 'Estimated');
+                 if (!md) return <div key={`empty-${idx}`} className="bg-[#050505] min-h-[70px] sm:min-h-[90px]" />;
+                 const dayEntries = filteredEntries.filter(e => e.day === md.day);
+                 const uniqueStatuses = [...new Set(dayEntries.map(e => e.status))].slice(0, 3);
+                 const hasOverflow = [...new Set(dayEntries.map(e => e.status))].length > 3;
+
                  return (
-                   <div key={idx} onClick={() => { setSelectedDay(md.day); setViewMode('Daily'); }} className={`bg-[#0A0A0A] hover:bg-zinc-900 border rounded-2xl p-2 min-h-[100px] cursor-pointer transition-colors flex flex-col gap-1 ${md.isToday ? 'border-amber-500/50' : 'border-zinc-900'}`}>
-                     <div className={`text-right text-xs font-bold ${md.isToday ? 'text-amber-500' : 'text-gray-400'}`}>{md.dayNum}</div>
-                     {dayEntries.slice(0, 3).map(e => (
-                        <div key={e.id} className={`px-1.5 py-0.5 rounded text-[9px] truncate border ${getStatusBadgeStyles(e.status)}`}>
-                          {e.timeRange.split('-')[0].replace('~','')} {e.customerName}
-                        </div>
-                     ))}
-                     {dayEntries.length > 3 && <div className="text-[9px] text-gray-500 text-center">{t('schedule.moreEntries').replace('{n}', (dayEntries.length - 3).toString())}</div>}
+                   <div 
+                     key={idx} 
+                     onClick={() => { setSelectedDay(md.day); setViewMode('Daily'); }} 
+                     className={`bg-[#0A0A0A] hover:bg-zinc-900 min-h-[70px] sm:min-h-[90px] cursor-pointer transition-colors flex flex-col p-2 gap-1 ${md.isToday ? 'ring-1 ring-inset ring-amber-500/50' : ''}`}
+                   >
+                     <span className={`text-xs font-bold self-end ${md.isToday ? 'text-amber-500' : 'text-gray-400'}`}>{md.dayNum}</span>
+                     <div className="flex items-center gap-1 flex-wrap mt-auto">
+                       {uniqueStatuses.map(status => (
+                         <span
+                           key={status}
+                           className={`h-1.5 w-1.5 rounded-full ${
+                             status === 'Confirmed' ? 'bg-emerald-400' :
+                             status === 'Estimated' ? 'bg-amber-400' :
+                             status === 'Pending Reply' ? 'bg-sky-400' :
+                             'bg-blue-400 opacity-50'
+                           }`}
+                         />
+                       ))}
+                       {hasOverflow && <span className="h-1.5 w-1.5 rounded-full bg-gray-500" />}
+                     </div>
                    </div>
                  );
                })}
