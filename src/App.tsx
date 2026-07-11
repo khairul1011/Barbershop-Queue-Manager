@@ -526,7 +526,7 @@ export default function App() {
   const pendingRequestsCount = requests.filter(r => r.status === 'pending').length;
 
   return (
-    <div className="min-h-screen bg-[#070707] text-gray-100 flex flex-col md:flex-row font-sans selection:bg-amber-500/20 selection:text-amber-400">
+    <div className="min-h-dvh bg-[#070707] text-gray-100 flex flex-col md:flex-row font-sans selection:bg-amber-500/20 selection:text-amber-400">
 
       {/* SIDEBAR NAVIGATION */}
       <Sidebar

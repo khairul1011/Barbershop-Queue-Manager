@@ -148,7 +148,7 @@ export default function Sidebar({
     <>
       {/* Desktop/Tablet Sidebar (Hidden on mobile) */}
       <aside 
-        className={`hidden md:block h-screen sticky top-0 transition-all duration-300 z-30 ${
+        className={`hidden md:block h-dvh sticky top-0 transition-all duration-300 z-30 ${
           isCollapsed ? 'w-24' : 'w-64'
         }`}
       >

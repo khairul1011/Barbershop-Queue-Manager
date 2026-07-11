@@ -261,7 +261,7 @@ export default function Schedule({
     .filter(b => filterBarberId === 'all' || b.id === filterBarberId);
 
   return (
-    <div className="space-y-6 max-w-full overflow-hidden flex flex-col h-[calc(100vh-120px)]">
+    <div className="space-y-6 max-w-full overflow-hidden flex flex-col h-[calc(100dvh-120px)]">
       {/* HEADER & FILTERS */}
       <div className="flex-none space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
