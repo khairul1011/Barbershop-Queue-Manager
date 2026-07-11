@@ -213,14 +213,6 @@ export default function Schedule({
 
     return (
       <div className="flex-1 min-w-[200px] border-r border-zinc-900/50 relative">
-        {/* Column Header */}
-        <div className="sticky top-0 z-20 bg-[#0A0A0A] border-b border-zinc-900 p-3 text-center backdrop-blur-md bg-opacity-90">
-          <div className="font-bold text-sm text-white">{barber.name}</div>
-          <div className="text-[10px] text-gray-500 uppercase font-mono tracking-wider mt-0.5 flex justify-center gap-1">
-            {barber.status === 'break' && <span className="text-amber-500">{t('overview.statusBreak')}</span>}
-            {barber.status === 'active' && <span className="text-teal-500">{t('overview.statusOnSeat')}</span>}
-          </div>
-        </div>
 
         {/* Grid Background Lines */}
         <div className="relative" style={{ height: (GRID_END_HOUR - GRID_START_HOUR + 1) * 60 * PIXELS_PER_MINUTE }}>
@@ -344,28 +336,48 @@ export default function Schedule({
                 <span className="font-bold text-white min-w-[120px] text-center">{weekDates.find(d => d.day === selectedDay)?.label}</span>
                 <button onClick={() => setWeekOffset(o => o + 1)} className="min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-zinc-800 rounded-lg text-gray-400 cursor-pointer"><ChevronRight size={18}/></button>
               </div>
-              
-              {/* Mobile Barber Tabs */}
-              <div className="flex lg:hidden bg-zinc-950 rounded-xl border border-zinc-800 p-1 gap-1">
+            </div>
+
+            {/* Mobile Barber Tabs */}
+            <div className="flex lg:hidden border-b border-zinc-900 overflow-x-auto scrollbar-none bg-[#0A0A0A]">
+              {activeBarbers.map((b, idx) => (
+                <button
+                  key={b.id}
+                  onClick={() => setActiveMobileBarberIndex(idx)}
+                  className={`flex-1 min-w-0 py-2.5 text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all border-b-2 ${
+                    activeMobileBarberIndex === idx
+                      ? 'border-amber-500 text-amber-500 bg-amber-500/5'
+                      : 'border-transparent text-gray-500 hover:text-gray-300'
+                  }`}
+                >
+                  {b.name.split(' ')[0]}
+                </button>
+              ))}
+            </div>
+
+            {/* Fixed Barber Header Row */}
+            <div className="flex flex-none border-b border-zinc-900 bg-[#0A0A0A]">
+              <div className="w-[60px] flex-none" /> {/* Spacer for time axis */}
+              <div className="flex w-full">
                 {activeBarbers.map((b, idx) => (
-                  <button
-                    key={b.id}
-                    onClick={() => setActiveMobileBarberIndex(idx)}
-                    className={`px-3 py-1 text-[10px] rounded-lg font-bold uppercase transition-all ${activeMobileBarberIndex === idx ? 'bg-amber-500 text-black' : 'text-gray-500'}`}
-                  >
-                    {b.name.split(' ')[0]}
-                  </button>
+                  <div key={b.id} className={`w-[250px] lg:min-w-[200px] lg:flex-1 p-3 text-center border-r border-zinc-900/50 ${activeMobileBarberIndex === idx ? 'block' : 'hidden lg:block'}`}>
+                    <div className="font-bold text-sm text-white">{b.name}</div>
+                    <div className="text-[10px] text-gray-500 uppercase font-mono tracking-wider mt-0.5 flex justify-center gap-1">
+                      {b.status === 'break' && <span className="text-amber-500">{t('overview.statusBreak')}</span>}
+                      {b.status === 'active' && <span className="text-teal-500">{t('overview.statusOnSeat')}</span>}
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
 
+            {/* Scrollable Grid Area */}
             <div className="flex-1 overflow-auto min-h-0">
               <div className="flex min-w-max relative">
                 {/* Time Axis */}
                 <div className="w-[60px] flex-none border-r border-zinc-900 bg-[#0A0A0A] sticky left-0 z-10">
-                   <div className="h-[45px]" /> {/* Header spacer */}
                    {Array.from({ length: GRID_END_HOUR - GRID_START_HOUR + 1 }, (_, i) => i + GRID_START_HOUR).map(hour => (
-                     <div key={hour} className="absolute w-full text-right pr-2 text-[10px] text-gray-500 font-mono -translate-y-2" style={{ top: (hour - GRID_START_HOUR) * 60 * PIXELS_PER_MINUTE + 45 }}>
+                     <div key={hour} className="absolute w-full text-right pr-2 text-[10px] text-gray-500 font-mono -translate-y-2" style={{ top: (hour - GRID_START_HOUR) * 60 * PIXELS_PER_MINUTE }}>
                        {hour.toString().padStart(2, '0')}:00
                      </div>
                    ))}
