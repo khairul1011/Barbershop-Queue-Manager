@@ -14,7 +14,8 @@ import {
   INITIAL_BARBERS,
   INITIAL_QUEUE,
   INITIAL_REQUESTS,
-  INITIAL_SERVICES
+  INITIAL_SERVICES,
+  INITIAL_SERVING_SESSIONS
 } from './data/mockData';
 import {
   Search,
@@ -30,9 +31,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-const INITIAL_SERVING = INITIAL_QUEUE.find(q => q.id === 'q1') || null;
 const INITIAL_QUEUE_WITHOUT_SERVING = INITIAL_QUEUE.filter(
-  q => q.id !== INITIAL_SERVING?.id
+  q => !Object.values(INITIAL_SERVING_SESSIONS || {}).some(s => s?.id === q.id)
 );
 
 export default function App() {
@@ -50,8 +50,40 @@ export default function App() {
   const [services, setServices] = useLocalStorageState<Service[]>('barberflow_services', INITIAL_SERVICES);
   const [completedEntries, setCompletedEntries] = useLocalStorageState<QueueEntry[]>('barberflow_completedEntries', []);
 
-  // "Currently Serving" Active slot state
-  const [currentlyServing, setCurrentlyServing] = useLocalStorageState<QueueEntry | null>('barberflow_currentlyServing', INITIAL_SERVING);
+  // "Currently Serving" Active slots state (per barber)
+  const [servingSessions, setServingSessions] = useLocalStorageState<Record<string, QueueEntry | null>>('barberflow_serving', INITIAL_SERVING_SESSIONS);
+
+  // Migration for legacy single-slot currentlyServing
+  useEffect(() => {
+    const legacy = localStorage.getItem('barberflow_currentlyServing');
+    const hasNewFormat = localStorage.getItem('barberflow_serving');
+
+    if (legacy && !hasNewFormat) {
+      try {
+        const legacyEntry = JSON.parse(legacy);
+        if (legacyEntry && typeof legacyEntry === 'object' && legacyEntry.barber) {
+          let storedBarbers: Barber[] = [];
+          try {
+            const rawBarbers = localStorage.getItem('barberflow_barbers');
+            if (rawBarbers) {
+              const parsed = JSON.parse(rawBarbers);
+              if (Array.isArray(parsed)) {
+                storedBarbers = parsed;
+              }
+            }
+          } catch(e) {}
+          
+          const matchedBarber = storedBarbers.find((b: Barber) => b.name === legacyEntry.barber);
+          if (matchedBarber) {
+            const newSessions = { [matchedBarber.id]: legacyEntry };
+            localStorage.setItem('barberflow_serving', JSON.stringify(newSessions));
+            setServingSessions(newSessions);
+          }
+        }
+      } catch (e) {}
+      localStorage.removeItem('barberflow_currentlyServing');
+    }
+  }, []);
 
   // Stats Counters
   const [completedCount, setCompletedCount] = useLocalStorageState('barberflow_completedCount', 3);
@@ -107,13 +139,14 @@ export default function App() {
   };
 
   // Callback: Complete session
-  const handleCompleteSession = (id: string, actualDurationMinutes: number) => {
-    if (!currentlyServing) return;
+  const handleCompleteSession = (barberId: string, actualDurationMinutes: number) => {
+    const session = servingSessions[barberId];
+    if (!session) return;
 
-    const priceOfService = services.find(s => s.name === currentlyServing.service)?.price || 120000;
+    const priceOfService = services.find(s => s.name === session.service)?.price || 120000;
 
     const completedEntry: QueueEntry = {
-      ...currentlyServing,
+      ...session,
       status: 'Completed',
       completedAt: new Date().toISOString()
     };
@@ -125,13 +158,12 @@ export default function App() {
 
     // Toast
     triggerToast(
-      `Pangkas Selesai! ${currentlyServing.customerName} completed Classic Fade session. Collected Rp ${priceOfService.toLocaleString()}.`,
+      `Pangkas Selesai! ${session.customerName} completed ${session.service} session. Collected Rp ${priceOfService.toLocaleString()}.`,
       'success',
       'Session Completed'
     );
 
-    // Do NOT auto-call next customer. Just set currently serving to null.
-    setCurrentlyServing(null);
+    setServingSessions(prev => ({ ...prev, [barberId]: null }));
   };
 
   // Callback: Add manual Walk-In
@@ -148,8 +180,12 @@ export default function App() {
       if (match) {
         startMinutes = Number(match[1]) * 60 + Number(match[2]) + 15; // 15 mins gap
       }
-    } else if (currentlyServing) {
-      startMinutes = 14 * 60 + 45; // after current serving estimate
+    } else {
+      // Estimate based on barber's current session if any
+      const barber = barbers.find(b => b.name === barberName);
+      if (barber && servingSessions[barber.id]) {
+        startMinutes = 14 * 60 + 45; // arbitrary fallback based on previous mock
+      }
     }
 
     const startH = Math.floor(startMinutes / 60) % 24;
@@ -234,6 +270,43 @@ export default function App() {
     serviceName: string,
     barberName: string
   ) => {
+    // Helper to check double-booking
+    const checkOverlap = (targetDay: string, targetTimeRange: string, targetBarber: string): boolean => {
+      const parseMinutes = (timeStr: string) => {
+        const match = timeStr.replace('~', '').trim().match(/^(\d{1,2}):(\d{2})/);
+        if (!match) return 0;
+        return parseInt(match[1]) * 60 + parseInt(match[2]);
+      };
+      
+      const [startStr, endStr] = targetTimeRange.split('-');
+      if (!startStr || !endStr) return false;
+      const newStart = parseMinutes(startStr);
+      const newEnd = parseMinutes(endStr);
+
+      return queue.some(entry => {
+        if (entry.day !== targetDay || entry.barber !== targetBarber) return false;
+        // Estimated entries don't have hard slots
+        if (entry.status === 'Estimated') return false; 
+        
+        const [eStartStr, eEndStr] = entry.timeRange.split('-');
+        if (!eStartStr || !eEndStr) return false;
+        const entryStart = parseMinutes(eStartStr);
+        const entryEnd = parseMinutes(eEndStr);
+        
+        // True Overlap Condition
+        return (newStart < entryEnd) && (newEnd > entryStart);
+      });
+    };
+
+    if (checkOverlap(day, timeRange, barberName)) {
+      triggerToast(
+        `Failed: Time slot overlaps with an existing booking for ${barberName}.`,
+        'info',
+        'Double Booking Prevented'
+      );
+      return;
+    }
+
     const isToday = day === todayKey;
     const todayQueue = queue.filter(q => q.day === day);
     const queueNumber = isToday ? todayQueue.length + 1 : undefined;
@@ -270,26 +343,42 @@ export default function App() {
     );
   };
 
-  // Callback: Serve instant customer now from Today's Queue List
-  const handleServeNow = (entry: QueueEntry) => {
-    // If currently serving exists, return it back to queue
-    const oldServing = currentlyServing;
+  // Callback: Serve customer now
+  const handleServeNow = (entry: QueueEntry, barberId: string) => {
+    if (servingSessions[barberId]) {
+      triggerToast(
+        `Kursi ini sedang terisi, selesaikan dulu sesi yang sedang berjalan.`,
+        'info',
+        'Seat Occupied'
+      );
+      return;
+    }
 
-    setCurrentlyServing(entry);
-    setQueue(prev => {
-      let filtered = prev.filter(q => q.id !== entry.id);
-      if (oldServing) {
-        // preserve day
-        filtered = [...filtered, { ...oldServing, status: 'Confirmed' }];
-      }
-      return filtered;
-    });
+    setServingSessions(prev => ({ ...prev, [barberId]: entry }));
+    setQueue(prev => prev.filter(q => q.id !== entry.id));
 
     triggerToast(
       `Called ${entry.customerName} to the chair immediately. Timer initiated.`,
       'info',
       'Active Seat Swapped'
     );
+  };
+
+  // Callback: Call Next for a specific barber
+  const handleCallNextForBarber = (barberId: string) => {
+    const barber = barbers.find(b => b.id === barberId);
+    if (!barber) return;
+
+    if (servingSessions[barberId]) {
+       return; // Guard if occupied
+    }
+
+    const todayQueue = queue.filter(q => q.day === todayKey);
+    const nextEntry = todayQueue.find(q => q.barber === barber.name);
+
+    if (nextEntry) {
+      handleServeNow(nextEntry, barberId);
+    }
   };
 
   // Callback: Remove Customer from Queue
@@ -356,9 +445,10 @@ export default function App() {
         return (
           <Overview
             queue={queue}
-            currentlyServing={currentlyServing}
+            servingSessions={servingSessions}
             onCompleteSession={handleCompleteSession}
             onServeNow={handleServeNow}
+            onCallNextForBarber={handleCallNextForBarber}
             onAddWalkIn={handleAddWalkIn}
             barbers={barbers}
             services={services}
@@ -371,6 +461,7 @@ export default function App() {
         return (
           <QueueList
             queue={queue}
+            servingSessions={servingSessions}
             barbers={barbers}
             todayKey={todayKey}
             onServeNow={handleServeNow}
@@ -394,6 +485,7 @@ export default function App() {
           <Schedule
             queue={queue}
             completedEntries={completedEntries}
+            todayKey={todayKey}
             onUpdateStatus={(id, status) => {
               setQueue(prev => prev.map(q => q.id === id ? { ...q, status } : q));
               triggerToast(`Queue entry status shifted to ${status}.`, 'info');

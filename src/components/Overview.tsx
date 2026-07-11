@@ -236,7 +236,7 @@ export default function Overview({
   
   // Active seats calculation
   const activeBarberCount = barbers.filter(b => b.status === 'active').length || 1;
-  const occupiedSeats = Object.values(servingSessions).filter(Boolean).length;
+  const occupiedSeats = Object.values(servingSessions || {}).filter(Boolean).length;
   const estimatedWaitTime = Math.ceil(todayQueue.length / activeBarberCount) * 20 + (occupiedSeats > 0 ? 10 : 0);
   
   const totalVisits = completedCount + todayQueue.length + occupiedSeats;
