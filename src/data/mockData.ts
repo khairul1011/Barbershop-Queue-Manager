@@ -235,3 +235,7 @@ export const INITIAL_REQUESTS: WhatsAppRequest[] = [
     status: 'pending'
   }
 ];
+
+export const INITIAL_SERVING_SESSIONS: Record<string, QueueEntry | null> = {
+  'b1': INITIAL_QUEUE.find(q => q.id === 'q1') || null
+};

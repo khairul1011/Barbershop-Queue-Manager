@@ -54,6 +54,11 @@ export const en = {
   'overview.selectBarber': 'Select Barber',
   'overview.cancel': 'Cancel',
   'overview.addToQueue': 'Add to Queue',
+  'overview.seat': 'Seat',
+  'overview.callNextFor': 'Call',
+  'overview.onBreak': 'On Break',
+  'overview.seatEmpty': 'Seat Available',
+  'overview.allSeats': 'Active Barber Seats',
 
   // History
   'history.title': 'Customer History',
@@ -119,6 +124,16 @@ export const en = {
   'schedule.sendWhatsAppNudge': 'Send WhatsApp Nudge',
   'schedule.confirm': 'Confirm',
   'schedule.estimate': 'Estimate',
+  'schedule.timeGrid': 'Time Grid',
+  'schedule.monthly': 'Monthly',
+  'schedule.today': 'Today',
+  'schedule.estimatedQueue': 'Estimated Queue',
+  'schedule.estimatedQueueDesc': 'No exact time slot assigned yet. Sorted by queue order.',
+  'schedule.filterBarber': 'Barber',
+  'schedule.filterService': 'Service',
+  'schedule.filterAll': 'All',
+  'schedule.noEntriesForDay': 'No bookings for this day.',
+  'schedule.moreEntries': '+{n} more',
   
   // Settings
   'settings.title': 'System Settings',

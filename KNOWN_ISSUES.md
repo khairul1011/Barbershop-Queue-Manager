@@ -74,3 +74,11 @@ Logika `startMinutes = ... + 15` antar walk-in mengasumsikan gap tetap 15 menit 
 - [ ] Tambahkan persistensi minimal (localStorage)
 - [ ] Demo ke kapster, kumpulkan feedback alur UX
 - [ ] Konfirmasi `.gitignore` mengabaikan `.env.local` — pastikan API key asli tidak pernah ter-commit ke repo publik
+
+---
+
+## 🔵 Batasan Desain (By Design)
+
+### 7. Barber Duty Status Edge Case
+- **Kapster Berubah Status ke 'Off' Saat Sedang Melayani**: Saat ini, jika kapster memiliki sesi pelanggan yang sedang berjalan (di kursi aktif) dan statusnya diubah dari 'Active' menjadi 'Off' via menu Settings, sistem tidak akan secara otomatis menghentikan atau menghapus sesi tersebut. 
+- **Perilaku (Behavior)**: Sesi akan dibiarkan tetap berjalan hingga selesai secara natural (hingga ditekan tombol 'Complete Session'). Ini adalah **keputusan desain yang sadar (by design)** untuk mencegah hilangnya data pelanggan yang terlanjur duduk di kursi secara tidak sengaja (misalnya karena salah klik), dan bukan merupakan bug yang terlewat.

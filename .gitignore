@@ -7,3 +7,5 @@ coverage/
 # Jangan commit file .env apapun kecuali .env.example (yang hanya berisi placeholder)
 .env*
 !.env.example
+
+.agents/skills/

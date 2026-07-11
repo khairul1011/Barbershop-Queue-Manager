@@ -54,6 +54,11 @@ export const id = {
   'overview.selectBarber': 'Pilih Kapster',
   'overview.cancel': 'Batal',
   'overview.addToQueue': 'Tambah ke Antrian',
+  'overview.seat': 'Kursi',
+  'overview.callNextFor': 'Panggil',
+  'overview.onBreak': 'Sedang Istirahat',
+  'overview.seatEmpty': 'Kursi Kosong',
+  'overview.allSeats': 'Kursi Kapster Aktif',
 
   // History
   'history.title': 'Riwayat Pelanggan',
@@ -119,6 +124,16 @@ export const id = {
   'schedule.sendWhatsAppNudge': 'Kirim Pengingat WhatsApp',
   'schedule.confirm': 'Konfirmasi',
   'schedule.estimate': 'Estimasi',
+  'schedule.timeGrid': 'Grid Waktu',
+  'schedule.monthly': 'Bulanan',
+  'schedule.today': 'Hari Ini',
+  'schedule.estimatedQueue': 'Antrian Estimasi',
+  'schedule.estimatedQueueDesc': 'Belum ada slot waktu pasti. Diurutkan berdasarkan nomor antrian.',
+  'schedule.filterBarber': 'Kapster',
+  'schedule.filterService': 'Layanan',
+  'schedule.filterAll': 'Semua',
+  'schedule.noEntriesForDay': 'Tidak ada booking untuk hari ini.',
+  'schedule.moreEntries': '+{n} lagi',
 
   // Settings
   'settings.title': 'Pengaturan Sistem',
