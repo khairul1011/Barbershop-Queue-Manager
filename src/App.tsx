@@ -542,7 +542,7 @@ export default function App() {
         <header className="bg-[#0A0A0A]/95 backdrop-blur border-b border-[#1A1A1A] h-[72px] px-6 flex items-center justify-between sticky top-0 z-20">
 
           {/* Left: Quick search mockup */}
-          <div className="hidden sm:flex items-center gap-2.5 bg-[#0F0F0F] border border-[#1A1A1A] rounded-xl px-3.5 py-2 w-72">
+          <div className="hidden lg:flex items-center gap-2.5 bg-[#0F0F0F] border border-[#1A1A1A] rounded-xl px-3.5 py-2 w-72">
             <Search size={15} className="text-gray-500" />
             <input
               type="text"
@@ -562,7 +562,7 @@ export default function App() {
             <div className="flex items-center gap-2 text-xs md:text-sm font-sans text-gray-400 bg-[#0F0F0F] border border-[#1A1A1A] rounded-xl px-3 py-2">
               <Clock size={14} className="text-amber-500" />
               <span className="font-mono text-gray-300">
-                <span className="hidden sm:inline">
+                <span className="hidden lg:inline">
                   {currentTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                   <span className="text-gray-600 mx-1.5">•</span>
                 </span>
@@ -591,7 +591,7 @@ export default function App() {
             </button>
 
             {/* User Barber Operator Hub Profile */}
-            <div className="hidden sm:flex items-center gap-2 pl-2 border-l border-[#1A1A1A]">
+            <div className="hidden lg:flex items-center gap-2 pl-2 border-l border-[#1A1A1A]">
               <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 font-bold font-mono text-xs">
                 HQ
               </div>
