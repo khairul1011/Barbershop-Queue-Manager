@@ -74,7 +74,7 @@ export default function Sidebar({
         {/* Collapse button for desktop */}
         <button 
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="hidden md:flex p-1.5 rounded-lg border border-border-subtle hover:bg-[#151515] text-gray-400 hover:text-amber-500 transition-colors shrink-0"
+          className="hidden md:flex min-w-[44px] min-h-[44px] items-center justify-center rounded-lg border border-border-subtle hover:bg-[#151515] text-gray-400 hover:text-amber-500 transition-colors shrink-0 cursor-pointer"
           id="desktop-collapse-btn"
         >
           {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
@@ -168,7 +168,7 @@ export default function Sidebar({
           {pendingRequestsCount > 0 && (
             <button 
               onClick={() => handleNav('requests')}
-              className="relative p-1.5 text-amber-500"
+              className="relative min-w-[44px] min-h-[44px] flex items-center justify-center text-amber-500 cursor-pointer"
               id="mobile-requests-badge-btn"
             >
               <MessageSquare size={20} />
@@ -179,7 +179,7 @@ export default function Sidebar({
           )}
           <button
             onClick={() => setIsOpenMobile(true)}
-            className="p-2 text-gray-400 hover:text-white hover:bg-[#151515] rounded-xl cursor-pointer"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-white hover:bg-[#151515] rounded-xl cursor-pointer"
             id="mobile-menu-toggle-btn"
           >
             <Menu size={22} />
@@ -212,7 +212,7 @@ export default function Sidebar({
               <div className="p-4 flex justify-end border-b border-border-subtle h-[64px] items-center">
                 <button
                   onClick={() => setIsOpenMobile(false)}
-                  className="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-[#151515] cursor-pointer"
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-white rounded-lg hover:bg-[#151515] cursor-pointer"
                   id="mobile-menu-close-btn"
                 >
                   <X size={20} />
