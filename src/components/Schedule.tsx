@@ -256,7 +256,9 @@ export default function Schedule({
     );
   };
 
-  const activeBarbers = barbers.filter(b => b.status !== 'off');
+  const activeBarbers = barbers
+    .filter(b => b.status !== 'off')
+    .filter(b => filterBarberId === 'all' || b.id === filterBarberId);
 
   return (
     <div className="space-y-6 max-w-full overflow-hidden flex flex-col h-[calc(100vh-120px)]">
@@ -384,7 +386,7 @@ export default function Schedule({
                 </div>
                 
                 {/* Columns */}
-                <div className="flex">
+                <div className="flex w-full">
                   {activeBarbers.map((b, idx) => (
                     <div key={b.id} className={`w-[250px] lg:flex-1 lg:min-w-[200px] ${activeMobileBarberIndex === idx ? 'block' : 'hidden lg:block'}`}>
                       {renderTimeGridColumn(b, selectedDay)}
