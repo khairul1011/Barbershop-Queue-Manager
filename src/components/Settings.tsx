@@ -199,7 +199,7 @@ export default function SettingsView({
                 
                 <button
                   onClick={() => onRemoveService(svc.id)}
-                  className="p-2 bg-[#121212] border border-border-subtle text-red-400 hover:bg-red-500/15 hover:border-red-500/30 rounded-lg transition-all cursor-pointer"
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-[#121212] border border-border-subtle text-red-400 hover:bg-red-500/15 hover:border-red-500/30 rounded-lg transition-all cursor-pointer"
                   title={t('settings.deleteService')}
                   id={`remove-service-${svc.id}`}
                 >
@@ -240,7 +240,7 @@ export default function SettingsView({
                   <span className="text-[10px] text-teal-400 font-mono font-bold uppercase block">
                     {editingBarberId ? 'Edit Barber' : 'Add New Barber'}
                   </span>
-                  <button type="button" onClick={resetBarberForm} className="text-gray-500 hover:text-white">
+                  <button type="button" onClick={resetBarberForm} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 hover:text-white">
                     <X size={14} />
                   </button>
                 </div>
@@ -329,14 +329,14 @@ export default function SettingsView({
                   <div className="flex gap-1">
                     <button
                       onClick={() => startEditBarber(barber)}
-                      className="p-1.5 bg-[#121212] border border-border-subtle text-amber-500 hover:bg-amber-500/15 rounded-lg transition-all cursor-pointer"
+                      className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-[#121212] border border-border-subtle text-amber-500 hover:bg-amber-500/15 rounded-lg transition-all cursor-pointer"
                       title="Edit"
                     >
                       <Edit3 size={12} />
                     </button>
                     <button
                       onClick={() => onRemoveBarber(barber.id)}
-                      className="p-1.5 bg-[#121212] border border-border-subtle text-red-400 hover:bg-red-500/15 hover:border-red-500/30 rounded-lg transition-all cursor-pointer"
+                      className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-[#121212] border border-border-subtle text-red-400 hover:bg-red-500/15 hover:border-red-500/30 rounded-lg transition-all cursor-pointer"
                       title="Delete"
                     >
                       <Trash size={12} />
