@@ -89,6 +89,7 @@ export default function App() {
   // Stats Counters
   const [completedCount, setCompletedCount] = useLocalStorageState('barberflow_completedCount', 3);
   const [revenueToday, setRevenueToday] = useLocalStorageState('barberflow_revenueToday', 450000); // 450k starting IDR
+  const [lastResetDate, setLastResetDate] = useLocalStorageState('barberflow_lastResetDate', new Date().toDateString());
 
   // Custom Toast System
   interface Toast {
@@ -115,6 +116,16 @@ export default function App() {
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Reset daily stats if it's a new day
+  useEffect(() => {
+    const currentDateStr = currentTime.toDateString();
+    if (lastResetDate !== currentDateStr) {
+      setCompletedCount(0);
+      setRevenueToday(0);
+      setLastResetDate(currentDateStr);
+    }
+  }, [currentTime, lastResetDate, setCompletedCount, setRevenueToday, setLastResetDate]);
 
   const todayKey = useMemo(() => {
     return currentTime.toLocaleDateString('en-US', { weekday: 'short' }) as
@@ -167,6 +178,34 @@ export default function App() {
     setServingSessions(prev => ({ ...prev, [barberId]: null }));
   };
 
+  // Helper to check double-booking (used by both Booking and Walk-In)
+  const checkOverlap = (targetDay: string, targetTimeRange: string, targetBarber: string): boolean => {
+    const parseMinutes = (timeStr: string) => {
+      const match = timeStr.replace('~', '').trim().match(/^(\d{1,2}):(\d{2})/);
+      if (!match) return 0;
+      return parseInt(match[1]) * 60 + parseInt(match[2]);
+    };
+    
+    const [startStr, endStr] = targetTimeRange.split('-');
+    if (!startStr || !endStr) return false;
+    const newStart = parseMinutes(startStr);
+    const newEnd = parseMinutes(endStr);
+
+    return queue.some(entry => {
+      if (entry.day !== targetDay || entry.barber !== targetBarber) return false;
+      // Estimated entries don't have hard slots
+      if (entry.status === 'Estimated') return false; 
+      
+      const [eStartStr, eEndStr] = entry.timeRange.split('-');
+      if (!eStartStr || !eEndStr) return false;
+      const entryStart = parseMinutes(eStartStr);
+      const entryEnd = parseMinutes(eEndStr);
+      
+      // True Overlap Condition
+      return (newStart < entryEnd) && (newEnd > entryStart);
+    });
+  };
+
   // Callback: Add manual Walk-In
   const handleAddWalkIn = (name: string, serviceName: string, barberName: string) => {
     const todayQueue = queue.filter(q => q.day === todayKey);
@@ -193,12 +232,22 @@ export default function App() {
     const startM = startMinutes % 60;
     const startTimeStr = `${startH.toString().padStart(2, '0')}:${startM.toString().padStart(2, '0')}`;
     const endTimeStr = calculateEndTime(startTimeStr, serviceName);
+    const timeRange = `~${startTimeStr} - ${endTimeStr}`;
+
+    if (checkOverlap(todayKey, timeRange, barberName)) {
+      triggerToast(
+        `Failed: Time slot overlaps with an existing booking for ${barberName}.`,
+        'info',
+        'Double Booking Prevented'
+      );
+      return;
+    }
 
     const newEntry: QueueEntry = {
       id: `walk-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       customerName: name,
       status: 'Estimated',
-      timeRange: `~${startTimeStr} - ${endTimeStr}`,
+      timeRange,
       queueNumber,
       day: todayKey,
       service: serviceName,
@@ -230,7 +279,7 @@ export default function App() {
     const endTime = calculateEndTime(timeSelected, serviceSelected);
 
     const newEntry: QueueEntry = {
-      id: 'approved-' + id,
+      id: `approved-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       customerName: request.senderName,
       status: 'Confirmed',
       timeRange: `~${timeSelected} - ${endTime}`,
@@ -271,33 +320,6 @@ export default function App() {
     serviceName: string,
     barberName: string
   ) => {
-    // Helper to check double-booking
-    const checkOverlap = (targetDay: string, targetTimeRange: string, targetBarber: string): boolean => {
-      const parseMinutes = (timeStr: string) => {
-        const match = timeStr.replace('~', '').trim().match(/^(\d{1,2}):(\d{2})/);
-        if (!match) return 0;
-        return parseInt(match[1]) * 60 + parseInt(match[2]);
-      };
-      
-      const [startStr, endStr] = targetTimeRange.split('-');
-      if (!startStr || !endStr) return false;
-      const newStart = parseMinutes(startStr);
-      const newEnd = parseMinutes(endStr);
-
-      return queue.some(entry => {
-        if (entry.day !== targetDay || entry.barber !== targetBarber) return false;
-        // Estimated entries don't have hard slots
-        if (entry.status === 'Estimated') return false; 
-        
-        const [eStartStr, eEndStr] = entry.timeRange.split('-');
-        if (!eStartStr || !eEndStr) return false;
-        const entryStart = parseMinutes(eStartStr);
-        const entryEnd = parseMinutes(eEndStr);
-        
-        // True Overlap Condition
-        return (newStart < entryEnd) && (newEnd > entryStart);
-      });
-    };
 
     if (checkOverlap(day, timeRange, barberName)) {
       triggerToast(
@@ -334,6 +356,7 @@ export default function App() {
   };
 
   const handleRemoveBooking = (id: string) => {
+    if (!window.confirm('Are you sure you want to cancel this booking?')) return;
     const entry = queue.find(q => q.id === id);
     if (!entry) return;
     setQueue(prev => prev.filter(q => q.id !== id));
@@ -384,6 +407,7 @@ export default function App() {
 
   // Callback: Remove Customer from Queue
   const handleRemoveQueueEntry = (id: string) => {
+    if (!window.confirm('Are you sure you want to remove this customer from the queue?')) return;
     const item = queue.find(q => q.id === id);
     setQueue(prev => prev.filter(q => q.id !== id));
     if (item) {
@@ -435,6 +459,7 @@ export default function App() {
 
   // Callback: Remove custom barber
   const handleRemoveBarber = (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this barber?')) return;
     setBarbers(prev => prev.filter(b => b.id !== id));
     triggerToast(`Barber has been removed.`, 'info', 'Barber Deleted');
   };

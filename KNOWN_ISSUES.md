@@ -18,27 +18,35 @@ Grid time-axis di tab **Schedule → Daily View** menampilkan area yang sangat k
 - Header kapster diberi `sticky top-[64px] md:top-[72px] z-30` agar tetap terlihat saat halaman di-scroll, menempel tepat di bawah top bar aplikasi.
 - Sel pojok kiri atas (perpotongan header kapster & sumbu waktu) diberi `sticky left-0 z-40` sebagai jangkar dua-arah.
 
+### [TERTINGGI] Reset harian untuk completedCount dan revenueToday
+**Status:** FIXED.
+- Menambahkan `lastResetDate` ke `localStorage` dan melakukan reset ke 0 untuk `completedCount` dan `revenueToday` jika tanggal saat ini berbeda dengan tanggal reset terakhir, memastikan statistik tidak menumpuk lintas hari.
+
+### [TINGGI] Walk-in tidak divalidasi bentrok jadwal (double-booking)
+**Status:** FIXED.
+- Memisahkan logika `checkOverlap` dari `handleAddBooking` menjadi fungsi helper mandiri, dan menggunakannya di `handleAddWalkIn`. Mencegah terjadinya *double booking* jika jam yang diestimasikan bertabrakan.
+
+### [SEDANG] ID collision risk pada approve WhatsApp request
+**Status:** FIXED.
+- ID `QueueEntry` yang dihasilkan dari *Approve WhatsApp Booking* kini menggunakan format random string `Date.now()` (e.g. `approved-12345678-abcde`), menggantikan format statis `approved- + id` yang rawan tabrakan data.
+
+### [SEDANG] Tidak ada konfirmasi untuk aksi destruktif
+**Status:** FIXED.
+- Menambahkan modal dialog bawaan browser (`window.confirm`) khusus pada aksi destruktif: pembatalan *booking*, penghapusan jadwal dari kalender antrian, dan penghapusan profil *barber*.
+
+### Hari "hari ini" di-hardcode sebagai `'Wed'`
+**Status:** FIXED.
+- Semua string statis `'Wed'` telah dinamis mengikuti live clock `todayKey`.
+
+### Tidak ada persistensi data
+**Status:** FIXED (Fase 1).
+- Seluruh inti data `queue`, `requests`, `barbers`, dan `services` kini tersimpan di localStorage lewat *custom hook* `useLocalStorageState`.
+
 ---
 
 ## 🔴 Kritis (blocker fungsional)
 
-### 1. Hari "hari ini" di-hardcode sebagai `'Wed'`
-**File:** `App.tsx` — `handleCompleteServing`, `handleAddWalkIn`, `handleAddBooking`
-
-Fungsi-fungsi ini memfilter antrian dengan `queue.filter(q => q.day === 'Wed')` untuk menentukan "antrian hari ini", padahal `currentTime` (live clock) sudah ada di state dan tidak dipakai untuk ini.
-
-**Dampak:** Aplikasi hanya berfungsi benar jika dijalankan hari Rabu. Di hari lain, customer baru akan masuk ke bucket `'Wed'` yang salah, dan antrian hari sebenarnya tidak ter-update.
-
-**Perbaikan:** Ganti `'Wed'` dengan hasil kalkulasi dari `currentTime`, misal:
-```ts
-const todayKey = currentTime.toLocaleDateString('en-US', { weekday: 'short' }) as
-  'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
-```
-lalu ganti semua literal `'Wed'` dengan `todayKey`.
-
----
-
-### 2. Tidak ada backend — `express`/`dotenv` adalah dependency nganggur
+### 1. Tidak ada backend — `express`/`dotenv` adalah dependency nganggur
 **File:** `package.json`
 
 Tidak ada `server.js` atau file backend apa pun di struktur repo. `express` dan `dotenv` tercantum sebagai dependency tapi tidak dipakai di mana pun.
@@ -49,21 +57,9 @@ Tidak ada `server.js` atau file backend apa pun di struktur repo. `express` dan 
 
 ---
 
-### 3. Tidak ada persistensi data
-**File:** `App.tsx` (semua state pakai `useState` tanpa storage)
-
-Refresh browser = seluruh antrian dan request kembali ke `mockData.ts`.
-
-**Dampak:** Tidak bisa dipakai operasional harian sama sekali — data hilang kapan saja.
-
-**Perbaikan minimal (Fase 1):** localStorage untuk single-device usage.
-**Perbaikan jangka panjang:** backend database (misal Supabase free tier) begitu ada `server.js`.
-
----
-
 ## 🟡 Penting (belum blocker, tapi harus dikerjakan sebelum Fase 2)
 
-### 4. `WhatsAppRequest` di `mockData.ts` adalah data karangan, bukan hasil parsing AI
+### 2. `WhatsAppRequest` di `mockData.ts` adalah data karangan, bukan hasil parsing AI
 Field `extractedDay`, `extractedTime`, `extractedService` di 4 entri mock sudah ditulis manual — tidak merepresentasikan bagaimana hasil ekstraksi Gemini API yang sebenarnya akan terlihat (termasuk kasus ambigu/gagal parsing).
 
 **Dampak:** Tidak ada test case untuk skenario pesan ambigu tanpa jam sama sekali, atau pesan yang gagal di-parse.
@@ -72,22 +68,22 @@ Field `extractedDay`, `extractedTime`, `extractedService` di 4 entri mock sudah 
 
 ---
 
-### 5. `.env.example` ada tapi tidak dipakai di kode manapun
+### 3. `.env.example` ada tapi tidak dipakai di kode manapun
 Kemungkinan sisa boilerplate template AI Studio. Perlu dikonfirmasi ulang begitu `server.js` dibangun — pastikan API key Gemini **hanya** dibaca di server, tidak pernah masuk ke bundle client (`vite build` output).
 
 ---
 
 ## 🟢 Rendah (nice-to-have, bukan prioritas sekarang)
 
-### 6. `handleAddWalkIn` — estimasi waktu mulai antrian jalan sederhana (gap tetap 15 menit)
+### 4. `handleAddWalkIn` — estimasi waktu mulai antrian jalan sederhana (gap tetap 15 menit)
 Logika `startMinutes = ... + 15` antar walk-in mengasumsikan gap tetap 15 menit tanpa mempertimbangkan durasi servis sebelumnya secara akurat di semua kasus. Cukup untuk MVP, tapi perlu direview kalau kompleksitas antrian bertambah (multi-kapster paralel, dll).
 
 ---
 
 ## Checklist sebelum Fase 2 (backend) dimulai
 
-- [ ] Perbaiki bug hardcode `'Wed'`
-- [ ] Tambahkan persistensi minimal (localStorage)
+- [x] Perbaiki bug hardcode `'Wed'`
+- [x] Tambahkan persistensi minimal (localStorage)
 - [ ] Demo ke kapster, kumpulkan feedback alur UX
 - [ ] Konfirmasi `.gitignore` mengabaikan `.env.local` — pastikan API key asli tidak pernah ter-commit ke repo publik
 
@@ -95,6 +91,6 @@ Logika `startMinutes = ... + 15` antar walk-in mengasumsikan gap tetap 15 menit 
 
 ## 🔵 Batasan Desain (By Design)
 
-### 7. Barber Duty Status Edge Case
+### 5. Barber Duty Status Edge Case
 - **Kapster Berubah Status ke 'Off' Saat Sedang Melayani**: Saat ini, jika kapster memiliki sesi pelanggan yang sedang berjalan (di kursi aktif) dan statusnya diubah dari 'Active' menjadi 'Off' via menu Settings, sistem tidak akan secara otomatis menghentikan atau menghapus sesi tersebut. 
 - **Perilaku (Behavior)**: Sesi akan dibiarkan tetap berjalan hingga selesai secara natural (hingga ditekan tombol 'Complete Session'). Ini adalah **keputusan desain yang sadar (by design)** untuk mencegah hilangnya data pelanggan yang terlanjur duduk di kursi secara tidak sengaja (misalnya karena salah klik), dan bukan merupakan bug yang terlewat.
