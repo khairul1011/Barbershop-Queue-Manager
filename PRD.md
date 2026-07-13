@@ -65,7 +65,7 @@ Proyek ini adalah **experiment pribadi** (bukan produk komersial saat ini), diba
 
 - **Biaya**: $0 di tahap experiment. Gunakan Gemini API free tier + `whatsapp-web.js` (unofficial, gratis) — bukan WhatsApp Business API resmi (berbayar).
 - **Risiko yang diterima secara sadar**: nomor WA bisa logout/ke-ban sewaktu-waktu karena `whatsapp-web.js` tidak resmi didukung Meta/WhatsApp. Ini risiko yang secara eksplisit diterima untuk versi experiment, dan harus dikomunikasikan ke kapster sebelum dipakai serius.
-- **Device**: dioptimalkan untuk layar HP (mobile-first), diakses lewat browser, bukan aplikasi native.
+- **Device**: dioptimalkan untuk layar HP (mobile-first), diakses lewat browser, bukan aplikasi native. Telah divalidasi berfungsi di Safari iOS.
 - **Tanpa akun/login kompleks**: 1 device/browser session cukup untuk tahap ini (bukan multi-user dengan auth).
 
 ## 8. Status Implementasi Saat Ini (per review terakhir)
@@ -74,6 +74,8 @@ Proyek ini adalah **experiment pribadi** (bukan produk komersial saat ini), diba
 - UI dashboard lengkap (Overview, Queue, Requests, Schedule, Settings) — React + Tailwind, sudah interaktif dengan state management asli (bukan cuma statis).
 - Logika status Confirmed/Estimated/Pending Reply sudah diimplementasi di level data, bukan cuma visual.
 - Perhitungan durasi servis dinamis berdasarkan jenis layanan.
+- **Schedule Daily View berfungsi normal di Safari iOS** — grid merentang penuh tanpa kolaps menggunakan pola Hybrid Page-Scroll (commit `ca5713e`).
+- Header kapster *sticky* relatif terhadap scroll halaman — nama kapster selalu terlihat saat scroll jadwal.
 
 ❌ Belum ada / masih dummy:
 - Tidak ada backend (`server.js` tidak ada meski `express`/`dotenv` tercantum di `package.json` sebagai dependency nganggur).

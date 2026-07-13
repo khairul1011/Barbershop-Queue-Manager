@@ -4,6 +4,22 @@ Dokumen ini mencatat gap teknis yang ditemukan saat review kode per commit terak
 
 ---
 
+## ✅ Sudah Diselesaikan
+
+### Safari iOS — Grid Daily View Kolaps (Viewport Height Bug)
+**Commit:** `ca5713e` — `fix(ui): implement hybrid page-scroll for Schedule grid to prevent Safari iOS toolbar layout collapse`
+
+Grid time-axis di tab **Schedule → Daily View** menampilkan area yang sangat kecil (hanya 1 baris jam) saat dibuka di Safari iOS menggunakan URL production Vercel. Ini disebabkan oleh kalkulasi `h-[calc(100dvh-120px)]` yang gagal ketika address bar Safari muncul/hilang secara dinamis, sehingga Safari WebKit menci­utkan kontainer `flex` ke tinggi minimum-content.
+
+**Solusi yang diterapkan (Hybrid Page-Scroll):**
+- Hapus seluruh batas tinggi `h-[calc(100dvh-...)]` dari root container `Schedule.tsx`.
+- Grid dibiarkan merentang ke tinggi alami konten (~1170px untuk jam 09:00–21:00).
+- Scroll diserahkan ke level halaman (bukan container internal), sehingga tidak ada lagi ketergantungan pada kalkulasi viewport yang berubah-ubah.
+- Header kapster diberi `sticky top-[64px] md:top-[72px] z-30` agar tetap terlihat saat halaman di-scroll, menempel tepat di bawah top bar aplikasi.
+- Sel pojok kiri atas (perpotongan header kapster & sumbu waktu) diberi `sticky left-0 z-40` sebagai jangkar dua-arah.
+
+---
+
 ## 🔴 Kritis (blocker fungsional)
 
 ### 1. Hari "hari ini" di-hardcode sebagai `'Wed'`

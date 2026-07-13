@@ -14,7 +14,7 @@ BarberFlow mengusung konsep manajemen cerdas:
 - **Smart Queueing:** Memisahkan _booking_ dengan jam pasti (Confirmed) dan _walk-in_ (Estimated) dalam satu tampilan jadwal harian yang dinamis.
 - **WhatsApp Request Parsing (Roadmap):** Membaca pesan _booking_ via WA, lalu menggunakan Gemini API untuk mengekstrak hari, jam, dan layanan secara terstruktur sehingga kapster cukup me-_review_ dan _approve_.
 - **One-Tap Operations:** Interaksi minimalis. Cukup satu _tap_ untuk memanggil pelanggan ("Mulai") dan mengakhiri sesi ("Selesai").
-- **Local Persistence:** Data antrian yang sedang berjalan saat ini disimpan dengan aman di _localStorage_ browser.
+- **Mobile-First & Safari iOS Ready:** UI dioptimalkan untuk penggunaan harian via HP. Schedule Daily View menggunakan pola _Hybrid Page-Scroll_ yang terbukti berfungsi normal di Safari iOS tanpa grid kolaps.
 
 ## 🛠 Tech Stack
 - **Frontend:** React 19, TypeScript, Vite, Tailwind CSS v4, Motion (Framer Motion)
@@ -42,11 +42,11 @@ BarberFlow mengusung konsep manajemen cerdas:
    ```bash
    npm run dev
    ```
-   Aplikasi dapat diakses melalui browser di `http://localhost:3000/`.
+   Aplikasi dapat diakses melalui browser di `http://localhost:3000/`
 
 ## 📜 Dokumentasi Proyek
 - [PRD.md](PRD.md): Dokumen Kebutuhan Produk (_Product Requirements Document_) lengkap.
-- [KNOWN_ISSUES.md](KNOWN_ISSUES.md): Daftar kendala, bug, dan _roadmap_ yang direncanakan.
+- [KNOWN_ISSUES.md](KNOWN_ISSUES.md): Daftar kendala teknis, bug yang sudah diselesaikan, dan item _backlog_ yang direncanakan.
 
 ---
 _Proyek ini adalah eksperimen pribadi dan masih dalam tahap pengembangan (Fase 1)._
