@@ -11,6 +11,12 @@
   --color-header-bg: #0E0E0E;
 }
 
+@layer base {
+  html {
+    background-color: #070707;
+  }
+}
+
 /* Custom styles for glowing details and scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
