@@ -16,3 +16,7 @@ server/.env
 server/.wwebjs_auth/
 server/.wwebjs_cache/
 server/*.log
+
+# Security: Never track SSH or private keys
+*.pem
+*.key
