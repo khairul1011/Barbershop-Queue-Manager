@@ -54,42 +54,55 @@ Output: {"nama":null,"hari":null,"jam":null,"servis":null,"isBookingIntent":fals
 Input: "ok makasih"
 Output: {"nama":null,"hari":null,"jam":null,"servis":null,"isBookingIntent":false}`;
 
+const MODEL_CHAIN = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite', 'gemini-3.1-flash', 'gemini-3.5-flash'];
+
+function getStartingIndex(text) {
+  return text.length > 80 ? 2 : 0;
+}
+
 /**
- * Menganalisis pesan pelanggan menggunakan Gemini API.
+ * Menganalisis pesan pelanggan menggunakan Gemini API dengan mekanisme fallback.
  * 
  * @param {string} text - Pesan dari pelanggan.
  * @returns {Promise<Object|null>} Mengembalikan objek booking atau null jika gagal.
  */
 async function parseBookingMessage(text) {
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [
-        { role: 'user', parts: [{ text: SYSTEM_PROMPT + '\\n\\nInput: "' + text + '"\\nOutput:' }] }
-      ],
-      config: {
-        temperature: 0.1, // Suhu rendah agar respons deterministik dan tidak berhalusinasi
-      }
-    });
+  const startIndex = getStartingIndex(text);
 
-    let raw = response.text.trim();
-    
-    // Menghapus backtick markdown jika Gemini tetap menambahkannya
-    if (raw.startsWith('\`\`\`json')) {
-      raw = raw.replace(/^\`\`\`json/, '');
+  for (let i = startIndex; i < MODEL_CHAIN.length; i++) {
+    const currentModel = MODEL_CHAIN[i];
+    try {
+      const response = await ai.models.generateContent({
+        model: currentModel,
+        contents: [
+          { role: 'user', parts: [{ text: SYSTEM_PROMPT + '\\n\\nInput: "' + text + '"\\nOutput:' }] }
+        ],
+        config: {
+          temperature: 0.1, // Suhu rendah agar respons deterministik dan tidak berhalusinasi
+        }
+      });
+
+      let raw = response.text.trim();
+      
+      // Menghapus backtick markdown jika Gemini tetap menambahkannya
+      if (raw.startsWith('\`\`\`json')) {
+        raw = raw.replace(/^\`\`\`json/, '');
+      }
+      if (raw.startsWith('\`\`\`')) {
+        raw = raw.replace(/^\`\`\`/, '');
+      }
+      if (raw.endsWith('\`\`\`')) {
+        raw = raw.replace(/\`\`\`$/, '');
+      }
+      
+      return JSON.parse(raw.trim());
+    } catch (err) {
+      console.warn('[FALLBACK]', currentModel, '-> mencoba model berikutnya');
     }
-    if (raw.startsWith('\`\`\`')) {
-      raw = raw.replace(/^\`\`\`/, '');
-    }
-    if (raw.endsWith('\`\`\`')) {
-      raw = raw.replace(/\`\`\`$/, '');
-    }
-    
-    return JSON.parse(raw.trim());
-  } catch (err) {
-    console.error('[GEMINI ERROR]', err.message, '| Pesan:', text);
-    return null;
   }
+
+  console.error('[GEMINI ERROR] semua model di chain gagal');
+  return null;
 }
 
 module.exports = {
