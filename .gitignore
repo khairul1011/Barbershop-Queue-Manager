@@ -9,3 +9,10 @@ coverage/
 !.env.example
 
 .agents/skills/
+
+# Backend (server/) — WhatsApp bot + Gemini API
+server/node_modules/
+server/.env
+server/.wwebjs_auth/
+server/.wwebjs_cache/
+server/*.log
