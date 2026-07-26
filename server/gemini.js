@@ -72,7 +72,7 @@ async function parseBookingMessage(text) {
       }
     });
 
-    let raw = response.text().trim();
+    let raw = response.text.trim();
     
     // Menghapus backtick markdown jika Gemini tetap menambahkannya
     if (raw.startsWith('\`\`\`json')) {
