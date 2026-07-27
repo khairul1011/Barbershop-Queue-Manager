@@ -28,6 +28,9 @@ client.on('message', async msg => {
   // 2. Skip pesan dari grup WhatsApp
   if (msg.from.endsWith('@g.us')) return;
 
+  // Skip update status WhatsApp
+  if (msg.from === 'status@broadcast') return;
+
   // 3. Skip pesan yang terlalu pendek (kurang dari 5 karakter)
   if (!msg.body || msg.body.trim().length < 5) return;
 
