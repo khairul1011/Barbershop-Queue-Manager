@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useLocalStorageState } from './hooks/useLocalStorageState';
+import { useSupabaseServices } from './hooks/useSupabaseServices';
+import { useSupabaseBarbers } from './hooks/useSupabaseBarbers';
+import { useSupabaseQueue } from './hooks/useSupabaseQueue';
 import Sidebar from './components/Sidebar';
 import Overview from './components/Overview';
 import Schedule from './components/Schedule';
@@ -27,13 +30,10 @@ import {
   CheckCircle,
   MessageSquare,
   X,
-  AlertCircle
+  AlertCircle,
+  XCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-
-const INITIAL_QUEUE_WITHOUT_SERVING = INITIAL_QUEUE.filter(
-  q => !Object.values(INITIAL_SERVING_SESSIONS || {}).some(s => s?.id === q.id)
-);
 
 export default function App() {
   const { t } = useTranslation();
@@ -44,63 +44,47 @@ export default function App() {
   const [isOpenMobile, setIsOpenMobile] = useState(false);
 
   // Core App States
-  const [queue, setQueue] = useLocalStorageState<QueueEntry[]>('barberflow_queue', INITIAL_QUEUE_WITHOUT_SERVING);
-  const [requests, setRequests] = useLocalStorageState<WhatsAppRequest[]>('barberflow_requests', INITIAL_REQUESTS);
-  const [barbers, setBarbers] = useLocalStorageState<Barber[]>('barberflow_barbers', INITIAL_BARBERS);
-  const [services, setServices] = useLocalStorageState<Service[]>('barberflow_services', INITIAL_SERVICES);
-  const [completedEntries, setCompletedEntries] = useLocalStorageState<QueueEntry[]>('barberflow_completedEntries', []);
+  const [requests, setRequests] = useState<WhatsAppRequest[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(true);
+  const [requestsError, setRequestsError] = useState<string | null>(null);
+
+  const fetchRequests = async () => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const res = await fetch(`${apiUrl}/requests`);
+      if (!res.ok) throw new Error(`API responded with status ${res.status}`);
+      const data = await res.json();
+      setRequests(data);
+      setRequestsError(null);
+    } catch (err: any) {
+      setRequestsError(err.message || 'Gagal memuat data dari server');
+    } finally {
+      setRequestsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRequests();
+    const interval = setInterval(fetchRequests, 15000);
+    return () => clearInterval(interval);
+  }, []);
+  const { barbers, loading: barbersLoading, error: barbersError, addBarber, editBarber, removeBarber, updateBarberStatus } = useSupabaseBarbers();
+  const { services, loading: servicesLoading, error: servicesError, addService, removeService } = useSupabaseServices();
+  const { queue, servingSessions, completedEntries, loading: queueLoading, error: queueError, addQueueEntry, updateQueueEntryStatus, serveQueueEntry, completeServingSession, removeQueueEntry } = useSupabaseQueue(barbers, services);
   const [businessHours, setBusinessHours] = useLocalStorageState<{ openHour: number; closeHour: number }>('barberflow_businessHours', { openHour: 9, closeHour: 20 });
 
-  // "Currently Serving" Active slots state (per barber)
-  const [servingSessions, setServingSessions] = useLocalStorageState<Record<string, QueueEntry | null>>('barberflow_serving', INITIAL_SERVING_SESSIONS);
-
-  // Migration for legacy single-slot currentlyServing
-  useEffect(() => {
-    const legacy = localStorage.getItem('barberflow_currentlyServing');
-    const hasNewFormat = localStorage.getItem('barberflow_serving');
-
-    if (legacy && !hasNewFormat) {
-      try {
-        const legacyEntry = JSON.parse(legacy);
-        if (legacyEntry && typeof legacyEntry === 'object' && legacyEntry.barber) {
-          let storedBarbers: Barber[] = [];
-          try {
-            const rawBarbers = localStorage.getItem('barberflow_barbers');
-            if (rawBarbers) {
-              const parsed = JSON.parse(rawBarbers);
-              if (Array.isArray(parsed)) {
-                storedBarbers = parsed;
-              }
-            }
-          } catch(e) {}
-          
-          const matchedBarber = storedBarbers.find((b: Barber) => b.name === legacyEntry.barber);
-          if (matchedBarber) {
-            const newSessions = { [matchedBarber.id]: legacyEntry };
-            localStorage.setItem('barberflow_serving', JSON.stringify(newSessions));
-            setServingSessions(newSessions);
-          }
-        }
-      } catch (e) {}
-      localStorage.removeItem('barberflow_currentlyServing');
-    }
-  }, []);
-
-  // Stats Counters
-  const [completedCount, setCompletedCount] = useLocalStorageState('barberflow_completedCount', 3);
-  const [revenueToday, setRevenueToday] = useLocalStorageState('barberflow_revenueToday', 450000); // 450k starting IDR
-  const [lastResetDate, setLastResetDate] = useLocalStorageState('barberflow_lastResetDate', new Date().toDateString());
+  // Stats Counters (derived from Supabase data)
 
   // Custom Toast System
   interface Toast {
     id: string;
     message: string;
-    type: 'success' | 'info' | 'whatsapp';
+    type: 'success' | 'info' | 'whatsapp' | 'error';
     title?: string;
   }
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const triggerToast = (message: string, type: 'success' | 'info' | 'whatsapp' = 'success', title?: string) => {
+  const triggerToast = (message: string, type: 'success' | 'info' | 'whatsapp' | 'error' = 'success', title?: string) => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     setToasts(prev => [...prev, { id, message, type, title }]);
     setTimeout(() => {
@@ -117,20 +101,39 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
-  // Reset daily stats if it's a new day
+  // Daily reset is no longer needed since stats are calculated directly from Supabase completed_at timestamps
+
+  // Supabase Fetch Error Handling
   useEffect(() => {
-    const currentDateStr = currentTime.toDateString();
-    if (lastResetDate !== currentDateStr) {
-      setCompletedCount(0);
-      setRevenueToday(0);
-      setLastResetDate(currentDateStr);
+    if (servicesError) {
+      triggerToast('Gagal memuat data layanan. Periksa koneksi internet.', 'error', 'Connection Error');
     }
-  }, [currentTime, lastResetDate, setCompletedCount, setRevenueToday, setLastResetDate]);
+    if (barbersError) {
+      triggerToast('Gagal memuat data kapster. Periksa koneksi internet.', 'error', 'Connection Error');
+    }
+    if (queueError) {
+      triggerToast('Gagal memuat antrean dari server. Periksa koneksi internet.', 'error', 'Connection Error');
+    }
+  }, [servicesError, barbersError, queueError]);
 
   const todayKey = useMemo(() => {
     return currentTime.toLocaleDateString('en-US', { weekday: 'short' }) as
       'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
   }, [currentTime.toDateString()]);
+
+  // Derived Stats
+  const completedCount = useMemo(() => {
+    return completedEntries.filter(e => e.day === todayKey).length;
+  }, [completedEntries, todayKey]);
+
+  const revenueToday = useMemo(() => {
+    return completedEntries
+      .filter(e => e.day === todayKey)
+      .reduce((sum, entry) => {
+        const price = services.find(s => s.name === entry.service)?.price || 0;
+        return sum + price;
+      }, 0);
+  }, [completedEntries, services, todayKey]);
 
   // Helper: Calculate end time based on duration
   const calculateEndTime = (startTimeStr: string, serviceName: string) => {
@@ -151,31 +154,24 @@ export default function App() {
   };
 
   // Callback: Complete session
-  const handleCompleteSession = (barberId: string, actualDurationMinutes: number) => {
+  const handleCompleteSession = async (barberId: string, actualDurationMinutes: number) => {
     const session = servingSessions[barberId];
     if (!session) return;
 
-    const priceOfService = services.find(s => s.name === session.service)?.price || 120000;
+    try {
+      await completeServingSession(barberId);
+      
+      const priceOfService = services.find(s => s.name === session.service)?.price || 120000;
 
-    const completedEntry: QueueEntry = {
-      ...session,
-      status: 'Completed',
-      completedAt: new Date().toISOString()
-    };
-    setCompletedEntries(prev => [...prev, completedEntry]);
-
-    // Add to stats
-    setCompletedCount(prev => prev + 1);
-    setRevenueToday(prev => prev + priceOfService);
-
-    // Toast
-    triggerToast(
-      `Pangkas Selesai! ${session.customerName} completed ${session.service} session. Collected Rp ${priceOfService.toLocaleString()}.`,
-      'success',
-      'Session Completed'
-    );
-
-    setServingSessions(prev => ({ ...prev, [barberId]: null }));
+      // Toast
+      triggerToast(
+        `Pangkas Selesai! ${session.customerName} completed ${session.service} session. Collected Rp ${priceOfService.toLocaleString()}.`,
+        'success',
+        'Session Completed'
+      );
+    } catch (err) {
+      triggerToast('Gagal menyelesaikan sesi pangkas.', 'error', 'Completion Failed');
+    }
   };
 
   // Helper to check double-booking (used by both Booking and Walk-In)
@@ -207,7 +203,7 @@ export default function App() {
   };
 
   // Callback: Add manual Walk-In
-  const handleAddWalkIn = (name: string, serviceName: string, barberName: string) => {
+  const handleAddWalkIn = async (name: string, serviceName: string, barberName: string) => {
     const todayQueue = queue.filter(q => q.day === todayKey);
     const queueNumber = todayQueue.length + 1;
 
@@ -243,68 +239,99 @@ export default function App() {
       return;
     }
 
-    const newEntry: QueueEntry = {
-      id: `walk-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-      customerName: name,
-      status: 'Estimated',
-      timeRange,
-      queueNumber,
-      day: todayKey,
-      service: serviceName,
-      barber: barberName,
-      phone: '+62 Walk-In',
-      durationMinutes: services.find(s => s.name === serviceName)?.duration || 30
-    };
+    try {
+      const bId = barbers.find(b => b.name === barberName)?.id || '';
+      const sId = services.find(s => s.name === serviceName)?.id || '';
+      if (!bId || !sId) throw new Error("Barber or Service not found locally");
 
-    setQueue(prev => [...prev, newEntry]);
-    triggerToast(
-      `Walk-In added: ${name} (No. ${queueNumber}) has been appended to Seat of ${barberName}.`,
-      'success',
-      'Walk-In Added'
-    );
+      await addQueueEntry({
+        customerName: name,
+        status: 'Estimated',
+        day: todayKey,
+        barberId: bId,
+        serviceId: sId,
+        phone: '+62 Walk-In'
+      });
+      
+      triggerToast(
+        `Walk-In added: ${name} (No. ${queueNumber}) has been appended to Seat of ${barberName}.`,
+        'success',
+        'Walk-In Added'
+      );
+    } catch (err) {
+      triggerToast('Gagal menambah antrean walk-in.', 'error', 'Save Failed');
+    }
   };
 
   // Callback: Approve WhatsApp Booking
-  const handleApproveRequest = (id: string, customDay?: string, customTime?: string, customService?: string) => {
+  const handleApproveRequest = async (id: string, customDay?: string, customTime?: string, customService?: string) => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
 
-    // Mark approved
-    setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'approved' } : r));
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const res = await fetch(`${apiUrl}/requests/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'approved' })
+      });
+      if (!res.ok) throw new Error(`API responded with status ${res.status}`);
+      await fetchRequests();
+    } catch (err: any) {
+      triggerToast('Gagal mengubah status di server.', 'error', 'Update Failed');
+      return;
+    }
 
     const daySelected = (customDay || request.extractedDay) as any;
     const timeSelected = customTime || request.extractedTime;
     const serviceSelected = customService || request.extractedService;
 
     const endTime = calculateEndTime(timeSelected, serviceSelected);
+    const targetBarber = barbers[0]; // simplistic assignment
 
-    const newEntry: QueueEntry = {
-      id: `approved-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-      customerName: request.senderName,
-      status: 'Confirmed',
-      timeRange: `~${timeSelected} - ${endTime}`,
-      day: daySelected,
-      service: serviceSelected,
-      barber: barbers[0]?.name || 'Marcus Vance',
-      phone: request.senderPhone,
-      durationMinutes: services.find(s => s.name === serviceSelected)?.duration || 45
-    };
+    if (!targetBarber) return;
+    const sId = services.find(s => s.name === serviceSelected)?.id || '';
+    if (!sId) return;
 
-    setQueue(prev => [...prev, newEntry]);
-    triggerToast(
-      `WhatsApp booking for ${request.senderName} confirmed for ${daySelected} at ${timeSelected}. Welcome msg triggered!`,
-      'success',
-      'Booking Approved'
-    );
+    try {
+      await addQueueEntry({
+        customerName: request.senderName,
+        status: 'Confirmed',
+        day: daySelected,
+        barberId: targetBarber.id,
+        serviceId: sId,
+        scheduledTime: timeSelected,
+        phone: request.senderPhone
+      });
+
+      triggerToast(
+        `WhatsApp booking for ${request.senderName} confirmed for ${daySelected} at ${timeSelected}. Welcome msg triggered!`,
+        'success',
+        'Booking Approved'
+      );
+    } catch (err) {
+      triggerToast('Gagal menyetujui request ke database antrean.', 'error', 'Approval Failed');
+    }
   };
 
   // Callback: Reject WhatsApp Request
-  const handleRejectRequest = (id: string) => {
+  const handleRejectRequest = async (id: string) => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
 
-    setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'rejected' } : r));
-    triggerToast(`Booking request from ${request.senderName} rejected.`, 'info', 'Request Declined');
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const res = await fetch(`${apiUrl}/requests/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'rejected' })
+      });
+      if (!res.ok) throw new Error(`API responded with status ${res.status}`);
+      await fetchRequests();
+      triggerToast(`Booking request from ${request.senderName} rejected.`, 'info', 'Request Declined');
+    } catch (err: any) {
+      triggerToast('Gagal mengubah status di server.', 'error', 'Update Failed');
+    }
   };
 
   // Callback: Edit WhatsApp Request before approval
@@ -313,7 +340,7 @@ export default function App() {
     triggerToast(`Booking parameters adjusted successfully.`, 'info', 'Metadata Extracted');
   };
 
-  const handleAddBooking = (
+  const handleAddBooking = async (
     day: 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun',
     timeRange: string,
     customerName: string,
@@ -330,62 +357,70 @@ export default function App() {
       return;
     }
 
-    const isToday = day === todayKey;
-    const todayQueue = queue.filter(q => q.day === day);
-    const queueNumber = isToday ? todayQueue.length + 1 : undefined;
+    try {
+      const bId = barbers.find(b => b.name === barberName)?.id || '';
+      const sId = services.find(s => s.name === serviceName)?.id || '';
+      if (!bId || !sId) throw new Error("Barber or Service not found locally");
+      
+      const startTime = timeRange.replace('~', '').split('-')[0].trim();
 
-    const newEntry: QueueEntry = {
-      id: `book-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-      customerName,
-      status: 'Confirmed',
-      timeRange,
-      queueNumber,
-      day,
-      service: serviceName,
-      barber: barberName,
-      phone: '+62 Custom Book',
-      durationMinutes: services.find(s => s.name === serviceName)?.duration || 30
-    };
-
-    setQueue(prev => [...prev, newEntry]);
-    triggerToast(
-      `Slot booked successfully: ${customerName} on ${day} at ${timeRange.replace('~', '')}`,
-      'success',
-      'Slot Booked'
-    );
+      await addQueueEntry({
+        customerName,
+        status: 'Confirmed',
+        day,
+        barberId: bId,
+        serviceId: sId,
+        phone: '+62 Custom Book',
+        scheduledTime: startTime
+      });
+      
+      triggerToast(
+        `Slot booked successfully: ${customerName} on ${day} at ${timeRange.replace('~', '')}`,
+        'success',
+        'Slot Booked'
+      );
+    } catch (err) {
+      triggerToast('Gagal menyimpan booking.', 'error', 'Booking Failed');
+    }
   };
 
-  const handleRemoveBooking = (id: string) => {
+  const handleRemoveBooking = async (id: string) => {
     if (!window.confirm('Are you sure you want to cancel this booking?')) return;
     const entry = queue.find(q => q.id === id);
     if (!entry) return;
-    setQueue(prev => prev.filter(q => q.id !== id));
-    triggerToast(
-      `Appointment for ${entry.customerName} on ${entry.day} has been cancelled.`,
-      'info',
-      'Booking Cancelled'
-    );
+    
+    try {
+      await removeQueueEntry(id);
+      triggerToast(
+        `Appointment for ${entry.customerName} on ${entry.day} has been cancelled.`,
+        'info',
+        'Booking Cancelled'
+      );
+    } catch (err) {
+      triggerToast('Gagal membatalkan booking.', 'error', 'Delete Failed');
+    }
   };
 
   // Callback: Serve customer now
-  const handleServeNow = (entry: QueueEntry, barberId: string) => {
-    if (servingSessions[barberId]) {
+  const handleServeNow = async (entry: QueueEntry, barberId: string) => {
+    try {
+      await serveQueueEntry(entry.id, barberId);
       triggerToast(
-        `Kursi ini sedang terisi, selesaikan dulu sesi yang sedang berjalan.`,
+        `Called ${entry.customerName} to the chair immediately. Timer initiated.`,
         'info',
-        'Seat Occupied'
+        'Active Seat Swapped'
       );
-      return;
+    } catch (err: any) {
+      if (err.message === 'SEAT_OCCUPIED_LOCAL' || err.message === 'SEAT_OCCUPIED_DB') {
+        triggerToast(
+          `Kursi ini sedang terisi, selesaikan dulu sesi yang sedang berjalan. (Simultaneous request blocked)`,
+          'error',
+          'Seat Occupied'
+        );
+      } else {
+        triggerToast('Gagal memulai sesi pangkas.', 'error', 'Serve Failed');
+      }
     }
-
-    setServingSessions(prev => ({ ...prev, [barberId]: entry }));
-    setQueue(prev => prev.filter(q => q.id !== entry.id));
-
-    triggerToast(
-      `Called ${entry.customerName} to the chair immediately. Timer initiated.`,
-      'info',
-      'Active Seat Swapped'
-    );
   };
 
   // Callback: Call Next for a specific barber
@@ -406,12 +441,27 @@ export default function App() {
   };
 
   // Callback: Remove Customer from Queue
-  const handleRemoveQueueEntry = (id: string) => {
+  const handleRemoveQueueEntry = async (id: string) => {
     if (!window.confirm('Are you sure you want to remove this customer from the queue?')) return;
     const item = queue.find(q => q.id === id);
-    setQueue(prev => prev.filter(q => q.id !== id));
-    if (item) {
-      triggerToast(`Removed ${item.customerName} from queue schedule.`, 'info', 'Queue Removed');
+    
+    try {
+      await removeQueueEntry(id);
+      if (item) {
+        triggerToast(`Removed ${item.customerName} from queue schedule.`, 'info', 'Queue Removed');
+      }
+    } catch (err) {
+      triggerToast('Gagal menghapus antrean.', 'error', 'Delete Failed');
+    }
+  };
+
+  // Callback: Update status from Schedule
+  const handleUpdateQueueStatus = async (id: string, newStatus: QueueStatus, scheduledTime?: string) => {
+    try {
+      await updateQueueEntryStatus(id, newStatus, scheduledTime);
+      triggerToast(`Queue entry status shifted to ${newStatus}.`, 'info');
+    } catch (err) {
+      triggerToast('Gagal memperbarui status.', 'error', 'Update Failed');
     }
   };
 
@@ -425,43 +475,65 @@ export default function App() {
   };
 
   // Callback: Add custom service
-  const handleAddService = (newSvc: Omit<Service, 'id'>) => {
-    const id = `service-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    setServices(prev => [...prev, { id, ...newSvc }]);
-    triggerToast(`New service "${newSvc.name}" added to pricing menu.`, 'success', 'Service Saved');
+  const handleAddService = async (newSvc: Omit<Service, 'id'>) => {
+    try {
+      await addService(newSvc);
+      triggerToast(`New service "${newSvc.name}" added to pricing menu.`, 'success', 'Service Saved');
+    } catch (err) {
+      triggerToast(`Gagal menyimpan layanan baru.`, 'error', 'Save Failed');
+    }
   };
 
   // Callback: Remove custom service
-  const handleRemoveService = (id: string) => {
-    setServices(prev => prev.filter(s => s.id !== id));
-    triggerToast(`Service item removed from options.`, 'info', 'Service Deleted');
+  const handleRemoveService = async (id: string) => {
+    try {
+      await removeService(id);
+      triggerToast(`Service item removed from options.`, 'info', 'Service Deleted');
+    } catch (err) {
+      triggerToast(`Gagal menghapus layanan.`, 'error', 'Delete Failed');
+    }
   };
 
   // Callback: Update barber status
-  const handleUpdateBarberStatus = (id: string, status: 'active' | 'break' | 'off') => {
-    setBarbers(prev => prev.map(b => b.id === id ? { ...b, status } : b));
-    const name = barbers.find(b => b.id === id)?.name || 'Barber';
-    triggerToast(`${name} is now marked [${status.toUpperCase()}].`, 'info', 'Duty Swapped');
+  const handleUpdateBarberStatus = async (id: string, status: 'active' | 'break' | 'off') => {
+    try {
+      await updateBarberStatus(id, status);
+      const name = barbers.find(b => b.id === id)?.name || 'Barber';
+      triggerToast(`${name} is now marked [${status.toUpperCase()}].`, 'info', 'Duty Swapped');
+    } catch (err) {
+      triggerToast(`Gagal memperbarui status kapster.`, 'error', 'Update Failed');
+    }
   };
 
   // Callback: Add custom barber
-  const handleAddBarber = (newBarber: Omit<Barber, 'id'>) => {
-    const id = `barber-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    setBarbers(prev => [...prev, { id, ...newBarber }]);
-    triggerToast(`Barber "${newBarber.name}" has been added.`, 'success', 'Barber Added');
+  const handleAddBarber = async (newBarber: Omit<Barber, 'id'>) => {
+    try {
+      await addBarber(newBarber);
+      triggerToast(`Barber "${newBarber.name}" has been added.`, 'success', 'Barber Added');
+    } catch (err) {
+      triggerToast(`Gagal menyimpan kapster baru.`, 'error', 'Save Failed');
+    }
   };
 
   // Callback: Edit custom barber
-  const handleEditBarber = (id: string, updatedBarber: Partial<Barber>) => {
-    setBarbers(prev => prev.map(b => b.id === id ? { ...b, ...updatedBarber } : b));
-    triggerToast(`Barber details updated.`, 'success', 'Barber Edited');
+  const handleEditBarber = async (id: string, updatedBarber: Partial<Barber>) => {
+    try {
+      await editBarber(id, updatedBarber);
+      triggerToast(`Barber details updated.`, 'success', 'Barber Edited');
+    } catch (err) {
+      triggerToast(`Gagal memperbarui data kapster.`, 'error', 'Update Failed');
+    }
   };
 
   // Callback: Remove custom barber
-  const handleRemoveBarber = (id: string) => {
+  const handleRemoveBarber = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this barber?')) return;
-    setBarbers(prev => prev.filter(b => b.id !== id));
-    triggerToast(`Barber has been removed.`, 'info', 'Barber Deleted');
+    try {
+      await removeBarber(id);
+      triggerToast(`Barber has been removed.`, 'info', 'Barber Deleted');
+    } catch (err) {
+      triggerToast(`Gagal menghapus kapster.`, 'error', 'Delete Failed');
+    }
   };
 
   // Main navigation tabs render
@@ -499,6 +571,8 @@ export default function App() {
         return (
           <Requests
             requests={requests}
+            requestsLoading={requestsLoading}
+            requestsError={requestsError}
             onApprove={handleApproveRequest}
             onReject={handleRejectRequest}
             onEdit={handleEditRequest}
@@ -510,12 +584,11 @@ export default function App() {
         return (
           <Schedule
             queue={queue}
+            servingSessions={servingSessions}
             completedEntries={completedEntries}
             todayKey={todayKey}
-            onUpdateStatus={(id, status) => {
-              setQueue(prev => prev.map(q => q.id === id ? { ...q, status } : q));
-              triggerToast(`Queue entry status shifted to ${status}.`, 'info');
-            }}
+            currentTime={currentTime}
+            onUpdateStatus={handleUpdateQueueStatus}
             onSendWhatsApp={handleSendWhatsAppSimulated}
             barbers={barbers}
             services={services}
@@ -532,7 +605,9 @@ export default function App() {
         return (
           <SettingsView
             services={services}
+            servicesLoading={servicesLoading}
             barbers={barbers}
+            barbersLoading={barbersLoading}
             onAddService={handleAddService}
             onRemoveService={handleRemoveService}
             onUpdateBarberStatus={handleUpdateBarberStatus}
@@ -649,6 +724,8 @@ export default function App() {
               exit={{ opacity: 0, scale: 0.9, y: -10 }}
               className={`rounded-2xl p-4 shadow-2xl flex items-start gap-3.5 border relative overflow-hidden backdrop-blur-md ${toast.type === 'whatsapp'
                   ? 'bg-emerald-950/90 border-emerald-500/30 text-emerald-100'
+                  : toast.type === 'error'
+                    ? 'bg-red-950/90 border-red-500/30 text-red-100'
                   : toast.type === 'info'
                     ? 'bg-zinc-900/95 border-amber-500/30 text-gray-200'
                     : 'bg-zinc-900/95 border-teal-500/30 text-gray-200'
@@ -659,6 +736,10 @@ export default function App() {
                 {toast.type === 'whatsapp' ? (
                   <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
                     <MessageSquare size={16} />
+                  </div>
+                ) : toast.type === 'error' ? (
+                  <div className="p-1.5 rounded-lg bg-red-500/10 text-red-400">
+                    <XCircle size={16} />
                   </div>
                 ) : toast.type === 'info' ? (
                   <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400">

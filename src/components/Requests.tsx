@@ -7,6 +7,8 @@ import { useTranslation } from '../i18n';
 
 interface RequestsProps {
   requests: WhatsAppRequest[];
+  requestsLoading: boolean;
+  requestsError: string | null;
   onApprove: (id: string, customDay?: string, customTime?: string, customService?: string) => void;
   onReject: (id: string) => void;
   onEdit: (id: string, updated: Partial<WhatsAppRequest>) => void;
@@ -16,6 +18,8 @@ interface RequestsProps {
 
 export default function Requests({
   requests,
+  requestsLoading,
+  requestsError,
   onApprove,
   onReject,
   onEdit,
@@ -62,7 +66,23 @@ export default function Requests({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+      {requestsError && (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-sm text-red-400 flex items-center gap-3">
+          <X className="shrink-0" size={18} />
+          <div>
+            <p className="font-bold font-sans">Error Sinkronisasi</p>
+            <p className="font-sans mt-0.5">{requests.length > 0 ? "Gagal memuat data terbaru, menampilkan data terakhir yang tersimpan." : "Tidak bisa terhubung ke server."}</p>
+          </div>
+        </div>
+      )}
+
+      {requestsLoading && requests.length === 0 ? (
+        <div className="py-16 flex flex-col items-center justify-center text-gray-500 space-y-4">
+          <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm font-sans">Memuat data dari server...</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
         <AnimatePresence mode="popLayout">
           {pendingRequests.length > 0 ? (
             pendingRequests.map((req) => {
@@ -266,6 +286,7 @@ export default function Requests({
           )}
         </AnimatePresence>
       </div>
+      )}
     </div>
   );
 }
