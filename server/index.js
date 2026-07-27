@@ -61,9 +61,19 @@ client.on('message', async msg => {
           ? missing.slice(0, -1).join(', ') + ', dan ' + missing[missing.length - 1]
           : missing[0];
 
-        msg.reply(`${intro} Boleh info ${missingStr}?`);
+        try {
+          console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
+          await msg.reply(`${intro} Boleh info ${missingStr}?`);
+        } catch (err) {
+          console.error('[REPLY ERROR]', err.message, '| target:', msg.from);
+        }
       } else {
-        msg.reply(`Sip kak! Booking sudah lengkap:\\n\\nHari: ${parsedData.hari}\\nJam: ${parsedData.jam}\\nServis: ${parsedData.servis}\\nNama: ${parsedData.nama}\\n\\nTerima kasih, ditunggu kedatangannya!`);
+        try {
+          console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
+          await msg.reply(`Sip kak! Booking sudah lengkap:\\n\\nHari: ${parsedData.hari}\\nJam: ${parsedData.jam}\\nServis: ${parsedData.servis}\\nNama: ${parsedData.nama}\\n\\nTerima kasih, ditunggu kedatangannya!`);
+        } catch (err) {
+          console.error('[REPLY ERROR]', err.message, '| target:', msg.from);
+        }
       }
     }
   } else {
