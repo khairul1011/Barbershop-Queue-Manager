@@ -42,8 +42,8 @@ client.on('message', async msg => {
   // Skip update status WhatsApp
   if (msg.from === 'status@broadcast') return;
 
-  // 3. Skip pesan yang terlalu pendek (kurang dari 5 karakter)
-  if (!msg.body || msg.body.trim().length < 5) return;
+  // 3. Skip pesan yang terlalu pendek HANYA jika pengguna belum ada di state percakapan
+  if (!msg.body || (msg.body.trim().length < 5 && !conversationState.has(msg.from))) return;
 
   console.log(`\\n[NEW MESSAGE] ${msg.from}: ${msg.body}`);
 
