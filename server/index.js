@@ -3,6 +3,9 @@ const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const { parseBookingMessage } = require('./gemini');
 
+const conversationState = new Map();
+const API_URL = process.env.API_URL || 'http://localhost:3001';
+
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
@@ -22,6 +25,14 @@ client.on('ready', () => console.log('Client is ready!'));
 client.on('message', msg => console.log('[RAW EVENT]', msg.from, msg.type, msg.body));
 
 client.on('message', async msg => {
+  // Housekeeping: hapus state yang usianya lebih dari 30 menit
+  const now = Date.now();
+  for (const [key, state] of conversationState.entries()) {
+    if (now - state.lastUpdated > 30 * 60 * 1000) {
+      conversationState.delete(key);
+    }
+  }
+
   // 1. Skip pesan dari bot/diri sendiri
   if (msg.fromMe) return;
 
@@ -43,18 +54,29 @@ client.on('message', async msg => {
     console.log('[GEMINI PARSED]', JSON.stringify(parsedData, null, 2));
 
     if (parsedData.isBookingIntent === true) {
+      const oldState = conversationState.get(msg.from) || { nama: null, hari: null, jam: null, servis: null };
+      
+      const merged = {
+        nama: parsedData.nama ?? oldState.nama,
+        hari: parsedData.hari ?? oldState.hari,
+        jam: parsedData.jam ?? oldState.jam,
+        servis: parsedData.servis ?? oldState.servis
+      };
+      
+      conversationState.set(msg.from, { ...merged, lastUpdated: Date.now() });
+
       let missing = [];
-      if (!parsedData.hari) missing.push('hari apa');
-      if (!parsedData.jam) missing.push('jam berapa');
-      if (!parsedData.servis) missing.push('mau potong apa (misal: cukur, creambath)');
-      if (!parsedData.nama) missing.push('atas nama siapa');
+      if (!merged.hari) missing.push('hari apa');
+      if (!merged.jam) missing.push('jam berapa');
+      if (!merged.servis) missing.push('mau potong apa (misal: cukur, creambath)');
+      if (!merged.nama) missing.push('atas nama siapa');
 
       if (missing.length > 0) {
         let known = [];
-        if (parsedData.hari) known.push(`hari ${parsedData.hari}`);
-        if (parsedData.jam) known.push(`jam ${parsedData.jam}`);
-        if (parsedData.servis) known.push(`servis ${parsedData.servis}`);
-        if (parsedData.nama) known.push(`Kak ${parsedData.nama}`);
+        if (merged.hari) known.push(`hari ${merged.hari}`);
+        if (merged.jam) known.push(`jam ${merged.jam}`);
+        if (merged.servis) known.push(`servis ${merged.servis}`);
+        if (merged.nama) known.push(`Kak ${merged.nama}`);
 
         let intro = known.length > 0 
           ? `Baik, untuk ${known.join(', ')} ya kak.` 
@@ -73,7 +95,28 @@ client.on('message', async msg => {
       } else {
         try {
           console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
-          await msg.reply(`Sip kak! Booking sudah lengkap:\\n\\nHari: ${parsedData.hari}\\nJam: ${parsedData.jam}\\nServis: ${parsedData.servis}\\nNama: ${parsedData.nama}\\n\\nTerima kasih, ditunggu kedatangannya!`);
+          await msg.reply(`Sip kak! Booking sudah lengkap:\\n\\nHari: ${merged.hari}\\nJam: ${merged.jam}\\nServis: ${merged.servis}\\nNama: ${merged.nama}\\n\\nTerima kasih, ditunggu kedatangannya!`);
+          
+          try {
+            const response = await fetch(`${API_URL}/requests`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                senderName: merged.nama,
+                senderPhone: msg.from,
+                message: msg.body,
+                extractedDay: merged.hari,
+                extractedTime: merged.jam,
+                extractedService: merged.servis
+              })
+            });
+            if (!response.ok) throw new Error(`API responded with status ${response.status}`);
+            console.log('[DB SAVED] booking tersimpan ke database untuk', msg.from);
+          } catch (err) {
+            console.error('[DB SAVE ERROR]', err.message);
+          }
+          
+          conversationState.delete(msg.from);
         } catch (err) {
           console.error('[REPLY ERROR]', err.message, '| target:', msg.from);
         }
