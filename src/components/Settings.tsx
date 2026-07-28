@@ -23,7 +23,9 @@ import { SegmentedToggle, SegmentOption } from './ui/SegmentedToggle';
 
 interface SettingsProps {
   services: Service[];
+  servicesLoading?: boolean;
   barbers: Barber[];
+  barbersLoading?: boolean;
   onAddService: (newService: Omit<Service, 'id'>) => void;
   onRemoveService: (id: string) => void;
   onUpdateBarberStatus: (id: string, status: 'active' | 'break' | 'off') => void;
@@ -36,7 +38,9 @@ interface SettingsProps {
 
 export default function SettingsView({
   services,
+  servicesLoading,
   barbers,
+  barbersLoading,
   onAddService,
   onRemoveService,
   onUpdateBarberStatus,
@@ -193,27 +197,37 @@ export default function SettingsView({
 
           {/* Active Services list */}
           <div className="space-y-2.5 max-h-[250px] overflow-y-auto pr-1">
-            {services.map((svc) => (
-              <div key={svc.id} className="flex items-center justify-between p-3 rounded-xl bg-[#070707] border border-border-subtle">
-                <div className="space-y-0.5">
-                  <h4 className="text-sm font-bold text-gray-200 font-sans">{svc.name}</h4>
-                  <p className="text-xs text-gray-400 font-mono flex items-center gap-2">
-                    <span>Rp {svc.price.toLocaleString()}</span>
-                    <span className="text-gray-600">•</span>
-                    <span className="flex items-center gap-0.5"><Clock size={10} /> {svc.duration} {t('settings.mins')}</span>
-                  </p>
-                </div>
-                
-                <button
-                  onClick={() => onRemoveService(svc.id)}
-                  className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-[#121212] border border-border-subtle text-red-400 hover:bg-red-500/15 hover:border-red-500/30 rounded-lg transition-all cursor-pointer"
-                  title={t('settings.deleteService')}
-                  id={`remove-service-${svc.id}`}
-                >
-                  <Trash size={14} />
-                </button>
+            {servicesLoading ? (
+              <div className="p-4 text-center">
+                <span className="text-sm font-sans text-gray-400">Memuat layanan...</span>
               </div>
-            ))}
+            ) : services.length === 0 ? (
+              <div className="p-4 text-center">
+                <span className="text-sm font-sans text-gray-400">Belum ada layanan — tambahkan via form di atas</span>
+              </div>
+            ) : (
+              services.map((svc) => (
+                <div key={svc.id} className="flex items-center justify-between p-3 rounded-xl bg-[#070707] border border-border-subtle">
+                  <div className="space-y-0.5">
+                    <h4 className="text-sm font-bold text-gray-200 font-sans">{svc.name}</h4>
+                    <p className="text-xs text-gray-400 font-mono flex items-center gap-2">
+                      <span>Rp {svc.price.toLocaleString()}</span>
+                      <span className="text-gray-600">•</span>
+                      <span className="flex items-center gap-0.5"><Clock size={10} /> {svc.duration} {t('settings.mins')}</span>
+                    </p>
+                  </div>
+                  
+                  <button
+                    onClick={() => onRemoveService(svc.id)}
+                    className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-[#121212] border border-border-subtle text-red-400 hover:bg-red-500/15 hover:border-red-500/30 rounded-lg transition-all cursor-pointer"
+                    title={t('settings.deleteService')}
+                    id={`remove-service-${svc.id}`}
+                  >
+                    <Trash size={14} />
+                  </button>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -297,52 +311,62 @@ export default function SettingsView({
           </AnimatePresence>
 
           <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
-            {barbers.map((barber) => (
-              <div key={barber.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3.5 rounded-xl bg-[#070707] border border-border-subtle gap-3">
-                <div className="flex items-center gap-3 w-full sm:w-auto overflow-hidden">
-                  <img
-                    src={barber.avatar}
-                    alt={barber.name}
-                    className="w-10 h-10 shrink-0 rounded-xl object-cover border border-border-subtle"
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="min-w-0">
-                    <h4 className="text-sm font-bold text-white font-sans truncate">{barber.name}</h4>
-                    <p className="text-xs text-gray-400 font-sans truncate">{barber.specialty}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end shrink-0">
-                  <SegmentedToggle
-                    options={[
-                      { value: 'active', label: t('settings.active') as string, activeColor: 'teal' },
-                      { value: 'break', label: t('settings.break') as string, activeColor: 'amber' },
-                      { value: 'off', label: t('settings.off') as string, activeColor: 'gray' },
-                    ]}
-                    value={barber.status}
-                    onChange={(v: string) => onUpdateBarberStatus(barber.id, v as 'active' | 'break' | 'off')}
-                    size="sm"
-                    idPrefix={`barber-status-${barber.id}`}
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => startEditBarber(barber)}
-                      className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-[#121212] border border-border-subtle text-amber-500 hover:bg-amber-500/15 rounded-lg transition-all cursor-pointer"
-                      title="Edit"
-                    >
-                      <Edit3 size={14} />
-                    </button>
-                    <button
-                      onClick={() => onRemoveBarber(barber.id)}
-                      className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-[#121212] border border-border-subtle text-red-400 hover:bg-red-500/15 hover:border-red-500/30 rounded-lg transition-all cursor-pointer"
-                      title="Delete"
-                    >
-                      <Trash size={14} />
-                    </button>
-                  </div>
-                </div>
+            {barbersLoading ? (
+              <div className="p-4 text-center">
+                <span className="text-sm font-sans text-gray-400">Memuat kapster...</span>
               </div>
-            ))}
+            ) : barbers.length === 0 ? (
+              <div className="p-4 text-center">
+                <span className="text-sm font-sans text-gray-400">Belum ada kapster — tambahkan via form di atas</span>
+              </div>
+            ) : (
+              barbers.map((barber) => (
+                <div key={barber.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3.5 rounded-xl bg-[#070707] border border-border-subtle gap-3">
+                  <div className="flex items-center gap-3 w-full sm:w-auto overflow-hidden">
+                    <img
+                      src={barber.avatar}
+                      alt={barber.name}
+                      className="w-10 h-10 shrink-0 rounded-xl object-cover border border-border-subtle"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="min-w-0">
+                      <h4 className="text-sm font-bold text-white font-sans truncate">{barber.name}</h4>
+                      <p className="text-xs text-gray-400 font-sans truncate">{barber.specialty}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end shrink-0">
+                    <SegmentedToggle
+                      options={[
+                        { value: 'active', label: t('settings.active') as string, activeColor: 'teal' },
+                        { value: 'break', label: t('settings.break') as string, activeColor: 'amber' },
+                        { value: 'off', label: t('settings.off') as string, activeColor: 'gray' },
+                      ]}
+                      value={barber.status}
+                      onChange={(v: string) => onUpdateBarberStatus(barber.id, v as 'active' | 'break' | 'off')}
+                      size="sm"
+                      idPrefix={`barber-status-${barber.id}`}
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => startEditBarber(barber)}
+                        className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-[#121212] border border-border-subtle text-amber-500 hover:bg-amber-500/15 rounded-lg transition-all cursor-pointer"
+                        title="Edit"
+                      >
+                        <Edit3 size={14} />
+                      </button>
+                      <button
+                        onClick={() => onRemoveBarber(barber.id)}
+                        className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-[#121212] border border-border-subtle text-red-400 hover:bg-red-500/15 hover:border-red-500/30 rounded-lg transition-all cursor-pointer"
+                        title="Delete"
+                      >
+                        <Trash size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 

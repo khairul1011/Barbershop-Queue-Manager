@@ -11,8 +11,9 @@ import { SegmentedToggle } from './ui/SegmentedToggle';
 
 interface ScheduleProps {
   queue: QueueEntry[];
+  servingSessions?: Record<string, QueueEntry | null>;
   completedEntries: QueueEntry[];
-  onUpdateStatus: (id: string, newStatus: QueueStatus) => void;
+  onUpdateStatus: (id: string, newStatus: QueueStatus, scheduledTime?: string) => void;
   onSendWhatsApp: (phone: string, text: string) => void;
   barbers: Barber[];
   services: Service[];
@@ -25,6 +26,7 @@ interface ScheduleProps {
   ) => void;
   onRemoveBooking?: (id: string) => void;
   todayKey?: string;
+  currentTime?: Date;
   businessHours: { openHour: number; closeHour: number };
 }
 
@@ -35,6 +37,7 @@ const PIXELS_PER_MINUTE = 1.5;
 
 export default function Schedule({ 
   queue, 
+  servingSessions,
   completedEntries,
   onUpdateStatus, 
   onSendWhatsApp,
@@ -43,6 +46,7 @@ export default function Schedule({
   onAddBooking,
   onRemoveBooking,
   todayKey = 'Wed',
+  currentTime,
   businessHours
 }: ScheduleProps) {
   const { t } = useTranslation();
@@ -58,6 +62,7 @@ export default function Schedule({
 
   // Modals state
   const [activeSlotDetails, setActiveSlotDetails] = useState<{ day: DayType; timeRange: string; entry: QueueEntry } | null>(null);
+  const [confirmTime, setConfirmTime] = useState('');
   const [bookingSlot, setBookingSlot] = useState<{ day: DayType; hour: string; barberName: string } | null>(null);
 
   // Quick book form states
@@ -67,7 +72,7 @@ export default function Schedule({
 
   // Date calculation helpers
   const getDatesForWeek = (offsetWeeks: number) => {
-    const systemToday = new Date('2026-07-08T12:00:00'); // Our anchored today is a Wed
+    const systemToday = currentTime || new Date();
     const anchorDate = new Date(systemToday);
     anchorDate.setDate(systemToday.getDate() + offsetWeeks * 7);
 
@@ -76,18 +81,19 @@ export default function Schedule({
     const monday = new Date(anchorDate);
     monday.setDate(anchorDate.getDate() + diffToMonday);
 
-    const dates: { day: DayType; label: string; dayNum: number; fullDate: Date; isToday: boolean }[] = [];
+    const dates: { day: DayType; label: string; dayNum: number; fullDate: Date; fullDateString: string; isToday: boolean }[] = [];
 
     for (let i = 0; i < 7; i++) {
       const d = new Date(monday);
       d.setDate(monday.getDate() + i);
       const isToday = d.toDateString() === systemToday.toDateString();
-      
+      const fullDateString = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       dates.push({
         day: DAYS_OF_WEEK[i],
         label: `${DAYS_OF_WEEK[i]} ${d.getDate()}`,
         dayNum: d.getDate(),
         fullDate: d,
+        fullDateString,
         isToday
       });
     }
@@ -106,7 +112,7 @@ export default function Schedule({
   };
 
   const getDatesForMonth = (offsetMonths: number) => {
-    const systemToday = new Date('2026-07-08T12:00:00');
+    const systemToday = currentTime || new Date();
     const targetDate = new Date(systemToday.getFullYear(), systemToday.getMonth() + offsetMonths, 1);
     
     const year = targetDate.getFullYear();
@@ -127,11 +133,13 @@ export default function Schedule({
     
     for(let i = 1; i <= daysInMonth; i++) {
        const d = new Date(year, month, i);
+       const fullDateString = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
        days.push({
          dayNum: i,
          day: DAYS_OF_WEEK[d.getDay() === 0 ? 6 : d.getDay() - 1],
          isToday: d.toDateString() === systemToday.toDateString(),
-         fullDate: d
+         fullDate: d,
+         fullDateString
        });
     }
     
@@ -148,7 +156,8 @@ export default function Schedule({
     return (parseInt(match[1]) - businessHours.openHour) * 60 + parseInt(match[2]);
   };
 
-  const allEntries = [...queue, ...completedEntries];
+  const servingEntries = servingSessions ? (Object.values(servingSessions).filter(Boolean) as QueueEntry[]) : [];
+  const allEntries = [...queue, ...completedEntries, ...servingEntries];
 
   const filteredEntries = allEntries.filter(entry => {
     if (filterBarberId !== 'all') {
@@ -162,12 +171,18 @@ export default function Schedule({
     return true;
   });
 
-  const getStatusBadgeStyles = (status: QueueStatus) => {
-    switch (status) {
+  const getStatusBadgeStyles = (entry: QueueEntry) => {
+    if (entry.completedAt) {
+      return 'bg-zinc-800/80 text-gray-500 border border-zinc-700/50 opacity-60';
+    }
+    if (entry.startedAt && !entry.completedAt) {
+      return 'bg-violet-500/20 text-violet-300 border border-violet-500/50 shadow-[0_0_15px_rgba(139,92,246,0.15)] ring-1 ring-violet-500/50';
+    }
+    switch (entry.status) {
       case 'Confirmed': return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
       case 'Estimated': return 'bg-amber-500/10 text-amber-500 border border-amber-500/20';
       case 'Pending Reply': return 'bg-sky-500/10 text-sky-400 border border-sky-500/20';
-      case 'Completed': return 'bg-blue-500/10 text-blue-400 border border-blue-500/20 opacity-50';
+      case 'Completed': return 'bg-zinc-800/80 text-gray-500 border border-zinc-700/50 opacity-60';
       default: return 'bg-gray-500/10 text-gray-400 border border-gray-500/20';
     }
   };
@@ -208,8 +223,86 @@ export default function Schedule({
 
   // Rendering logic for Time Grid Columns
   const renderTimeGridColumn = (barber: Barber, day: DayType) => {
-    const barberEntries = filteredEntries.filter(e => e.barber === barber.name && e.day === day && e.status !== 'Estimated');
+    const currentDateString = weekDates.find(d => d.day === day)?.fullDateString;
+    const barberEntries = filteredEntries.filter(e => e.barber === barber.name && e.scheduledDate === currentDateString && e.status !== 'Estimated');
     const hours = Array.from({ length: businessHours.closeHour - businessHours.openHour + 1 }, (_, i) => i + businessHours.openHour);
+
+    // 1. Process entries with start/end minutes
+    const entriesWithTime = barberEntries.map(entry => {
+      const startM = parseStartMinutes(entry.timeRange);
+      const duration = entry.durationMinutes || 30; // Fallback to 30 mins
+      return {
+        ...entry,
+        startM,
+        endM: startM !== null ? startM + duration : null
+      };
+    }).filter((e): e is (QueueEntry & { startM: number; endM: number }) => e.startM !== null);
+
+    // 2. Sort entries
+    entriesWithTime.sort((a, b) => a.startM - b.startM || b.endM - a.endM);
+
+    // 3. Group into overlapping clusters
+    const clusters: (typeof entriesWithTime)[] = [];
+    let currentCluster: typeof entriesWithTime = [];
+    let clusterEnd = 0;
+
+    entriesWithTime.forEach(entry => {
+      if (currentCluster.length > 0 && entry.startM >= clusterEnd) {
+        clusters.push(currentCluster);
+        currentCluster = [];
+      }
+      currentCluster.push(entry);
+      clusterEnd = Math.max(clusterEnd, entry.endM);
+    });
+    if (currentCluster.length > 0) {
+      clusters.push(currentCluster);
+    }
+
+    // 4. Position entries within clusters
+    const positionedEntries: { entry: QueueEntry, topPx: number, heightPx: number, left: string, width: string }[] = [];
+
+    clusters.forEach(cluster => {
+      const columns: (typeof entriesWithTime)[] = [];
+      cluster.forEach(entry => {
+        let placed = false;
+        for (let i = 0; i < columns.length; i++) {
+          const col = columns[i];
+          const overlaps = col.some(e => Math.max(entry.startM, e.startM) < Math.min(entry.endM, e.endM));
+          if (!overlaps) {
+            col.push(entry);
+            placed = true;
+            break;
+          }
+        }
+        if (!placed) {
+          columns.push([entry]);
+        }
+      });
+
+      const numCols = columns.length;
+      columns.forEach((col, colIdx) => {
+        col.forEach(entry => {
+          // Calculate colspan greedily
+          let colspan = 1;
+          for (let i = colIdx + 1; i < columns.length; i++) {
+            const overlaps = columns[i].some(e => Math.max(entry.startM, e.startM) < Math.min(entry.endM, e.endM));
+            if (!overlaps) {
+              colspan++;
+            } else {
+              break;
+            }
+          }
+
+          positionedEntries.push({
+            entry,
+            topPx: entry.startM * PIXELS_PER_MINUTE,
+            heightPx: Math.max((entry.endM - entry.startM) * PIXELS_PER_MINUTE, 24),
+            left: `calc(${colIdx * 100 / numCols}% + 4px)`, // +4px for left margin
+            width: `calc(${colspan * 100 / numCols}% - 8px)`, // -8px for left+right margins
+          });
+        });
+      });
+    });
 
     return (
       <div className="flex-1 min-w-[200px] border-r border-zinc-900/50 relative">
@@ -231,26 +324,27 @@ export default function Schedule({
           ))}
 
           {/* Render Blocks */}
-          {barberEntries.map(entry => {
-            const startM = parseStartMinutes(entry.timeRange);
-            if (startM === null) return null;
-            const topPx = startM * PIXELS_PER_MINUTE;
-            const heightPx = Math.max((entry.durationMinutes || 30) * PIXELS_PER_MINUTE, 24);
-
-            return (
-              <div
-                key={entry.id}
-                onClick={() => setActiveSlotDetails({ day, timeRange: entry.timeRange, entry })}
-                className={`absolute left-1 right-1 rounded-xl p-2 cursor-pointer transition-all hover:z-10 hover:shadow-lg ${getStatusBadgeStyles(entry.status)} shadow-black/40 backdrop-blur-sm bg-opacity-80 overflow-hidden`}
-                style={{ top: topPx, height: heightPx }}
-              >
+          {positionedEntries.map(({ entry, topPx, heightPx, left, width }) => (
+            <div
+              key={entry.id}
+              onClick={() => setActiveSlotDetails({ day, timeRange: entry.timeRange, entry })}
+              className={`absolute rounded-xl p-2 cursor-pointer transition-all hover:z-10 hover:shadow-lg ${getStatusBadgeStyles(entry)} shadow-black/40 backdrop-blur-sm bg-opacity-80 overflow-hidden flex flex-col`}
+              style={{ top: topPx, height: heightPx, left, width }}
+            >
+              <div className="flex justify-between items-start gap-1">
                 <div className="font-bold text-[11px] text-white truncate leading-tight">{entry.customerName}</div>
-                <div className="text-[9px] mt-0.5 truncate flex items-center gap-1 opacity-80">
-                  <span className="font-mono">{entry.timeRange.replace('~', '')}</span>
-                </div>
+                {entry.startedAt && !entry.completedAt && (
+                  <div className="text-[8px] font-black bg-violet-500 text-white px-1 py-0.5 rounded animate-pulse shrink-0">LIVE</div>
+                )}
               </div>
-            );
-          })}
+              <div className="text-[9px] font-mono opacity-80 mt-0.5 truncate">{entry.timeRange}</div>
+              {heightPx > 40 && (
+                <div className="text-[10px] opacity-90 mt-auto truncate flex items-center gap-1">
+                  <Scissors size={8}/> {entry.service}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -334,9 +428,35 @@ export default function Schedule({
           <div className="flex flex-col bg-[#050505] border border-zinc-900 rounded-2xl overflow-hidden relative">
             <div className="flex items-center justify-between p-3 border-b border-zinc-900 bg-[#0A0A0A]">
               <div className="flex items-center gap-3">
-                <button onClick={() => setWeekOffset(o => o - 1)} className="min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-zinc-800 rounded-lg text-gray-400 cursor-pointer"><ChevronLeft size={18}/></button>
+                <button 
+                  onClick={() => {
+                    const currentIndex = DAYS_OF_WEEK.indexOf(selectedDay);
+                    if (currentIndex === 0) {
+                      setWeekOffset(o => o - 1);
+                      setSelectedDay('Sun');
+                    } else {
+                      setSelectedDay(DAYS_OF_WEEK[currentIndex - 1]);
+                    }
+                  }} 
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-zinc-800 rounded-lg text-gray-400 cursor-pointer"
+                >
+                  <ChevronLeft size={18}/>
+                </button>
                 <span className="font-bold text-white min-w-[120px] text-center">{weekDates.find(d => d.day === selectedDay)?.label}</span>
-                <button onClick={() => setWeekOffset(o => o + 1)} className="min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-zinc-800 rounded-lg text-gray-400 cursor-pointer"><ChevronRight size={18}/></button>
+                <button 
+                  onClick={() => {
+                    const currentIndex = DAYS_OF_WEEK.indexOf(selectedDay);
+                    if (currentIndex === 6) {
+                      setWeekOffset(o => o + 1);
+                      setSelectedDay('Mon');
+                    } else {
+                      setSelectedDay(DAYS_OF_WEEK[currentIndex + 1]);
+                    }
+                  }} 
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-zinc-800 rounded-lg text-gray-400 cursor-pointer"
+                >
+                  <ChevronRight size={18}/>
+                </button>
               </div>
             </div>
 
@@ -404,31 +524,88 @@ export default function Schedule({
                 <button onClick={() => setWeekOffset(o => o + 1)} className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-zinc-900 rounded-full text-gray-400 hover:text-white cursor-pointer"><ChevronRight size={18}/></button>
              </div>
              
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
+             <div className="flex flex-col gap-4">
                {weekDates.map(date => {
-                 const dayEntries = filteredEntries.filter(e => e.day === date.day && e.status !== 'Estimated');
+                 const dayEntries = filteredEntries.filter(e => e.scheduledDate === date.fullDateString && e.status !== 'Estimated');
+                 // Sort entries by time
+                 dayEntries.sort((a, b) => {
+                   const startA = parseStartMinutes(a.timeRange) || 0;
+                   const startB = parseStartMinutes(b.timeRange) || 0;
+                   return startA - startB;
+                 });
+                 
                  return (
-                   <div key={date.day} className={`bg-[#0A0A0A] border rounded-2xl p-4 flex flex-col gap-3 ${date.isToday ? 'border-amber-500/50 shadow-lg shadow-amber-500/5' : 'border-zinc-900'}`}>
-                     <div className="flex justify-between items-center">
-                       <div>
-                         <div className="text-[10px] font-mono uppercase text-gray-500">{date.day}</div>
-                         <div className={`font-bold text-xl ${date.isToday ? 'text-amber-500' : 'text-white'}`}>{date.dayNum}</div>
+                   <div key={date.day} className={`bg-[#0A0A0A] border rounded-2xl flex overflow-hidden ${date.isToday ? 'border-amber-500/50 shadow-lg shadow-amber-500/5 ring-1 ring-inset ring-amber-500/20' : 'border-zinc-900'}`}>
+                     
+                     {/* Left: Date Header */}
+                     <div className="w-[72px] sm:w-[80px] p-3 sm:p-4 flex flex-col items-center justify-center border-r border-zinc-900/80 bg-[#050505] shrink-0">
+                       <div className="text-[10px] font-mono uppercase text-gray-500">{date.day}</div>
+                       <div className={`mt-1 flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full ${date.isToday ? 'bg-amber-500/10 text-amber-500 font-extrabold text-lg sm:text-xl' : 'text-white font-bold text-lg sm:text-xl'}`}>
+                         {date.dayNum}
                        </div>
-                       <button onClick={() => { setSelectedDay(date.day); setViewMode('Daily'); }} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-xs bg-zinc-900 rounded-xl text-gray-400 hover:text-white cursor-pointer transition-colors">View</button>
+                       <button onClick={() => { setSelectedDay(date.day); setViewMode('Daily'); }} className="mt-2 sm:mt-3 text-[9px] uppercase tracking-wider text-gray-500 hover:text-amber-500 font-bold transition-colors cursor-pointer">
+                         View
+                       </button>
                      </div>
-                     <div className="space-y-2 flex-1">
+
+                     {/* Right: Entries List */}
+                     <div className="flex-1 p-3 sm:p-4 flex flex-col gap-2 relative min-w-0">
                        {dayEntries.length === 0 ? (
-                         <div className="text-xs text-zinc-400 italic py-2">{t('schedule.noEntriesForDay')}</div>
+                         <div className="h-full flex items-center justify-center min-h-[60px]">
+                           <span className="text-xs text-zinc-500 italic">{t('schedule.noEntriesForDay')}</span>
+                         </div>
                        ) : (
-                         dayEntries.slice(0, 5).map(e => (
-                           <div key={e.id} onClick={() => { setSelectedDay(date.day); setViewMode('Daily'); }} className={`p-2 rounded-xl border text-xs flex justify-between items-center cursor-pointer hover:opacity-80 transition-opacity ${getStatusBadgeStyles(e.status)}`}>
-                             <span className="font-bold truncate">{e.customerName}</span>
-                             <span className="font-mono text-[9px] opacity-80 shrink-0 ml-2">{e.timeRange.replace('~','').split('-')[0]}</span>
-                           </div>
-                         ))
-                       )}
-                       {dayEntries.length > 5 && (
-                         <div className="text-[10px] text-center text-gray-500 py-1">{t('schedule.moreEntries').replace('{n}', (dayEntries.length - 5).toString())}</div>
+                         <div className="flex flex-col gap-2">
+                           {dayEntries.slice(0, 4).map(e => {
+                             const isConfirmed = e.status === 'Confirmed';
+                             const isCompleted = !!e.completedAt;
+                             const isServing = e.startedAt && !e.completedAt;
+                             
+                             let borderLeftColor = 'border-l-zinc-700';
+                             if (isServing) borderLeftColor = 'border-l-violet-500';
+                             else if (isConfirmed) borderLeftColor = 'border-l-emerald-500';
+                             else if (e.status === 'Pending Reply') borderLeftColor = 'border-l-sky-500';
+                             
+                             return (
+                               <div 
+                                 key={e.id} 
+                                 onClick={() => { setSelectedDay(date.day); setViewMode('Daily'); }} 
+                                 className={`p-2.5 sm:p-3 rounded-xl border border-zinc-800 bg-[#121212] border-l-[3px] ${borderLeftColor} text-xs flex justify-between items-center cursor-pointer hover:bg-zinc-800/50 transition-colors ${isCompleted ? 'opacity-50 grayscale' : ''}`}
+                               >
+                                 <div className="flex flex-col gap-1 min-w-0 flex-1 pr-2 sm:pr-4">
+                                   <div className="flex items-center gap-2">
+                                     <span className="font-bold text-sm text-white truncate">{e.customerName}</span>
+                                     {isServing && (
+                                       <span className="text-[8px] font-black bg-violet-500/20 text-violet-400 border border-violet-500/30 px-1.5 py-0.5 rounded animate-pulse shrink-0">LIVE</span>
+                                     )}
+                                     {isCompleted && (
+                                       <span className="text-[8px] font-bold bg-zinc-800 text-gray-400 px-1.5 py-0.5 rounded">DONE</span>
+                                     )}
+                                   </div>
+                                   <div className="text-[10px] text-gray-400 flex items-center gap-2 truncate">
+                                     <span className="flex items-center gap-1 shrink-0"><User size={10}/> <span className="truncate max-w-[60px] sm:max-w-none">{e.barber}</span></span>
+                                     <span className="flex items-center gap-1 shrink-0"><Scissors size={10}/> <span className="truncate">{e.service}</span></span>
+                                   </div>
+                                 </div>
+                                 <div className="flex flex-col items-end shrink-0 pl-2 sm:pl-4 border-l border-zinc-800">
+                                   <span className="font-mono text-[11px] font-bold text-gray-300">{e.timeRange.replace('~','').split('-')[0].trim()}</span>
+                                   <span className="font-mono text-[9px] text-gray-600">{e.timeRange.replace('~','').split('-')[1]?.trim() || ''}</span>
+                                 </div>
+                               </div>
+                             );
+                           })}
+                           
+                           {dayEntries.length > 4 && (
+                             <div className="flex items-center justify-center pt-1">
+                               <button 
+                                 onClick={() => { setSelectedDay(date.day); setViewMode('Daily'); }} 
+                                 className="text-[10px] font-bold text-gray-400 bg-zinc-900 hover:bg-zinc-800 hover:text-white px-3 py-1.5 rounded-full transition-colors cursor-pointer"
+                               >
+                                 + {dayEntries.length - 4} {t('schedule.moreEntries').replace('{n}', '').trim()}
+                               </button>
+                             </div>
+                           )}
+                         </div>
                        )}
                      </div>
                    </div>
@@ -454,32 +631,60 @@ export default function Schedule({
              
              <div className="grid grid-cols-7 gap-[1px] bg-zinc-900/50 rounded-xl overflow-hidden">
                {monthDays.map((md, idx) => {
-                 if (!md) return <div key={`empty-${idx}`} className="bg-[#050505] min-h-[70px] sm:min-h-[90px]" />;
-                 const dayEntries = filteredEntries.filter(e => e.day === md.day);
-                 const uniqueStatuses = [...new Set(dayEntries.map(e => e.status))].slice(0, 3);
-                 const hasOverflow = [...new Set(dayEntries.map(e => e.status))].length > 3;
+                 if (!md) return <div key={`empty-${idx}`} className="bg-[#050505] min-h-[80px] sm:min-h-[100px] opacity-30" />;
+                 const dayEntries = filteredEntries.filter(e => e.scheduledDate === md.fullDateString);
+                 dayEntries.sort((a, b) => {
+                   const startA = parseStartMinutes(a.timeRange) || 0;
+                   const startB = parseStartMinutes(b.timeRange) || 0;
+                   return startA - startB;
+                 });
+                 
+                 const firstEntry = dayEntries[0];
+                 const isCompleted = firstEntry?.completedAt;
+                 const isServing = firstEntry?.startedAt && !firstEntry?.completedAt;
+                 const isConfirmed = firstEntry?.status === 'Confirmed';
+                 
+                 let borderColor = 'border-l-transparent';
+                 if (firstEntry) {
+                   if (isServing) borderColor = 'border-l-violet-500';
+                   else if (isConfirmed) borderColor = 'border-l-emerald-500';
+                   else if (firstEntry.status === 'Pending Reply') borderColor = 'border-l-sky-500';
+                   else borderColor = 'border-l-zinc-700';
+                 }
 
                  return (
                    <div 
                      key={idx} 
                      onClick={() => { setSelectedDay(md.day); setViewMode('Daily'); }} 
-                     className={`bg-[#0A0A0A] hover:bg-zinc-900 min-h-[70px] sm:min-h-[90px] cursor-pointer transition-colors flex flex-col p-2 gap-1 ${md.isToday ? 'ring-1 ring-inset ring-amber-500/50' : ''}`}
+                     className={`bg-[#0A0A0A] hover:bg-zinc-900 min-h-[80px] sm:min-h-[100px] cursor-pointer transition-colors flex flex-col p-1.5 sm:p-2 gap-1 border-l-2 ${borderColor} ${md.isToday ? 'bg-zinc-900/60 ring-2 ring-inset ring-amber-500/40' : ''}`}
                    >
-                     <span className={`text-xs font-bold self-end ${md.isToday ? 'text-amber-500' : 'text-gray-400'}`}>{md.dayNum}</span>
-                     <div className="flex items-center gap-1 flex-wrap mt-auto">
-                       {uniqueStatuses.map(status => (
-                         <span
-                           key={status}
-                           className={`h-1.5 w-1.5 rounded-full ${
-                             status === 'Confirmed' ? 'bg-emerald-400' :
-                             status === 'Estimated' ? 'bg-amber-400' :
-                             status === 'Pending Reply' ? 'bg-sky-400' :
-                             'bg-blue-400 opacity-50'
-                           }`}
-                         />
-                       ))}
-                       {hasOverflow && <span className="h-1.5 w-1.5 rounded-full bg-gray-500" />}
+                     <div className="flex justify-between items-start w-full">
+                       <div className="flex gap-0.5 flex-wrap flex-1 max-w-[60%] pt-1">
+                         {dayEntries.slice(0, 3).map((e, i) => {
+                           let dotColor = 'bg-zinc-600';
+                           if (e.startedAt && !e.completedAt) dotColor = 'bg-violet-400';
+                           else if (e.status === 'Confirmed') dotColor = 'bg-emerald-400';
+                           else if (e.status === 'Pending Reply') dotColor = 'bg-sky-400';
+                           else if (e.status === 'Estimated') dotColor = 'bg-amber-400';
+                           return <span key={i} className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />;
+                         })}
+                         {dayEntries.length > 3 && <span className="text-[7px] text-gray-500 font-bold ml-0.5 leading-none">+{dayEntries.length - 3}</span>}
+                       </div>
+                       <div className={`flex items-center justify-center rounded-full shrink-0 ${md.isToday ? 'w-5 h-5 bg-amber-500 text-black text-[10px] font-extrabold' : 'text-xs font-bold text-gray-400'}`}>
+                         {md.dayNum}
+                       </div>
                      </div>
+                     
+                     {firstEntry && (
+                       <div className={`mt-auto flex flex-col gap-0.5 overflow-hidden ${isCompleted ? 'opacity-40 grayscale' : ''}`}>
+                         <span className="text-[9px] sm:text-[10px] font-semibold text-white truncate w-full leading-tight">
+                           {firstEntry.customerName}
+                         </span>
+                         <span className="text-[8px] sm:text-[9px] font-mono text-gray-500">
+                           {firstEntry.timeRange.replace('~','').split('-')[0].trim()}
+                         </span>
+                       </div>
+                     )}
                    </div>
                  );
                })}
@@ -489,7 +694,7 @@ export default function Schedule({
       </div>
 
       {/* ESTIMATED QUEUE PANEL */}
-      {filteredEntries.some(e => e.day === selectedDay && e.status === 'Estimated') && (
+      {filteredEntries.some(e => e.scheduledDate === weekDates.find(d => d.day === selectedDay)?.fullDateString && e.status === 'Estimated' && !e.completedAt) && (
         <div className="flex-none bg-amber-500/5 border border-amber-500/20 rounded-2xl p-4">
           <div className="flex items-center gap-2 mb-3">
              <Clock size={16} className="text-amber-500" />
@@ -497,7 +702,7 @@ export default function Schedule({
              <span className="text-xs text-amber-500/70 ml-2 hidden sm:inline">({t('schedule.estimatedQueueDesc')})</span>
           </div>
           <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
-            {filteredEntries.filter(e => e.day === selectedDay && e.status === 'Estimated').map(entry => (
+            {filteredEntries.filter(e => e.scheduledDate === weekDates.find(d => d.day === selectedDay)?.fullDateString && e.status === 'Estimated' && !e.completedAt).map(entry => (
               <div key={entry.id} onClick={() => setActiveSlotDetails({ day: selectedDay, timeRange: entry.timeRange, entry })} className="flex-none bg-[#0A0A0A] border border-amber-500/30 rounded-xl p-3 w-[200px] cursor-pointer hover:bg-zinc-900 transition-colors">
                 <div className="flex justify-between items-start mb-2">
                   <div className="font-bold text-white text-sm truncate">{entry.customerName}</div>
@@ -609,9 +814,48 @@ export default function Schedule({
                         <MessageSquarePlus size={14} /> {t('schedule.sendWhatsAppNudge')}
                       </button>
                     )}
-                    <div className="flex gap-2">
-                      <button onClick={() => { onUpdateStatus(activeSlotDetails.entry.id, 'Confirmed'); setActiveSlotDetails(null); }} className="flex-1 bg-zinc-900 hover:bg-zinc-850 border border-zinc-850 text-emerald-400 font-bold rounded-xl text-[11px] flex justify-center items-center min-h-[44px] gap-1 cursor-pointer transition-colors"><Check size={11} /> {t('schedule.confirm')}</button>
-                      <button onClick={() => { onRemoveBooking && onRemoveBooking(activeSlotDetails.entry.id); setActiveSlotDetails(null); }} className="min-w-[44px] min-h-[44px] bg-zinc-900 hover:bg-red-900/20 border border-red-950 text-red-400 rounded-xl flex justify-center items-center cursor-pointer transition-colors"><Trash2 size={13}/></button>
+                    <div className="flex flex-col gap-2">
+                      {activeSlotDetails.entry.status === 'Estimated' && (
+                        <div className="bg-[#121212] border border-zinc-850 p-3 rounded-xl flex items-center justify-between">
+                           <div className="text-[10px] text-gray-400 font-mono font-bold uppercase">{t('schedule.scheduledTime', 'Set Time')}</div>
+                           <input 
+                             type="time" 
+                             value={confirmTime}
+                             onChange={(e) => setConfirmTime(e.target.value)}
+                             className="bg-[#1A1A1A] text-white text-sm font-bold p-1.5 rounded-lg border border-zinc-800 outline-none"
+                           />
+                        </div>
+                      )}
+                      <div className="flex gap-2 mt-2">
+                        <button 
+                          onClick={() => { 
+                            if (activeSlotDetails.entry.status === 'Estimated') {
+                              if (!confirmTime) {
+                                alert('Silakan isi jam terlebih dahulu!');
+                                return;
+                              }
+                              onUpdateStatus(activeSlotDetails.entry.id, 'Confirmed', confirmTime);
+                            } else {
+                              onUpdateStatus(activeSlotDetails.entry.id, 'Confirmed');
+                            }
+                            setActiveSlotDetails(null); 
+                            setConfirmTime('');
+                          }} 
+                          className="flex-1 bg-zinc-900 hover:bg-zinc-850 border border-zinc-850 text-emerald-400 font-bold rounded-xl text-[11px] flex justify-center items-center min-h-[44px] gap-1 cursor-pointer transition-colors"
+                        >
+                          <Check size={11} /> {t('schedule.confirm')}
+                        </button>
+                        <button 
+                          onClick={() => { 
+                            onRemoveBooking && onRemoveBooking(activeSlotDetails.entry.id); 
+                            setActiveSlotDetails(null); 
+                            setConfirmTime('');
+                          }} 
+                          className="min-w-[44px] min-h-[44px] bg-zinc-900 hover:bg-red-900/20 border border-red-950 text-red-400 rounded-xl flex justify-center items-center cursor-pointer transition-colors"
+                        >
+                          <Trash2 size={13}/>
+                        </button>
+                      </div>
                     </div>
                  </div>
                </div>

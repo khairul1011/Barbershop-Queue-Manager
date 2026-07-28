@@ -2,6 +2,7 @@ require('dotenv').config();
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const { parseBookingMessage } = require('./gemini');
+const supabase = require('./supabaseClient');
 
 const conversationState = new Map();
 const API_URL = process.env.API_URL || 'http://localhost:3001';
@@ -98,19 +99,16 @@ client.on('message', async msg => {
           await msg.reply(`Sip kak! Booking sudah lengkap:\\n\\nHari: ${merged.hari}\\nJam: ${merged.jam}\\nServis: ${merged.servis}\\nNama: ${merged.nama}\\n\\nTerima kasih, ditunggu kedatangannya!`);
           
           try {
-            const response = await fetch(`${API_URL}/requests`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                senderName: merged.nama,
-                senderPhone: msg.from,
-                message: msg.body,
-                extractedDay: merged.hari,
-                extractedTime: merged.jam,
-                extractedService: merged.servis
-              })
+            const { error } = await supabase.from('whatsapp_requests').insert({
+              sender_name: merged.nama,
+              sender_phone: msg.from,
+              raw_message: msg.body,
+              extracted_day: merged.hari,
+              extracted_time: merged.jam,
+              extracted_service: merged.servis,
+              is_booking_intent: true
             });
-            if (!response.ok) throw new Error(`API responded with status ${response.status}`);
+            if (error) throw error;
             console.log('[DB SAVED] booking tersimpan ke database untuk', msg.from);
           } catch (err) {
             console.error('[DB SAVE ERROR]', err.message);

@@ -224,10 +224,28 @@ export default function Overview({
   const [walkInService, setWalkInService] = useState(services[0]?.name || '');
   const [walkInBarber, setWalkInBarber] = useState(barbers[0]?.name || '');
 
+  // Sync state dengan data yang baru di-load dari Supabase
+  useEffect(() => {
+    if (services.length > 0 && !walkInService) {
+      setWalkInService(services[0].name);
+    }
+  }, [services, walkInService]);
+
+  useEffect(() => {
+    if (barbers.length > 0 && !walkInBarber) {
+      setWalkInBarber(barbers[0].name);
+    }
+  }, [barbers, walkInBarber]);
+
   const handleWalkInSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!walkInName.trim()) return;
-    onAddWalkIn(walkInName, walkInService, walkInBarber);
+    
+    // Safety net fallback sesuai kesepakatan
+    const finalService = walkInService || services[0]?.name || '';
+    const finalBarber = walkInBarber || barbers[0]?.name || '';
+
+    onAddWalkIn(walkInName, finalService, finalBarber);
     setWalkInName('');
     setShowWalkInModal(false);
   };

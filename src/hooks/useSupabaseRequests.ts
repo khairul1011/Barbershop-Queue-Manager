@@ -42,6 +42,17 @@ export function useSupabaseRequests() {
 
   useEffect(() => {
     fetchRequests();
+
+    const channel = supabase
+      .channel('whatsapp_requests_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'whatsapp_requests' }, () => {
+        fetchRequests();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchRequests]);
 
   const updateRequestStatus = async (id: string, status: RequestStatus) => {

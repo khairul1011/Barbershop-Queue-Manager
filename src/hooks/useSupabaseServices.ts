@@ -1,0 +1,96 @@
+import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '../lib/supabaseClient';
+import { Service } from '../types';
+
+export function useSupabaseServices() {
+  const [services, setServices] = useState<Service[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  const fetchServices = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const { data, error: supabaseError } = await supabase
+        .from('services')
+        .select('*')
+        .order('name');
+        
+      if (supabaseError) throw supabaseError;
+      
+      const formattedServices: Service[] = (data || []).map(row => ({
+        id: row.id,
+        name: row.name,
+        price: Number(row.price),
+        duration: row.duration_minutes
+      }));
+      
+      setServices(formattedServices);
+    } catch (err) {
+      console.error('Error fetching services:', err);
+      setError(err instanceof Error ? err : new Error(String(err)));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchServices();
+  }, [fetchServices]);
+
+  const addService = async (newSvc: Omit<Service, 'id'>) => {
+    try {
+      setError(null);
+      const { data, error: supabaseError } = await supabase
+        .from('services')
+        .insert([{
+          name: newSvc.name,
+          price: newSvc.price,
+          duration_minutes: newSvc.duration
+        }])
+        .select()
+        .single();
+        
+      if (supabaseError) throw supabaseError;
+      
+      const addedService: Service = {
+        id: data.id,
+        name: data.name,
+        price: Number(data.price),
+        duration: data.duration_minutes
+      };
+      
+      setServices(prev => [...prev, addedService]);
+    } catch (err) {
+      console.error('Error adding service:', err);
+      throw err; // Re-throw to be handled by caller
+    }
+  };
+
+  const removeService = async (id: string) => {
+    try {
+      setError(null);
+      const { error: supabaseError } = await supabase
+        .from('services')
+        .delete()
+        .eq('id', id);
+        
+      if (supabaseError) throw supabaseError;
+      
+      setServices(prev => prev.filter(s => s.id !== id));
+    } catch (err) {
+      console.error('Error removing service:', err);
+      throw err; // Re-throw to be handled by caller
+    }
+  };
+
+  return {
+    services,
+    loading,
+    error,
+    addService,
+    removeService,
+    refreshServices: fetchServices
+  };
+}

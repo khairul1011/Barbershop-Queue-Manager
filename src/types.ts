@@ -7,10 +7,12 @@ export interface QueueEntry {
   timeRange: string; // e.g. "~14:00-14:45"
   queueNumber?: number; // e.g. 3 (Antrian ke-3)
   day: 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
+  scheduledDate?: string; // YYYY-MM-DD format
   service: string;
   barber: string;
   phone: string;
   durationMinutes: number;
+  startedAt?: string;
   completedAt?: string;
 }
 
