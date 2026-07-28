@@ -33,7 +33,7 @@ interface SettingsProps {
   onEditBarber: (id: string, updatedBarber: Partial<Barber>) => void;
   onRemoveBarber: (id: string) => void;
   businessHours: { openHour: number; closeHour: number };
-  onUpdateBusinessHours: (newHours: { openHour: number; closeHour: number }) => void;
+  onUpdateBusinessHours: (openHour: number, closeHour: number) => void;
 }
 
 export default function SettingsView({
@@ -445,18 +445,20 @@ export default function SettingsView({
                    onChange={e => {
                      const newOpen = parseInt(e.target.value);
                      if (newOpen < businessHours.closeHour) {
-                       onUpdateBusinessHours({ ...businessHours, openHour: newOpen });
+                       onUpdateBusinessHours(newOpen, businessHours.closeHour);
                      }
                    }}
                    className="w-full bg-[#050505] border border-zinc-900 text-white text-sm rounded-xl px-4 py-3 appearance-none focus:outline-none focus:border-amber-500 cursor-pointer"
                  >
                    {Array.from({ length: 24 }).map((_, i) => (
-                     <option key={`open-${i}`} value={i} disabled={i >= businessHours.closeHour}>
+                     <option key={i} value={i}>
                        {i.toString().padStart(2, '0')}:00
                      </option>
                    ))}
                  </select>
-                 <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                 <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
+                   <ChevronDown size={16} />
+                 </div>
                </div>
              </div>
 
@@ -468,7 +470,7 @@ export default function SettingsView({
                    onChange={e => {
                      const newClose = parseInt(e.target.value);
                      if (newClose > businessHours.openHour) {
-                       onUpdateBusinessHours({ ...businessHours, closeHour: newClose });
+                       onUpdateBusinessHours(businessHours.openHour, newClose);
                      }
                    }}
                    className="w-full bg-[#050505] border border-zinc-900 text-white text-sm rounded-xl px-4 py-3 appearance-none focus:outline-none focus:border-amber-500 cursor-pointer"

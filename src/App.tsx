@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useLocalStorageState } from './hooks/useLocalStorageState';
 import { useSupabaseServices } from './hooks/useSupabaseServices';
 import { useSupabaseBarbers } from './hooks/useSupabaseBarbers';
 import { useSupabaseQueue } from './hooks/useSupabaseQueue';
 import { useSupabaseRequests } from './hooks/useSupabaseRequests';
+import { useSupabaseBusinessHours } from './hooks/useSupabaseBusinessHours';
 import Sidebar from './components/Sidebar';
 import Overview from './components/Overview';
 import Schedule from './components/Schedule';
@@ -49,7 +49,7 @@ export default function App() {
   const { barbers, loading: barbersLoading, error: barbersError, addBarber, editBarber, removeBarber, updateBarberStatus } = useSupabaseBarbers();
   const { services, loading: servicesLoading, error: servicesError, addService, removeService } = useSupabaseServices();
   const { queue, servingSessions, completedEntries, loading: queueLoading, error: queueError, addQueueEntry, updateQueueEntryStatus, serveQueueEntry, completeServingSession, removeQueueEntry } = useSupabaseQueue(barbers, services);
-  const [businessHours, setBusinessHours] = useLocalStorageState<{ openHour: number; closeHour: number }>('barberflow_businessHours', { openHour: 9, closeHour: 20 });
+  const { businessHours, updateBusinessHours } = useSupabaseBusinessHours();
 
   // Stats Counters (derived from Supabase data)
 
@@ -579,7 +579,7 @@ export default function App() {
             onEditBarber={handleEditBarber}
             onRemoveBarber={handleRemoveBarber}
             businessHours={businessHours}
-            onUpdateBusinessHours={setBusinessHours}
+            onUpdateBusinessHours={updateBusinessHours}
           />
         );
       default:
