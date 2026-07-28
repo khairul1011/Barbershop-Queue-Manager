@@ -54,7 +54,10 @@ client.on('message', async msg => {
   if (parsedData) {
     console.log('[GEMINI PARSED]', JSON.stringify(parsedData, null, 2));
 
-    if (parsedData.isBookingIntent === true) {
+    const hasActiveState = conversationState.has(msg.from);
+    const effectiveBookingIntent = parsedData.isBookingIntent || hasActiveState;
+
+    if (effectiveBookingIntent === true) {
       const oldState = conversationState.get(msg.from) || { nama: null, hari: null, jam: null, servis: null };
       
       const merged = {
