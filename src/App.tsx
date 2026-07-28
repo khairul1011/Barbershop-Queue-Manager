@@ -3,6 +3,7 @@ import { useLocalStorageState } from './hooks/useLocalStorageState';
 import { useSupabaseServices } from './hooks/useSupabaseServices';
 import { useSupabaseBarbers } from './hooks/useSupabaseBarbers';
 import { useSupabaseQueue } from './hooks/useSupabaseQueue';
+import { useSupabaseRequests } from './hooks/useSupabaseRequests';
 import Sidebar from './components/Sidebar';
 import Overview from './components/Overview';
 import Schedule from './components/Schedule';
@@ -44,30 +45,7 @@ export default function App() {
   const [isOpenMobile, setIsOpenMobile] = useState(false);
 
   // Core App States
-  const [requests, setRequests] = useState<WhatsAppRequest[]>([]);
-  const [requestsLoading, setRequestsLoading] = useState(true);
-  const [requestsError, setRequestsError] = useState<string | null>(null);
-
-  const fetchRequests = async () => {
-    try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-      const res = await fetch(`${apiUrl}/requests`);
-      if (!res.ok) throw new Error(`API responded with status ${res.status}`);
-      const data = await res.json();
-      setRequests(data);
-      setRequestsError(null);
-    } catch (err: any) {
-      setRequestsError(err.message || 'Gagal memuat data dari server');
-    } finally {
-      setRequestsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchRequests();
-    const interval = setInterval(fetchRequests, 15000);
-    return () => clearInterval(interval);
-  }, []);
+  const { requests, setRequests, loading: requestsLoading, error: requestsError, approveRequest, rejectRequest, refreshRequests } = useSupabaseRequests();
   const { barbers, loading: barbersLoading, error: barbersError, addBarber, editBarber, removeBarber, updateBarberStatus } = useSupabaseBarbers();
   const { services, loading: servicesLoading, error: servicesError, addService, removeService } = useSupabaseServices();
   const { queue, servingSessions, completedEntries, loading: queueLoading, error: queueError, addQueueEntry, updateQueueEntryStatus, serveQueueEntry, completeServingSession, removeQueueEntry } = useSupabaseQueue(barbers, services);
@@ -269,14 +247,7 @@ export default function App() {
     if (!request) return;
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-      const res = await fetch(`${apiUrl}/requests/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'approved' })
-      });
-      if (!res.ok) throw new Error(`API responded with status ${res.status}`);
-      await fetchRequests();
+      await approveRequest(id);
     } catch (err: any) {
       triggerToast('Gagal mengubah status di server.', 'error', 'Update Failed');
       return;
@@ -320,14 +291,7 @@ export default function App() {
     if (!request) return;
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-      const res = await fetch(`${apiUrl}/requests/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'rejected' })
-      });
-      if (!res.ok) throw new Error(`API responded with status ${res.status}`);
-      await fetchRequests();
+      await rejectRequest(id);
       triggerToast(`Booking request from ${request.senderName} rejected.`, 'info', 'Request Declined');
     } catch (err: any) {
       triggerToast('Gagal mengubah status di server.', 'error', 'Update Failed');
@@ -572,7 +536,7 @@ export default function App() {
           <Requests
             requests={requests}
             requestsLoading={requestsLoading}
-            requestsError={requestsError}
+            requestsError={requestsError ? requestsError.message : null}
             onApprove={handleApproveRequest}
             onReject={handleRejectRequest}
             onEdit={handleEditRequest}
