@@ -241,6 +241,48 @@ export default function App() {
     }
   };
 
+  const indonesianToEnglishDay = (dayStr: string): string => {
+    if (!dayStr) return '';
+    const d = dayStr.toLowerCase();
+    const today = new Date();
+    const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    
+    if (d.includes('hari ini')) return DAYS[today.getDay()];
+    if (d.includes('besok')) {
+      const tmr = new Date();
+      tmr.setDate(today.getDate() + 1);
+      return DAYS[tmr.getDay()];
+    }
+    if (d.includes('lusa')) {
+      const lusa = new Date();
+      lusa.setDate(today.getDate() + 2);
+      return DAYS[lusa.getDay()];
+    }
+    if (d.includes('senin')) return 'Mon';
+    if (d.includes('selasa')) return 'Tue';
+    if (d.includes('rabu')) return 'Wed';
+    if (d.includes('kamis')) return 'Thu';
+    if (d.includes('jumat')) return 'Fri';
+    if (d.includes('sabtu')) return 'Sat';
+    if (d.includes('minggu')) return 'Sun';
+    
+    return dayStr; // fallback
+  };
+
+  const fuzzyMatchService = (extractedService: string, availableServices: any[]): string => {
+    if (!extractedService) return availableServices.length > 0 ? availableServices[0].id : '';
+    const s = extractedService.toLowerCase();
+    const exactMatch = availableServices.find(srv => srv.name.toLowerCase() === s);
+    if (exactMatch) return exactMatch.id;
+    
+    const partialMatch = availableServices.find(srv => 
+      srv.name.toLowerCase().includes(s) || s.includes(srv.name.toLowerCase())
+    );
+    if (partialMatch) return partialMatch.id;
+
+    return availableServices.length > 0 ? availableServices[0].id : '';
+  };
+
   // Callback: Approve WhatsApp Booking
   const handleApproveRequest = async (id: string, customDay?: string, customTime?: string, customService?: string) => {
     const request = requests.find(r => r.id === id);
@@ -253,7 +295,8 @@ export default function App() {
       return;
     }
 
-    const daySelected = (customDay || request.extractedDay) as any;
+    const rawDay = customDay || request.extractedDay || '';
+    const daySelected = indonesianToEnglishDay(rawDay) as any;
     const timeSelected = customTime || request.extractedTime;
     const serviceSelected = customService || request.extractedService;
 
@@ -261,8 +304,11 @@ export default function App() {
     const targetBarber = barbers[0]; // simplistic assignment
 
     if (!targetBarber) return;
-    const sId = services.find(s => s.name === serviceSelected)?.id || '';
-    if (!sId) return;
+    const sId = fuzzyMatchService(serviceSelected, services);
+    if (!sId) {
+      triggerToast('Gagal memetakan layanan secara otomatis.', 'error', 'Mapping Failed');
+      return;
+    }
 
     try {
       await addQueueEntry({
