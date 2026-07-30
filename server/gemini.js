@@ -3,9 +3,7 @@ const { GoogleGenAI } = require('@google/genai');
 // Initialize Gemini client using the key from environment
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-const SYSTEM_PROMPT = `Kamu adalah asisten yang bertugas mengekstrak informasi booking dari pesan WhatsApp pelanggan barbershop.
-
-TUGAS:
+const SYSTEM_PROMPT = `TUGAS:
 Analisis pesan pelanggan dan kembalikan HANYA objek JSON tanpa teks tambahan apapun, tanpa markdown, tanpa penjelasan. Hanya JSON murni.
 
 FORMAT OUTPUT WAJIB:
@@ -14,7 +12,8 @@ FORMAT OUTPUT WAJIB:
   "hari": string atau null,
   "jam": string atau null,
   "servis": string atau null,
-  "isBookingIntent": boolean
+  "isBookingIntent": boolean,
+  "naturalReply": string atau null
 }
 
 ATURAN KRITIS — BACA DENGAN SEKSAMA:
@@ -43,16 +42,16 @@ ATURAN KRITIS — BACA DENGAN SEKSAMA:
 CONTOH INPUT-OUTPUT:
 
 Input: "bang mau booking sabtu jam 2 siang, potong doang"
-Output: {"nama":null,"hari":"Sabtu","jam":"14:00","servis":"Potong","isBookingIntent":true}
+Output: {"nama":null,"hari":"Sabtu","jam":"14:00","servis":"Potong","isBookingIntent":true,"naturalReply":null}
 
 Input: "besok bisa gak? gua si Reza, mau cukur sama creambath"
-Output: {"nama":"Reza","hari":"besok","jam":null,"servis":"Cukur + Creambath","isBookingIntent":true}
+Output: {"nama":"Reza","hari":"besok","jam":null,"servis":"Cukur + Creambath","isBookingIntent":true,"naturalReply":null}
 
 Input: "buka jam berapa bang?"
-Output: {"nama":null,"hari":null,"jam":null,"servis":null,"isBookingIntent":false}
+Output: {"nama":null,"hari":null,"jam":null,"servis":null,"isBookingIntent":false,"naturalReply":"Halo kak! Kami buka dari jam 9 pagi sampai jam 8 malam. Ada yang mau ditanyakan lagi atau mau langsung booking?"}
 
 Input: "ok makasih"
-Output: {"nama":null,"hari":null,"jam":null,"servis":null,"isBookingIntent":false}`;
+Output: {"nama":null,"hari":null,"jam":null,"servis":null,"isBookingIntent":false,"naturalReply":"Sama-sama kak! Ditunggu kedatangannya ya."}`;
 
 const MODEL_CHAIN = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite', 'gemini-3.1-flash', 'gemini-3.5-flash'];
 
@@ -64,10 +63,24 @@ function getStartingIndex(text) {
  * Menganalisis pesan pelanggan menggunakan Gemini API dengan mekanisme fallback.
  * 
  * @param {string} text - Pesan dari pelanggan.
+ * @param {string} businessContext - Konteks informasi bisnis barbershop saat ini.
  * @returns {Promise<Object|null>} Mengembalikan objek booking atau null jika gagal.
  */
-async function parseBookingMessage(text) {
+async function parseBookingMessage(text, businessContext) {
   const startIndex = getStartingIndex(text);
+  
+  const dynamicInstruction = `Kamu adalah asisten WhatsApp untuk barbershop bernama Golden Shears. Info bisnis saat ini:
+${businessContext || 'Belum ada info spesifik.'}
+
+Tugasmu:
+- Jika pesan customer adalah niat booking (isBookingIntent true), field naturalReply diisi null -- proses booking akan ditangani terpisah oleh sistem lain.
+- Jika BUKAN niat booking (sapaan seperti "halo", pertanyaan seperti "jam berapa buka", "kapster siapa aja", "harga cukur berapa", atau obrolan di luar topik), balas secara natural dan ramah di field naturalReply berdasarkan info bisnis di atas. JANGAN mengarang info yang tidak ada di konteks -- kalau tidak tahu jawabannya, jujur bilang tidak punya info itu dan arahkan customer hubungi barbershop langsung.
+- Jika pesan di luar topik barbershop sama sekali (curhat, obrolan random, tidak nyambung), balas singkat dan ramah, lalu arahkan halus kembali ke topik booking/layanan barbershop. Jangan kaku, jangan template baku berulang -- variasikan gaya bicara secara natural.
+- naturalReply harus dalam Bahasa Indonesia sehari-hari yang santai, seperti admin barbershop asli membalas WhatsApp, BUKAN bahasa formal kaku.
+
+`;
+  
+  const finalPrompt = dynamicInstruction + SYSTEM_PROMPT;
 
   for (let i = startIndex; i < MODEL_CHAIN.length; i++) {
     const currentModel = MODEL_CHAIN[i];
@@ -75,7 +88,7 @@ async function parseBookingMessage(text) {
       const response = await ai.models.generateContent({
         model: currentModel,
         contents: [
-          { role: 'user', parts: [{ text: SYSTEM_PROMPT + '\\n\\nInput: "' + text + '"\\nOutput:' }] }
+          { role: 'user', parts: [{ text: finalPrompt + '\\n\\nInput: "' + text + '"\\nOutput:' }] }
         ],
         config: {
           temperature: 0.1, // Suhu rendah agar respons deterministik dan tidak berhalusinasi

@@ -7,6 +7,35 @@ const supabase = require('./supabaseClient');
 const conversationState = new Map();
 const API_URL = process.env.API_URL || 'http://localhost:3001';
 
+async function getBusinessContext() {
+  try {
+    const { data: barbers } = await supabase.from('barbers').select('name, specialization, status').eq('status', 'active');
+    const { data: services } = await supabase.from('services').select('name, price, duration_minutes');
+    const { data: hours } = await supabase.from('business_hours').select('open_hour, close_hour').limit(1).single();
+
+    let context = '';
+    
+    if (hours) {
+      context += `Jam operasional: ${String(hours.open_hour).padStart(2, '0')}:00 - ${String(hours.close_hour).padStart(2, '0')}:00 setiap hari.\n`;
+    }
+    
+    if (barbers && barbers.length > 0) {
+      const barberList = barbers.map(b => `${b.name} (${b.specialization || 'Umum'})`).join(', ');
+      context += `Kapster aktif: ${barberList}.\n`;
+    }
+
+    if (services && services.length > 0) {
+      const serviceList = services.map(s => `${s.name} (Rp${s.price.toLocaleString('id-ID')}, ${s.duration_minutes} menit)`).join(', ');
+      context += `Layanan: ${serviceList}.`;
+    }
+
+    return context || "Info bisnis sedang tidak dapat diakses, mohon maaf.";
+  } catch (err) {
+    console.error('[BUSINESS CONTEXT ERROR]', err.message);
+    return "Info bisnis sedang tidak dapat diakses, mohon maaf.";
+  }
+}
+
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
@@ -49,7 +78,8 @@ client.on('message', async msg => {
   console.log(`\\n[NEW MESSAGE] ${msg.from}: ${msg.body}`);
 
   // Kirim ke Gemini untuk di-parsing
-  const parsedData = await parseBookingMessage(msg.body);
+  const businessContext = await getBusinessContext();
+  const parsedData = await parseBookingMessage(msg.body, businessContext);
   
   if (parsedData) {
     console.log('[GEMINI PARSED]', JSON.stringify(parsedData, null, 2));
@@ -171,6 +201,15 @@ client.on('message', async msg => {
         try {
           console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
           await msg.reply(`Baik kak, jadi booking untuk hari ${merged.hari} jam ${merged.jam}, servis ${merged.servis}, atas nama ${merged.nama} -- benar begitu kak? Balas 'ya' untuk konfirmasi ya.`);
+        } catch (err) {
+          console.error('[REPLY ERROR]', err.message, '| target:', msg.from);
+        }
+      }
+    } else {
+      if (parsedData.naturalReply) {
+        try {
+          console.log('[REPLY ATTEMPT] mencoba membalas natural reply ke', msg.from);
+          await msg.reply(parsedData.naturalReply);
         } catch (err) {
           console.error('[REPLY ERROR]', err.message, '| target:', msg.from);
         }
