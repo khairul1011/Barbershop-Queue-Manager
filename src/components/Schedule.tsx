@@ -324,27 +324,41 @@ export default function Schedule({
           ))}
 
           {/* Render Blocks */}
-          {positionedEntries.map(({ entry, topPx, heightPx, left, width }) => (
-            <div
-              key={entry.id}
-              onClick={() => setActiveSlotDetails({ day, timeRange: entry.timeRange, entry })}
-              className={`absolute rounded-xl p-2 cursor-pointer transition-all hover:z-10 hover:shadow-lg ${getStatusBadgeStyles(entry)} shadow-black/40 backdrop-blur-sm bg-opacity-80 overflow-hidden flex flex-col`}
-              style={{ top: topPx, height: heightPx, left, width }}
-            >
-              <div className="flex justify-between items-start gap-1">
-                <div className="font-bold text-[11px] text-white truncate leading-tight">{entry.customerName}</div>
-                {entry.startedAt && !entry.completedAt && (
-                  <div className="text-[8px] font-black bg-violet-500 text-white px-1 py-0.5 rounded animate-pulse shrink-0">LIVE</div>
+          {positionedEntries.map(({ entry, topPx, heightPx, left, width }) => {
+            const isSmall = heightPx <= 40;
+            return (
+              <div
+                key={entry.id}
+                onClick={() => setActiveSlotDetails({ day, timeRange: entry.timeRange, entry })}
+                className={`absolute rounded-xl ${isSmall ? 'py-1 px-2' : 'p-2'} cursor-pointer transition-all hover:z-20 hover:!h-auto hover:min-h-fit hover:shadow-xl ${getStatusBadgeStyles(entry)} shadow-black/40 backdrop-blur-sm bg-opacity-80 overflow-hidden flex flex-col group`}
+                style={{ top: topPx, height: heightPx, left, width }}
+              >
+                <div className="flex justify-between items-start gap-1">
+                  <div className="font-bold text-[11px] text-white truncate leading-tight">
+                    {entry.customerName}
+                    {isSmall && <span className="font-normal opacity-70 ml-1">· {entry.service}</span>}
+                  </div>
+                  {entry.startedAt && !entry.completedAt && (
+                    <div className="text-[8px] font-black bg-violet-500 text-white px-1 py-0.5 rounded animate-pulse shrink-0">LIVE</div>
+                  )}
+                </div>
+                <div className={`text-[9px] font-mono opacity-80 ${isSmall ? 'mt-0' : 'mt-0.5'} truncate group-hover:whitespace-normal`}>
+                  {entry.timeRange}
+                </div>
+                {!isSmall && (
+                  <div className="text-[10px] opacity-90 mt-auto truncate flex items-center gap-1 group-hover:whitespace-normal">
+                    <Scissors size={8}/> {entry.service}
+                  </div>
+                )}
+                {/* Expand details on hover for small blocks */}
+                {isSmall && (
+                  <div className="hidden group-hover:flex text-[10px] opacity-90 mt-1 items-center gap-1 whitespace-normal">
+                    <Scissors size={8}/> {entry.service}
+                  </div>
                 )}
               </div>
-              <div className="text-[9px] font-mono opacity-80 mt-0.5 truncate">{entry.timeRange}</div>
-              {heightPx > 40 && (
-                <div className="text-[10px] opacity-90 mt-auto truncate flex items-center gap-1">
-                  <Scissors size={8}/> {entry.service}
-                </div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     );
