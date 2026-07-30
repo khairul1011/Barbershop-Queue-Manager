@@ -31,7 +31,7 @@ ATURAN KRITIS — BACA DENGAN SEKSAMA:
 
 3. FIELD "isBookingIntent":
    - Nilai isBookingIntent berdasarkan KEPASTIAN NIAT pelanggan, bukan sekadar ada tidaknya kata booking/jadwal. Tanyakan pada dirimu: 'apakah pelanggan ini sudah siap menentukan waktu/layanan untuk booking sekarang, atau dia masih tahap mengumpulkan informasi sebelum memutuskan?' Kalau pelanggan masih dalam tahap bertanya-tanya (menanyakan ketersediaan, jadwal kapster tertentu, harga, jam buka) dan belum menyatakan kesiapan untuk booking pada waktu tertentu, set isBookingIntent: false dan jawab pertanyaannya secara natural di naturalReply. Gunakan penilaian ini secara fleksibel sesuai konteks kalimat, bukan mencocokkan kata per kata.
-   - PENTING: kapan pun isBookingIntent bernilai false, field nama/hari/jam/servis WAJIB semuanya null, terlepas dari info apapun yang disebutkan di pesan -- ekstraksi field HANYA berlaku untuk pesan dengan niat booking pasti.
+   - Catatan: field nama/hari/jam/servis TETAP diisi jika informasi tersebut ada di pesan, terlepas dari nilai isBookingIntent. Sistem yang memanggil API ini yang memutuskan apakah field tersebut relevan berdasarkan konteks percakapan.
 
 4. FIELD "nama": Cari nama pelanggan jika disebutkan. Sering kali pelanggan tidak menyebut nama -> null.
 
@@ -48,7 +48,10 @@ Input: "besok bisa gak? gua si Reza, mau cukur sama creambath"
 Output: {"nama":"Reza","hari":"besok","jam":null,"servis":"Cukur + Creambath","isBookingIntent":true,"naturalReply":null}
 
 Input: "kak mau tanya bang kenji besok ada jadwal kosong nggak ya?"
-Output: {"nama":null,"hari":null,"jam":null,"servis":null,"isBookingIntent":false,"naturalReply":"Halo kak! Bang Kenji besok masih ada beberapa slot kosong kok. Kakak rencananya mau datang jam berapa biar bisa saya cek slot tepatnya?"}
+Output: {"nama":null,"hari":"besok","jam":null,"servis":null,"isBookingIntent":false,"naturalReply":"Halo kak! Bang Kenji besok masih ada beberapa slot kosong kok. Kakak rencananya mau datang jam berapa biar bisa saya cek slot tepatnya?"}
+
+Input: "pangkas aja"
+Output: {"nama":null,"hari":null,"jam":null,"servis":"Potong","isBookingIntent":false,"naturalReply":null}
 
 Input: "buka jam berapa bang?"
 Output: {"nama":null,"hari":null,"jam":null,"servis":null,"isBookingIntent":false,"naturalReply":"Halo kak! Kami buka dari jam 9 pagi sampai jam 8 malam. Ada yang mau ditanyakan lagi atau mau langsung booking?"}
