@@ -328,7 +328,7 @@ export default function Schedule({
 
           {/* Render Blocks */}
           {positionedEntries.map(({ entry, topPx, heightPx, left, width }) => {
-            const isSmall = heightPx <= 40;
+            const isSmall = heightPx <= 60;
             return (
               <div
                 key={entry.id}
