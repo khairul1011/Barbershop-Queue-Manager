@@ -331,7 +331,7 @@ export default function App() {
     const serviceSelected = customService || request.extractedService;
 
     const endTime = calculateEndTime(timeSelected, serviceSelected);
-    const targetBarber = fuzzyMatchBarber(request.extractedBarber, barbers, daySelected, timeSelected, queueEntries);
+    const targetBarber = fuzzyMatchBarber(request.extractedBarber, barbers, daySelected, timeSelected, queue);
 
     if (!targetBarber) return;
     const sId = fuzzyMatchService(serviceSelected, services);
