@@ -5,6 +5,16 @@ const { parseBookingMessage } = require('./gemini');
 const supabase = require('./supabaseClient');
 
 const conversationState = new Map();
+const chatHistory = new Map();
+
+async function replyAndSaveHistory(msg, text) {
+  await msg.reply(text);
+  if (!chatHistory.has(msg.from)) chatHistory.set(msg.from, []);
+  const history = chatHistory.get(msg.from);
+  history.push(`Bot: ${text}`);
+  if (history.length > 6) history.shift();
+}
+
 const API_URL = process.env.API_URL || 'http://localhost:3001';
 
 async function getBusinessContext() {
@@ -96,11 +106,18 @@ client.on('message', async msg => {
   const isGreeting = GREETING_WORDS.some(g => bodyNormalized === g || bodyNormalized.startsWith(g + ' ') || bodyNormalized.startsWith(g + ','));
   if (!msg.body || (msg.body.trim().length < 5 && !conversationState.has(msg.from) && !isGreeting)) return;
 
-  console.log(`\\n[NEW MESSAGE] ${msg.from}: ${msg.body}`);
+  console.log(`\n[NEW MESSAGE] ${msg.from}: ${msg.body}`);
+
+  if (!chatHistory.has(msg.from)) chatHistory.set(msg.from, []);
+  const history = chatHistory.get(msg.from);
+  history.push(`Customer: ${msg.body}`);
+  if (history.length > 6) history.shift();
+  
+  const historyStr = history.slice(0, -1).join('\n');
 
   // Kirim ke Gemini untuk di-parsing
   const businessContext = await getBusinessContext();
-  const parsedData = await parseBookingMessage(msg.body, businessContext);
+  const parsedData = await parseBookingMessage(msg.body, businessContext, historyStr);
   
   if (parsedData) {
     console.log('[GEMINI PARSED]', JSON.stringify(parsedData, null, 2));
@@ -168,7 +185,7 @@ client.on('message', async msg => {
 
         try {
           console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
-          await msg.reply(`${intro} Boleh info ${missingStr}?`);
+          await replyAndSaveHistory(msg, `${intro} Boleh info ${missingStr}?`);
         } catch (err) {
           console.error('[REPLY ERROR]', err.message, '| target:', msg.from);
         }
@@ -179,7 +196,7 @@ client.on('message', async msg => {
           // Customer konfirmasi — simpan ke Supabase
           try {
             console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
-            await msg.reply(`Sip kak! Booking sudah lengkap:\\n\\nHari: ${merged.hari}\\nJam: ${merged.jam}\\nServis: ${merged.servis}\\nNama: ${merged.nama}\\n\\nTerima kasih, ditunggu kedatangannya!`);
+            await replyAndSaveHistory(msg, `Sip kak! Booking sudah lengkap:\n\nHari: ${merged.hari}\nJam: ${merged.jam}\nServis: ${merged.servis}\nNama: ${merged.nama}\n\nTerima kasih, ditunggu kedatangannya!`);
 
             try {
               const { error } = await supabase.from('whatsapp_requests').insert({
@@ -210,7 +227,7 @@ client.on('message', async msg => {
           conversationState.set(msg.from, { ...merged, awaitingConfirmation: true, lastUpdated: Date.now() });
           try {
             console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
-            await msg.reply(`Baik kak, jadi booking untuk hari ${merged.hari} jam ${merged.jam}, servis ${merged.servis}, atas nama ${merged.nama} -- benar begitu kak? Balas 'ya' untuk konfirmasi ya.`);
+            await replyAndSaveHistory(msg, `Baik kak, jadi booking untuk hari ${merged.hari} jam ${merged.jam}, servis ${merged.servis}, atas nama ${merged.nama} -- benar begitu kak? Balas 'ya' untuk konfirmasi ya.`);
           } catch (err) {
             console.error('[REPLY ERROR]', err.message, '| target:', msg.from);
           }
@@ -221,7 +238,7 @@ client.on('message', async msg => {
         conversationState.set(msg.from, { ...merged, awaitingConfirmation: true, lastUpdated: Date.now() });
         try {
           console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
-          await msg.reply(`Baik kak, jadi booking untuk hari ${merged.hari} jam ${merged.jam}, servis ${merged.servis}, atas nama ${merged.nama} -- benar begitu kak? Balas 'ya' untuk konfirmasi ya.`);
+          await replyAndSaveHistory(msg, `Baik kak, jadi booking untuk hari ${merged.hari} jam ${merged.jam}, servis ${merged.servis}, atas nama ${merged.nama} -- benar begitu kak? Balas 'ya' untuk konfirmasi ya.`);
         } catch (err) {
           console.error('[REPLY ERROR]', err.message, '| target:', msg.from);
         }
@@ -230,7 +247,7 @@ client.on('message', async msg => {
       if (parsedData.naturalReply) {
         try {
           console.log('[REPLY ATTEMPT] mencoba membalas natural reply ke', msg.from);
-          await msg.reply(parsedData.naturalReply);
+          await replyAndSaveHistory(msg, parsedData.naturalReply);
         } catch (err) {
           console.error('[REPLY ERROR]', err.message, '| target:', msg.from);
         }

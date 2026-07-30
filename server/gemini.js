@@ -70,9 +70,10 @@ function getStartingIndex(text) {
  * 
  * @param {string} text - Pesan dari pelanggan.
  * @param {string} businessContext - Konteks informasi bisnis barbershop saat ini.
+ * @param {string} historyStr - Riwayat percakapan sebelumnya (jika ada).
  * @returns {Promise<Object|null>} Mengembalikan objek booking atau null jika gagal.
  */
-async function parseBookingMessage(text, businessContext) {
+async function parseBookingMessage(text, businessContext, historyStr = '') {
   const startIndex = getStartingIndex(text);
   
   const dynamicInstruction = `Kamu adalah asisten WhatsApp untuk barbershop bernama Golden Shears. Info bisnis saat ini:
@@ -87,7 +88,8 @@ Tugasmu:
 
 `;
   
-  const finalPrompt = dynamicInstruction + SYSTEM_PROMPT;
+  const historyInjection = historyStr ? `\n\n=== RIWAYAT PERCAKAPAN TERAKHIR ===\n${historyStr}` : '';
+  const finalPrompt = dynamicInstruction + SYSTEM_PROMPT + historyInjection;
 
   for (let i = startIndex; i < MODEL_CHAIN.length; i++) {
     const currentModel = MODEL_CHAIN[i];
@@ -95,7 +97,7 @@ Tugasmu:
       const response = await ai.models.generateContent({
         model: currentModel,
         contents: [
-          { role: 'user', parts: [{ text: finalPrompt + '\\n\\nInput: "' + text + '"\\nOutput:' }] }
+          { role: 'user', parts: [{ text: finalPrompt + '\n\n=== PESAN SAAT INI ===\nCustomer: "' + text + '"\nOutput:' }] }
         ],
         config: {
           temperature: 0.1, // Suhu rendah agar respons deterministik dan tidak berhalusinasi
