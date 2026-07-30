@@ -25,10 +25,11 @@ ATURAN KRITIS — BACA DENGAN SEKSAMA:
    - "pagi" / "sore" / "malam" / "besok" / "nanti" -> JAM WAJIB null, JANGAN ditebak
    - Tidak ada penyebutan jam sama sekali -> null
 
-2. FIELD "hari": Normalisasi ke nama hari dalam bahasa Indonesia.
-   - "besok" -> evaluasi relatif dari konteks, tapi jika tidak ada konteks tanggal, isi "besok" saja
-   - "minggu depan" -> null (terlalu ambigu)
-   - "senin" / "selasa" / "senin depan" -> isi nama hari yang dimaksud
+2. FIELD "hari": WAJIB dinormalisasi ke nama hari dalam bahasa Indonesia atau kata ganti mutlak.
+   - HANYA BOLEH DIISI: "hari ini", "besok", "lusa", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu".
+   - Jika pelanggan merujuk pada histori chat (misal: "hari yang sama", "sama kayak tadi"), BACA histori chat untuk menyimpulkan harinya (misal: "Selasa"). JANGAN PERNAH mengisi dengan frasa "hari yang sama".
+   - Jika pelanggan menyebut "minggu depan" -> null (terlalu ambigu, butuh tanggal pasti).
+   - Jika harinya tidak jelas dan tidak bisa disimpulkan dari histori -> null.
 
 3. FIELD "isBookingIntent":
    - Nilai isBookingIntent berdasarkan KEPASTIAN NIAT pelanggan, bukan sekadar ada tidaknya kata booking/jadwal. Tanyakan pada dirimu: 'apakah pelanggan ini sudah siap menentukan waktu/layanan untuk booking sekarang, atau dia masih tahap mengumpulkan informasi sebelum memutuskan?' Kalau pelanggan masih dalam tahap bertanya-tanya (menanyakan ketersediaan, jadwal kapster tertentu, harga, jam buka) dan belum menyatakan kesiapan untuk booking pada waktu tertentu, set isBookingIntent: false dan jawab pertanyaannya secara natural di naturalReply. Gunakan penilaian ini secara fleksibel sesuai konteks kalimat, bukan mencocokkan kata per kata.
