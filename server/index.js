@@ -64,7 +64,7 @@ async function checkAvailability(hariStr, jamStr, kapsterStr) {
   }
 
   const busyBarbers = (queue || [])
-    .filter(q => q.scheduled_time === jamStr && q.status !== 'Completed' && q.status !== 'cancelled')
+    .filter(q => (q.scheduled_time || '').startsWith(jamStr) && q.status !== 'Completed' && q.status !== 'cancelled')
     .map(q => q.barber_id);
     
   let anyCount = 0;
