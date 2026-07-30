@@ -36,7 +36,7 @@ interface ScheduleProps {
 const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 type DayType = typeof DAYS_OF_WEEK[number];
 
-const PIXELS_PER_MINUTE = 1.5;
+const PIXELS_PER_MINUTE = 2.5;
 
 export default function Schedule({ 
   queue, 
@@ -299,7 +299,7 @@ export default function Schedule({
           positionedEntries.push({
             entry,
             topPx: entry.startM * PIXELS_PER_MINUTE,
-            heightPx: Math.max((entry.endM - entry.startM) * PIXELS_PER_MINUTE, 24),
+            heightPx: Math.max((entry.endM - entry.startM) * PIXELS_PER_MINUTE, 44),
             left: `calc(${colIdx * 100 / numCols}% + 4px)`, // +4px for left margin
             width: `calc(${colspan * 100 / numCols}% - 8px)`, // -8px for left+right margins
           });
@@ -322,7 +322,7 @@ export default function Schedule({
                 setSelectedBarberId(barber.id);
               }}
             >
-              <div className="absolute inset-0 hover:bg-zinc-900/20 transition-colors cursor-pointer" style={{ height: 60 * PIXELS_PER_MINUTE }} />
+              <div className="absolute inset-0 active:bg-amber-500/10 hover:bg-zinc-900/20 transition-colors cursor-pointer" style={{ height: 60 * PIXELS_PER_MINUTE }} />
             </div>
           ))}
 
@@ -333,7 +333,7 @@ export default function Schedule({
               <div
                 key={entry.id}
                 onClick={() => setActiveSlotDetails({ day, timeRange: entry.timeRange, entry })}
-                className={`absolute rounded-xl ${isSmall ? 'py-1 px-2' : 'p-2'} cursor-pointer transition-all hover:z-20 hover:!h-auto hover:min-h-fit hover:shadow-xl ${getStatusBadgeStyles(entry)} shadow-black/40 backdrop-blur-sm bg-opacity-80 overflow-hidden flex flex-col group`}
+                className={`absolute rounded-xl ${isSmall ? 'py-1 px-2 justify-center' : 'p-2'} cursor-pointer transition-all hover:z-20 ${getStatusBadgeStyles(entry)} shadow-black/40 backdrop-blur-sm bg-opacity-80 overflow-hidden flex flex-col`}
                 style={{ top: topPx, height: heightPx, left, width }}
               >
                 <div className="flex justify-between items-start gap-1">
@@ -345,17 +345,11 @@ export default function Schedule({
                     <div className="text-[8px] font-black bg-violet-500 text-white px-1 py-0.5 rounded animate-pulse shrink-0">LIVE</div>
                   )}
                 </div>
-                <div className={`text-[9px] font-mono opacity-80 ${isSmall ? 'mt-0' : 'mt-0.5'} truncate group-hover:whitespace-normal`}>
+                <div className={`text-[9px] font-mono opacity-80 ${isSmall ? 'mt-0' : 'mt-0.5'} truncate`}>
                   {entry.timeRange}
                 </div>
                 {!isSmall && (
-                  <div className="text-[10px] opacity-90 mt-auto truncate flex items-center gap-1 group-hover:whitespace-normal">
-                    <Scissors size={8}/> {entry.service}
-                  </div>
-                )}
-                {/* Expand details on hover for small blocks */}
-                {isSmall && (
-                  <div className="hidden group-hover:flex text-[10px] opacity-90 mt-1 items-center gap-1 whitespace-normal">
+                  <div className="text-[10px] opacity-90 mt-auto truncate flex items-center gap-1">
                     <Scissors size={8}/> {entry.service}
                   </div>
                 )}
@@ -382,6 +376,9 @@ export default function Schedule({
             </h1>
             <p className="text-sm text-gray-400 font-sans mt-0.5">
               {t('schedule.hqSubtitle')}
+            </p>
+            <p className="text-[10px] sm:hidden text-amber-500/70 font-mono mt-2">
+              (Ketuk area grid kosong untuk menjadwalkan)
             </p>
           </div>
         </div>
@@ -523,7 +520,7 @@ export default function Schedule({
               {/* Time Axis */}
               <div className="w-[60px] flex-none border-r border-zinc-900 bg-[#050505] sticky left-0 z-20">
                    {Array.from({ length: businessHours.closeHour - businessHours.openHour + 1 }, (_, i) => i + businessHours.openHour).map(hour => (
-                     <div key={hour} className={`absolute w-full text-right pr-2 text-[10px] text-gray-500 font-mono ${hour === businessHours.openHour ? 'translate-y-1' : '-translate-y-2'}`} style={{ top: (hour - businessHours.openHour) * 60 * PIXELS_PER_MINUTE }}>
+                     <div key={hour} className={`absolute w-full text-right pr-2 text-xs text-gray-500 font-mono ${hour === businessHours.openHour ? 'translate-y-1' : '-translate-y-2'}`} style={{ top: (hour - businessHours.openHour) * 60 * PIXELS_PER_MINUTE }}>
                        {hour.toString().padStart(2, '0')}:00
                      </div>
                    ))}
