@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 interface BentoCardProps {
   colSpan?: 1 | 2;
@@ -41,15 +42,6 @@ export function BentoCard({
     ghost: "bg-transparent border border-dashed border-border-subtle"
   };
 
-  const badgeColorClasses = {
-    amber: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-    teal: "bg-teal-500/10 text-teal-400 border-teal-500/20",
-    gray: "bg-gray-500/10 text-gray-400 border-gray-500/20",
-    red: "bg-red-500/10 text-red-400 border-red-500/20",
-    emerald: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-    blue: "bg-blue-500/10 text-blue-400 border-blue-500/20"
-  };
-
   return (
     <div
       className={cn(
@@ -83,10 +75,7 @@ export function BentoCard({
           </div>
           
           {badge && (
-            <div className={cn(
-              "flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full border font-sans",
-              badgeColorClasses[badge.color]
-            )}>
+            <Badge variant={badge.color as any} className="gap-1.5 font-sans">
               {badge.dot && (
                 <span className="relative flex h-2 w-2">
                   <span className={cn(
@@ -100,7 +89,7 @@ export function BentoCard({
                 </span>
               )}
               {badge.label}
-            </div>
+            </Badge>
           )}
         </div>
       )}
@@ -109,12 +98,13 @@ export function BentoCard({
       {tags && tags.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-4 relative z-10">
           {tags.map((tag, idx) => (
-            <span 
+            <Badge 
               key={idx} 
-              className="bg-white/5 border border-white/5 rounded-md px-2 py-1 text-[11px] text-gray-400 font-sans truncate max-w-[150px]"
+              variant="secondary"
+              className="bg-white/5 border-white/5 text-[11px] text-gray-400 font-sans font-normal truncate max-w-[150px] rounded-md px-2 py-0.5"
             >
               {tag}
-            </span>
+            </Badge>
           ))}
         </div>
       )}

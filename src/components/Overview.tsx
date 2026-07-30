@@ -16,8 +16,10 @@ import {
 import { QueueEntry, Service, Barber } from '../types';
 import { AnimatePresence, motion } from 'motion/react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Calendar as CalendarIcon, UserPlus } from 'lucide-react';
 import { BentoCard } from './ui/BentoCard';
 import { useTranslation } from '../i18n';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 
@@ -416,14 +418,12 @@ export default function Overview({
                       <p className="text-xs text-gray-400 font-sans">{barber.specialty}</p>
                     </div>
                   </div>
-                  <span className={`px-2 py-0.5 text-[11px] font-mono font-semibold rounded-full border ${barber.status === 'active'
-                    ? 'bg-teal-500/10 text-teal-400 border-teal-500/20'
-                    : barber.status === 'break'
-                      ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
-                      : 'bg-gray-500/10 text-gray-500 border-gray-500/20'
-                    }`}>
+                  <Badge variant={
+                    barber.status === 'active' ? 'teal' :
+                    barber.status === 'break' ? 'amber' : 'gray'
+                  } className="font-mono text-[11px]">
                     {barber.status === 'active' ? t('overview.statusOnSeat') : barber.status === 'break' ? t('overview.statusBreak') : t('overview.statusOff')}
-                  </span>
+                  </Badge>
                 </div>
               ))}
             </div>

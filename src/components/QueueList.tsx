@@ -16,6 +16,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 interface QueueListProps {
   queue: QueueEntry[];
@@ -49,14 +50,12 @@ export default function QueueList({
     return matchesSearch && matchesBarber;
   });
 
-  const getStatusBadge = (status: QueueStatus) => {
+  const getBadgeVariant = (status: QueueStatus) => {
     switch (status) {
-      case 'Confirmed':
-        return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
-      case 'Estimated':
-        return 'bg-amber-500/10 text-amber-500 border border-amber-500/20';
-      case 'Pending Reply':
-        return 'bg-sky-500/10 text-sky-400 border border-sky-500/20';
+      case 'Confirmed': return 'emerald';
+      case 'Estimated': return 'amber';
+      case 'Pending Reply': return 'sky';
+      default: return 'default';
     }
   };
 
@@ -131,9 +130,9 @@ export default function QueueList({
                     <div className="text-xs text-gray-500 font-mono">{item.phone}</div>
                   </div>
                 </div>
-                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ml-2 ${getStatusBadge(item.status)}`}>
+                <Badge variant={getBadgeVariant(item.status) as any} className="shrink-0 ml-2">
                   {item.status}
-                </span>
+                </Badge>
               </div>
               
               {/* Card Body: service, barber, time */}
@@ -248,11 +247,10 @@ export default function QueueList({
                         {item.barber}
                       </td>
 
-                      {/* Status Tag */}
                       <td className="py-4 px-4">
-                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${getStatusBadge(item.status)}`}>
+                        <Badge variant={getBadgeVariant(item.status) as any}>
                           {item.status}
-                        </span>
+                        </Badge>
                       </td>
 
                       {/* Actions */}
