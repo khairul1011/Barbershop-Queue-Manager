@@ -63,9 +63,11 @@ async function checkAvailability(hariStr, jamStr, kapsterStr) {
     if (match) requestedBarberId = match.id;
   }
 
-  const busyBarbers = (queue || [])
-    .filter(q => (q.scheduled_time || '').startsWith(jamStr) && q.status !== 'Completed' && q.status !== 'cancelled')
-    .map(q => q.barber_id);
+  const busyBarberIds = new Set(
+    (queue || [])
+      .filter(q => (q.scheduled_time || '').startsWith(jamStr) && q.status !== 'Completed' && q.status !== 'cancelled')
+      .map(q => q.barber_id)
+  );
     
   let anyCount = 0;
   (waReqs || []).forEach(r => {
@@ -74,7 +76,7 @@ async function checkAvailability(hariStr, jamStr, kapsterStr) {
       const bName = parts[1];
       if (bName) {
          const match = barbers.find(b => b.name.toLowerCase().includes(bName.toLowerCase()));
-         if (match) busyBarbers.push(match.id);
+         if (match) busyBarberIds.add(match.id);
       } else {
          anyCount++;
       }
@@ -82,8 +84,8 @@ async function checkAvailability(hariStr, jamStr, kapsterStr) {
   });
 
   if (requestedBarberId) {
-     if (busyBarbers.includes(requestedBarberId)) {
-        const availableBarbers = barbers.filter(b => !busyBarbers.includes(b.id));
+     if (busyBarberIds.has(requestedBarberId)) {
+        const availableBarbers = barbers.filter(b => !busyBarberIds.has(b.id));
         return { 
            conflict: true, 
            msg: `Maaf kak, kapster ${kapsterStr} sudah ada jadwal jam ${jamStr}. ` + 
@@ -95,13 +97,13 @@ async function checkAvailability(hariStr, jamStr, kapsterStr) {
      const match = barbers.find(b => b.id === requestedBarberId);
      return { conflict: false, assignedBarber: match.name };
   } else {
-     if (busyBarbers.length + anyCount >= barbers.length) {
+     if (busyBarberIds.size + anyCount >= barbers.length) {
         return {
            conflict: true,
            msg: `Maaf kak, semua kapster sudah penuh untuk jam ${jamStr}. Boleh pilih jam lain?`
         };
      }
-     const availableBarbers = barbers.filter(b => !busyBarbers.includes(b.id));
+     const availableBarbers = barbers.filter(b => !busyBarberIds.has(b.id));
      return { conflict: false, assignedBarber: availableBarbers[0].name };
   }
 }
