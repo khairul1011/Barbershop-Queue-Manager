@@ -12,6 +12,7 @@ import {
 import { BentoCard } from './ui/BentoCard';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from '../i18n';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface HistoryProps {
   completedEntries: QueueEntry[];
@@ -67,19 +68,19 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
           />
         </div>
 
-        {/* Barber Filter */}
-        <div className="relative">
-          <Filter size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
-          <select
-            value={selectedBarberFilter}
-            onChange={(e) => setSelectedBarberFilter(e.target.value)}
-            className="w-full sm:w-auto min-w-[180px] bg-[#0A0A0A] border border-border-subtle rounded-xl pl-10 pr-10 py-3 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors font-sans appearance-none cursor-pointer"
-          >
-            <option value={t('history.allBarbers')}>{t('history.allBarbers')}</option>
-            {barbers.map(b => (
-              <option key={b.id} value={b.name}>{b.name}</option>
-            ))}
-          </select>
+        <div className="relative flex items-center gap-2 bg-[#0A0A0A] border border-border-subtle rounded-xl px-3 h-[46px] w-full sm:w-auto min-w-[180px]">
+          <Filter size={16} className="text-gray-500" />
+          <Select value={selectedBarberFilter} onValueChange={setSelectedBarberFilter}>
+            <SelectTrigger className="w-full border-none bg-transparent shadow-none px-0 focus:ring-0 text-sm text-white">
+              <SelectValue placeholder={t('history.allBarbers')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={t('history.allBarbers') as string}>{t('history.allBarbers')}</SelectItem>
+              {barbers.map(b => (
+                <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

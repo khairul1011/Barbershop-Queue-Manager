@@ -14,6 +14,7 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface QueueListProps {
   queue: QueueEntry[];
@@ -89,19 +90,19 @@ export default function QueueList({
         </div>
 
         {/* Barber Filter */}
-        <div className="flex items-center gap-2 bg-card-bg border border-border-subtle rounded-xl px-3 py-1">
+        <div className="flex items-center gap-2 bg-[#141414] border border-[#222222] rounded-xl px-3 h-[46px]">
           <Filter size={16} className="text-amber-500" />
-          <select
-            value={selectedBarberFilter}
-            onChange={(e) => setSelectedBarberFilter(e.target.value)}
-            className="bg-transparent text-gray-300 text-sm focus:outline-none pr-4 py-2 cursor-pointer font-sans"
-            id="queue-barber-filter"
-          >
-            <option value="All Barbers">All Barbers</option>
-            {barbers.map((b) => (
-              <option key={b.id} value={b.name}>{b.name}</option>
-            ))}
-          </select>
+          <Select value={selectedBarberFilter} onValueChange={setSelectedBarberFilter}>
+            <SelectTrigger id="queue-barber-filter" className="w-[140px] border-none bg-transparent shadow-none px-0 focus:ring-0 text-sm text-gray-300">
+              <SelectValue placeholder="All Barbers" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All Barbers">All Barbers</SelectItem>
+              {barbers.map((b) => (
+                <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

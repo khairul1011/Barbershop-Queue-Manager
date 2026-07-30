@@ -9,6 +9,7 @@ import { motion } from 'motion/react';
 import { useTranslation } from '../i18n';
 import { SegmentedToggle } from './ui/SegmentedToggle';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface ScheduleProps {
   queue: QueueEntry[];
@@ -412,26 +413,28 @@ export default function Schedule({
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-950 border border-zinc-800 rounded-xl">
+            <div className="flex items-center gap-2 px-3 bg-zinc-950 border border-zinc-800 rounded-xl">
               <Filter size={12} className="text-gray-500" />
-              <select 
-                value={filterBarberId} 
-                onChange={e => setFilterBarberId(e.target.value)}
-                className="bg-transparent text-xs text-gray-300 outline-none cursor-pointer"
-              >
-                <option value="all">{t('schedule.filterBarber')}: {t('schedule.filterAll')}</option>
-                {barbers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
+              <Select value={filterBarberId} onValueChange={setFilterBarberId}>
+                <SelectTrigger className="w-[130px] border-none bg-transparent shadow-none px-0 py-1.5 focus:ring-0 text-xs text-gray-300">
+                  <SelectValue placeholder={t('schedule.filterAll')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('schedule.filterBarber')}: {t('schedule.filterAll')}</SelectItem>
+                  {barbers.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-950 border border-zinc-800 rounded-xl">
-              <select 
-                value={filterServiceId} 
-                onChange={e => setFilterServiceId(e.target.value)}
-                className="bg-transparent text-xs text-gray-300 outline-none cursor-pointer"
-              >
-                <option value="all">{t('schedule.filterService')}: {t('schedule.filterAll')}</option>
-                {services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
+            <div className="flex items-center gap-2 px-3 bg-zinc-950 border border-zinc-800 rounded-xl">
+              <Select value={filterServiceId} onValueChange={setFilterServiceId}>
+                <SelectTrigger className="w-[120px] border-none bg-transparent shadow-none px-0 py-1.5 focus:ring-0 text-xs text-gray-300">
+                  <SelectValue placeholder={t('schedule.filterAll')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('requests.service')}: {t('schedule.filterAll')}</SelectItem>
+                  {services.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>
@@ -755,15 +758,25 @@ export default function Schedule({
             </div>
             <div className="space-y-1.5">
               <label className="text-[10px] text-gray-500 uppercase tracking-wider font-mono font-bold block">{t('schedule.selectService')}</label>
-              <select value={selectedServiceId} onChange={e => setSelectedServiceId(e.target.value)} className="w-full bg-[#121212] border border-zinc-850 text-white text-sm rounded-xl px-3.5 py-2.5 focus:border-amber-500 outline-none cursor-pointer">
-                {services.map(s => <option key={s.id} value={s.id}>{s.name} — Rp {s.price.toLocaleString()}</option>)}
-              </select>
+              <Select value={selectedServiceId} onValueChange={setSelectedServiceId}>
+                <SelectTrigger className="w-full bg-[#121212] border border-zinc-850 text-white text-sm rounded-xl px-3.5 py-2.5 h-auto">
+                  <SelectValue placeholder="Select Service" />
+                </SelectTrigger>
+                <SelectContent>
+                  {services.map(s => <SelectItem key={s.id} value={s.id}>{s.name} — Rp {s.price.toLocaleString()}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <label className="text-[10px] text-gray-500 uppercase tracking-wider font-mono font-bold block">{t('schedule.selectBarber')}</label>
-              <select value={selectedBarberId} onChange={e => setSelectedBarberId(e.target.value)} className="w-full bg-[#121212] border border-zinc-850 text-white text-sm rounded-xl px-3.5 py-2.5 focus:border-amber-500 outline-none cursor-pointer">
-                {barbers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
+              <Select value={selectedBarberId} onValueChange={setSelectedBarberId}>
+                <SelectTrigger className="w-full bg-[#121212] border border-zinc-850 text-white text-sm rounded-xl px-3.5 py-2.5 h-auto">
+                  <SelectValue placeholder="Select Barber" />
+                </SelectTrigger>
+                <SelectContent>
+                  {barbers.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex gap-2.5 pt-2">
               <button type="submit" className="flex-1 bg-amber-500 hover:bg-amber-600 text-black font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/10 cursor-pointer"><Check size={14} /> {t('schedule.confirmBooking')}</button>

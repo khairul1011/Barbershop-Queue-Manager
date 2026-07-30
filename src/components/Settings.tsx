@@ -20,6 +20,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from '../i18n';
 import { SegmentedToggle, SegmentOption } from './ui/SegmentedToggle';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface SettingsProps {
   services: Service[];
@@ -438,52 +439,52 @@ export default function SettingsView({
 
            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
              <div className="space-y-2">
-               <label className="text-xs font-bold text-gray-400 uppercase tracking-wider font-mono">Jam Buka</label>
-               <div className="relative">
-                 <select 
-                   value={businessHours.openHour}
-                   onChange={e => {
-                     const newOpen = parseInt(e.target.value);
-                     if (newOpen < businessHours.closeHour) {
-                       onUpdateBusinessHours(newOpen, businessHours.closeHour);
-                     }
-                   }}
-                   className="w-full bg-[#050505] border border-zinc-900 text-white text-sm rounded-xl px-4 py-3 appearance-none focus:outline-none focus:border-amber-500 cursor-pointer"
-                 >
-                   {Array.from({ length: 24 }).map((_, i) => (
-                     <option key={i} value={i}>
-                       {i.toString().padStart(2, '0')}:00
-                     </option>
-                   ))}
-                 </select>
-                 <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
-                   <ChevronDown size={16} />
-                 </div>
-               </div>
-             </div>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider font-mono">Jam Buka</label>
+                <Select
+                  value={businessHours.openHour.toString()}
+                  onValueChange={(v) => {
+                    const newOpen = parseInt(v);
+                    if (newOpen < businessHours.closeHour) {
+                      onUpdateBusinessHours(newOpen, businessHours.closeHour);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-full bg-[#050505] border border-zinc-900 text-white text-sm rounded-xl px-4 py-3 h-auto">
+                    <SelectValue placeholder="Pilih Jam Buka" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 24 }).map((_, i) => (
+                      <SelectItem key={i} value={i.toString()}>
+                        {i.toString().padStart(2, '0')}:00
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-             <div className="space-y-2">
-               <label className="text-xs font-bold text-gray-400 uppercase tracking-wider font-mono">Jam Tutup</label>
-               <div className="relative">
-                 <select 
-                   value={businessHours.closeHour}
-                   onChange={e => {
-                     const newClose = parseInt(e.target.value);
-                     if (newClose > businessHours.openHour) {
-                       onUpdateBusinessHours(businessHours.openHour, newClose);
-                     }
-                   }}
-                   className="w-full bg-[#050505] border border-zinc-900 text-white text-sm rounded-xl px-4 py-3 appearance-none focus:outline-none focus:border-amber-500 cursor-pointer"
-                 >
-                   {Array.from({ length: 24 }).map((_, i) => (
-                     <option key={`close-${i}`} value={i} disabled={i <= businessHours.openHour}>
-                       {i.toString().padStart(2, '0')}:00
-                     </option>
-                   ))}
-                 </select>
-                 <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
-               </div>
-             </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider font-mono">Jam Tutup</label>
+                <Select
+                  value={businessHours.closeHour.toString()}
+                  onValueChange={(v) => {
+                    const newClose = parseInt(v);
+                    if (newClose > businessHours.openHour) {
+                      onUpdateBusinessHours(businessHours.openHour, newClose);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-full bg-[#050505] border border-zinc-900 text-white text-sm rounded-xl px-4 py-3 h-auto">
+                    <SelectValue placeholder="Pilih Jam Tutup" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 24 }).map((_, i) => (
+                      <SelectItem key={`close-${i}`} value={i.toString()} disabled={i <= businessHours.openHour}>
+                        {i.toString().padStart(2, '0')}:00
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
            </div>
         </div>
 

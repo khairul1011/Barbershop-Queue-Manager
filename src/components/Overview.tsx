@@ -14,10 +14,11 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { QueueEntry, Service, Barber } from '../types';
-import { motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { BentoCard } from './ui/BentoCard';
 import { useTranslation } from '../i18n';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface OverviewProps {
   queue: QueueEntry[];
@@ -150,8 +151,8 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
                 <button
                   onClick={() => setIsTimerRunning(!isTimerRunning)}
                   className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl border transition-all cursor-pointer ${isTimerRunning
-                      ? 'bg-transparent border-border-subtle text-amber-500 hover:bg-[#151515]'
-                      : 'bg-amber-500 border-amber-500 text-black hover:bg-amber-600 shadow-md shadow-amber-500/10'
+                    ? 'bg-transparent border-border-subtle text-amber-500 hover:bg-[#151515]'
+                    : 'bg-amber-500 border-amber-500 text-black hover:bg-amber-600 shadow-md shadow-amber-500/10'
                     }`}
                   title={isTimerRunning ? "Pause Timer" : "Resume Timer"}
                 >
@@ -218,7 +219,7 @@ export default function Overview({
   todayKey
 }: OverviewProps) {
   const { t } = useTranslation();
-  
+
   // Walk-in form modal
   const [showWalkInModal, setShowWalkInModal] = useState(false);
   const [walkInName, setWalkInName] = useState('');
@@ -241,7 +242,7 @@ export default function Overview({
   const handleWalkInSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!walkInName.trim()) return;
-    
+
     // Safety net fallback sesuai kesepakatan
     const finalService = walkInService || services[0]?.name || '';
     const finalBarber = walkInBarber || barbers[0]?.name || '';
@@ -252,12 +253,12 @@ export default function Overview({
   };
 
   const todayQueue = queue.filter(q => q.day === todayKey);
-  
+
   // Active seats calculation
   const activeBarberCount = barbers.filter(b => b.status === 'active').length || 1;
   const occupiedSeats = Object.values(servingSessions || {}).filter(Boolean).length;
   const estimatedWaitTime = Math.ceil(todayQueue.length / activeBarberCount) * 20 + (occupiedSeats > 0 ? 10 : 0);
-  
+
   const totalVisits = completedCount + todayQueue.length + occupiedSeats;
 
   return (
@@ -342,7 +343,7 @@ export default function Overview({
         {/* Column 1: Seats Grid (Left) */}
         <div className="col-span-1 lg:col-span-2">
           <div className="flex items-center gap-2 mb-4">
-             <h2 className="text-lg font-bold text-white font-display tracking-tight">{t('overview.allSeats') as string || 'Active Barber Seats'}</h2>
+            <h2 className="text-lg font-bold text-white font-display tracking-tight">{t('overview.allSeats') as string || 'Active Barber Seats'}</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {barbers.map(barber => (
@@ -412,10 +413,10 @@ export default function Overview({
                     </div>
                   </div>
                   <span className={`px-2 py-0.5 text-[11px] font-mono font-semibold rounded-full border ${barber.status === 'active'
-                      ? 'bg-teal-500/10 text-teal-400 border-teal-500/20'
-                      : barber.status === 'break'
-                        ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
-                        : 'bg-gray-500/10 text-gray-500 border-gray-500/20'
+                    ? 'bg-teal-500/10 text-teal-400 border-teal-500/20'
+                    : barber.status === 'break'
+                      ? 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                      : 'bg-gray-500/10 text-gray-500 border-gray-500/20'
                     }`}>
                     {barber.status === 'active' ? t('overview.statusOnSeat') : barber.status === 'break' ? t('overview.statusBreak') : t('overview.statusOff')}
                   </span>
@@ -450,30 +451,30 @@ export default function Overview({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs text-gray-400 uppercase tracking-wider font-mono mb-1.5">{t('overview.selectService')}</label>
-                <select
-                  value={walkInService}
-                  onChange={(e) => setWalkInService(e.target.value)}
-                  className="w-full bg-[#070707] border border-border-subtle rounded-xl px-3 py-3 text-white text-sm focus:outline-none focus:border-amber-500 font-sans cursor-pointer"
-                  id="walkin-service-select"
-                >
-                  {services.map(s => (
-                    <option key={s.id} value={s.name}>{s.name} - {s.price / 1000}k</option>
-                  ))}
-                </select>
+                <Select value={walkInService} onValueChange={setWalkInService}>
+                  <SelectTrigger id="walkin-service-select">
+                    <SelectValue placeholder="Select Service" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {services.map(s => (
+                      <SelectItem key={s.id} value={s.name}>{s.name} - {s.price / 1000}k</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
                 <label className="block text-xs text-gray-400 uppercase tracking-wider font-mono mb-1.5">{t('overview.selectBarber')}</label>
-                <select
-                  value={walkInBarber}
-                  onChange={(e) => setWalkInBarber(e.target.value)}
-                  className="w-full bg-[#070707] border border-border-subtle rounded-xl px-3 py-3 text-white text-sm focus:outline-none focus:border-amber-500 font-sans cursor-pointer"
-                  id="walkin-barber-select"
-                >
-                  {barbers.map(b => (
-                    <option key={b.id} value={b.name}>{b.name}</option>
-                  ))}
-                </select>
+                <Select value={walkInBarber} onValueChange={setWalkInBarber}>
+                  <SelectTrigger id="walkin-barber-select">
+                    <SelectValue placeholder="Select Barber" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {barbers.map(b => (
+                      <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

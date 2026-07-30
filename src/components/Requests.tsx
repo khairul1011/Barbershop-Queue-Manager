@@ -4,6 +4,7 @@ import { MessageSquare, Calendar, Clock, Scissors, UserCheck, ShieldCheck, Check
 import { motion, AnimatePresence } from 'motion/react';
 import { BentoCard } from './ui/BentoCard';
 import { useTranslation } from '../i18n';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface RequestsProps {
   requests: WhatsAppRequest[];
@@ -204,16 +205,16 @@ export default function Requests({
                             <div className="grid grid-cols-2 gap-3">
                               <div>
                                 <label className="text-[10px] text-gray-500 block uppercase font-mono mb-1">{t('requests.day')}</label>
-                                <select
-                                    value={editDay}
-                                    onChange={(e) => setEditDay(e.target.value as any)}
-                                    className="w-full bg-[#121212] border border-border-subtle text-white text-xs rounded p-1.5 focus:outline-none focus:border-amber-500 cursor-pointer"
-                                    id={`edit-day-select-${req.id}`}
-                                  >
+                                <Select value={editDay} onValueChange={(v) => setEditDay(v as any)}>
+                                  <SelectTrigger id={`edit-day-select-${req.id}`} className="w-full bg-[#121212] border border-border-subtle text-white text-xs rounded p-1.5 h-auto py-2">
+                                    <SelectValue placeholder={t('requests.day')} />
+                                  </SelectTrigger>
+                                  <SelectContent>
                                     {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => (
-                                      <option key={d} value={d}>{d}</option>
+                                      <SelectItem key={d} value={d}>{d}</SelectItem>
                                     ))}
-                                  </select>
+                                  </SelectContent>
+                                </Select>
                                 </div>
                                 <div>
                                   <label className="text-[10px] text-gray-500 block uppercase font-mono mb-1">{t('requests.time')}</label>
@@ -231,16 +232,16 @@ export default function Requests({
                               {/* Service Selection */}
                               <div>
                                 <label className="text-[10px] text-gray-500 block uppercase font-mono mb-1">{t('requests.service')}</label>
-                                <select
-                                  value={editService}
-                                  onChange={(e) => setEditService(e.target.value)}
-                                  className="w-full bg-[#121212] border border-border-subtle text-white text-xs rounded p-1.5 focus:outline-none focus:border-amber-500 cursor-pointer"
-                                  id={`edit-service-select-${req.id}`}
-                                >
-                                  {services.map(s => (
-                                    <option key={s.id} value={s.name}>{s.name}</option>
-                                  ))}
-                                </select>
+                                <Select value={editService} onValueChange={setEditService}>
+                                  <SelectTrigger id={`edit-service-select-${req.id}`} className="w-full bg-[#121212] border border-border-subtle text-white text-xs rounded p-1.5 h-auto py-2">
+                                    <SelectValue placeholder={t('requests.service')} />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {services.map(s => (
+                                      <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                               </div>
                             </div>
                           ) : (
