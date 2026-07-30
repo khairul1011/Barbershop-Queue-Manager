@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 
 interface QueueListProps {
   queue: QueueEntry[];
@@ -151,33 +152,37 @@ export default function QueueList({
               
               {/* Card Footer: actions */}
               <div className="flex items-center gap-2 px-4 py-3 bg-[#070707] border-t border-border-subtle">
-                <button
+                <Button
+                  variant="outline"
                   onClick={() => { const b = barbers.find(b => b.name === item.barber); if (b) onServeNow(item, b.id); }}
                   disabled={!!(barbers.find(b => b.name === item.barber) && servingSessions[barbers.find(b => b.name === item.barber)!.id])}
-                  className={`flex-1 inline-flex items-center justify-center min-h-[44px] gap-1.5 rounded-xl text-xs font-semibold transition-all ${
+                  className={`flex-1 min-h-[44px] ${
                     (barbers.find(b => b.name === item.barber) && servingSessions[barbers.find(b => b.name === item.barber)!.id])
-                      ? 'bg-gray-800/50 text-gray-500 cursor-not-allowed border border-gray-800'
-                      : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500 hover:text-black border border-amber-500/20 cursor-pointer'
+                      ? ''
+                      : 'border-amber-500/20 text-amber-500 hover:bg-amber-500 hover:text-black'
                   }`}
                   title={(barbers.find(b => b.name === item.barber) && servingSessions[barbers.find(b => b.name === item.barber)!.id]) ? "Seat is currently occupied" : "Call to chair"}
                 >
-                  <Play size={13} fill="currentColor" className="stroke-none" />
+                  <Play size={13} fill="currentColor" className="mr-1.5 stroke-none" />
                   Serve
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="icon"
                   onClick={() => handleWhatsAppNudge(item)}
-                  className="min-w-[44px] min-h-[44px] bg-[#121212] border border-border-subtle text-teal-400 hover:bg-teal-500/10 rounded-xl transition-colors cursor-pointer inline-flex items-center justify-center"
+                  className="text-teal-400 hover:text-teal-300"
                   title="WhatsApp Nudge"
                 >
                   <MessageCircle size={16} />
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="icon"
                   onClick={() => onRemove(item.id)}
-                  className="min-w-[44px] min-h-[44px] bg-[#121212] border border-red-500/10 text-red-400 hover:bg-red-500/10 rounded-xl transition-colors cursor-pointer inline-flex items-center justify-center"
                   title="Remove from queue"
                 >
                   <Trash2 size={16} />
-                </button>
+                </Button>
               </div>
             </motion.div>
           )) : (
@@ -253,43 +258,48 @@ export default function QueueList({
                       {/* Actions */}
                       <td className="py-4 px-5 text-right space-x-2">
                         {/* Serve Now */}
-                        <button
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => {
                             const targetBarber = barbers.find(b => b.name === item.barber);
                             if (targetBarber) onServeNow(item, targetBarber.id);
                           }}
                           disabled={!!(barbers.find(b => b.name === item.barber) && servingSessions[barbers.find(b => b.name === item.barber)!.id])}
-                          className={`inline-flex items-center justify-center min-h-[44px] min-w-[80px] px-3 gap-1 rounded-xl text-xs transition-all ${
+                          className={`min-h-[44px] ${
                             (barbers.find(b => b.name === item.barber) && servingSessions[barbers.find(b => b.name === item.barber)!.id])
-                              ? 'bg-gray-800/50 text-gray-500 cursor-not-allowed border border-gray-800'
-                              : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500 hover:text-black hover:font-bold border border-amber-500/20 cursor-pointer'
+                              ? ''
+                              : 'border-amber-500/20 text-amber-500 hover:bg-amber-500 hover:text-black'
                           }`}
                           title={(barbers.find(b => b.name === item.barber) && servingSessions[barbers.find(b => b.name === item.barber)!.id]) ? "Seat is currently occupied" : "Call to chair"}
                           id={`serve-btn-${item.id}`}
                         >
-                          <Play size={12} fill="currentColor" className="stroke-none" />
+                          <Play size={12} fill="currentColor" className="mr-1.5 stroke-none" />
                           <span>Serve</span>
-                        </button>
+                        </Button>
 
                         {/* WhatsApp nudge */}
-                        <button
+                        <Button
+                          variant="secondary"
+                          size="icon"
                           onClick={() => handleWhatsAppNudge(item)}
-                          className="min-w-[44px] min-h-[44px] bg-[#121212] border border-border-subtle text-teal-400 hover:bg-teal-500/10 rounded-xl transition-colors cursor-pointer inline-flex items-center justify-center"
+                          className="text-teal-400 hover:text-teal-300"
                           title="WhatsApp Nudge"
                           id={`nudge-btn-${item.id}`}
                         >
                           <MessageCircle size={16} />
-                        </button>
+                        </Button>
 
                         {/* Delete */}
-                        <button
+                        <Button
+                          variant="destructive"
+                          size="icon"
                           onClick={() => onRemove(item.id)}
-                          className="min-w-[44px] min-h-[44px] bg-[#121212] border border-red-500/10 text-red-400 hover:bg-red-500/10 rounded-xl transition-colors cursor-pointer inline-flex items-center justify-center"
                           title="Remove from queue"
                           id={`delete-btn-${item.id}`}
                         >
                           <Trash2 size={16} />
-                        </button>
+                        </Button>
                       </td>
                     </motion.tr>
                   ))

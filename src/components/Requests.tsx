@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { BentoCard } from './ui/BentoCard';
 import { useTranslation } from '../i18n';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 
 interface RequestsProps {
   requests: WhatsAppRequest[];
@@ -105,53 +106,58 @@ export default function Requests({
                       <div className="flex items-center gap-2">
                         {isEditing ? (
                           <>
-                            <button
+                            <Button
+                              variant="default"
                               onClick={() => saveEdit(req.id)}
-                              className="flex-1 bg-teal-500 text-black hover:bg-teal-600 font-bold min-h-[44px] px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                              className="flex-1 bg-teal-500 text-black hover:bg-teal-600 font-bold"
                               id={`save-btn-${req.id}`}
                             >
-                              <Save size={13} />
+                              <Save size={13} className="mr-1.5" />
                               {t('requests.saveChanges')}
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                              variant="secondary"
                               onClick={() => setEditingId(null)}
-                              className="px-3 min-h-[44px] bg-[#121212] border border-border-subtle text-gray-400 hover:text-white rounded-xl text-xs cursor-pointer flex items-center justify-center"
                               id={`cancel-edit-btn-${req.id}`}
                             >
                               {t('requests.cancel')}
-                            </button>
+                            </Button>
                           </>
                         ) : (
                           <>
                             {/* Approve Button */}
-                            <button
+                            <Button
+                              variant="default"
                               onClick={() => onApprove(req.id)}
-                              className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold min-h-[44px] px-3 rounded-xl text-xs flex items-center justify-center gap-1 shadow-lg shadow-teal-500/5 hover:shadow-teal-500/15 cursor-pointer active:scale-95"
+                              className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold shadow-lg shadow-teal-500/5 hover:shadow-teal-500/15"
                               id={`approve-btn-${req.id}`}
                             >
-                              <Check size={14} />
+                              <Check size={14} className="mr-1" />
                               {t('requests.approveBook')}
-                            </button>
+                            </Button>
   
                             {/* Edit Button */}
-                            <button
+                            <Button
+                              variant="outline"
+                              size="icon"
                               onClick={() => startEdit(req)}
-                              className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-[#121212] border border-border-subtle text-amber-500 hover:bg-[#1A1A1A] rounded-xl text-xs cursor-pointer"
+                              className="text-amber-500 hover:text-amber-400"
                               title={t('requests.modifySlots')}
                               id={`edit-btn-${req.id}`}
                             >
                               <Edit3 size={14} />
-                            </button>
+                            </Button>
   
                             {/* Reject Button */}
-                            <button
+                            <Button
+                              variant="destructive"
+                              size="icon"
                               onClick={() => onReject(req.id)}
-                              className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-[#121212] border border-red-500/20 hover:border-red-500/40 text-red-400 hover:bg-red-500/10 rounded-xl text-xs cursor-pointer"
                               title={t('requests.rejectRequest')}
                               id={`reject-btn-${req.id}`}
                             >
                               <X size={14} />
-                            </button>
+                            </Button>
                           </>
                         )}
                       </div>

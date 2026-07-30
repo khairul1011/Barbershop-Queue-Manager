@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from '../i18n';
+import { Button } from '@/components/ui/button';
 
 interface SidebarProps {
   activeTab: string;
@@ -72,13 +73,15 @@ export default function Sidebar({
         </div>
 
         {/* Collapse button for desktop */}
-        <button 
+        <Button 
+          variant="ghost"
+          size="icon"
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="hidden md:flex min-w-[44px] min-h-[44px] items-center justify-center rounded-lg border border-border-subtle hover:bg-[#151515] text-gray-400 hover:text-amber-500 transition-colors shrink-0 cursor-pointer"
+          className="hidden md:flex border border-border-subtle hover:bg-[#151515] text-gray-400 hover:text-amber-500 rounded-lg shrink-0"
           id="desktop-collapse-btn"
         >
           {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-        </button>
+        </Button>
       </div>
 
       {/* Navigation Links */}
@@ -87,14 +90,15 @@ export default function Sidebar({
           const Icon = item.icon;
           const isActive = activeTab === item.id;
           return (
-            <button
+            <Button
+              variant="ghost"
               key={item.id}
               onClick={() => handleNav(item.id)}
-              className={`w-full flex items-center rounded-xl transition-all duration-200 group relative cursor-pointer ${
-                isCollapsed ? 'justify-center p-3' : 'gap-4 p-4 md:p-3.5 text-left'
+              className={`w-full flex items-center rounded-xl transition-all duration-200 group relative h-auto ${
+                isCollapsed ? 'justify-center p-3 min-h-[44px]' : 'justify-start gap-4 p-4 md:p-3.5 text-left min-h-[44px]'
               } ${
                 isActive 
-                  ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' 
+                  ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/20' 
                   : 'text-gray-400 hover:text-white hover:bg-[#121212] border border-transparent'
               }`}
               id={`nav-item-${item.id}`}
@@ -118,7 +122,7 @@ export default function Sidebar({
               {isActive && (
                 <div className="absolute left-0 top-1/4 bottom-1/4 w-[3px] bg-amber-500 rounded-r-full" />
               )}
-            </button>
+            </Button>
           );
         })}
       </div>
@@ -166,24 +170,28 @@ export default function Sidebar({
         
         <div className="flex items-center gap-3">
           {pendingRequestsCount > 0 && (
-            <button 
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => handleNav('requests')}
-              className="relative min-w-[44px] min-h-[44px] flex items-center justify-center text-amber-500 cursor-pointer"
+              className="relative text-amber-500 hover:bg-amber-500/10"
               id="mobile-requests-badge-btn"
             >
               <MessageSquare size={20} />
               <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 text-black text-[9px] font-bold flex items-center justify-center">
                 {pendingRequestsCount}
               </span>
-            </button>
+            </Button>
           )}
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => setIsOpenMobile(true)}
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-white hover:bg-[#151515] rounded-xl cursor-pointer"
+            className="text-gray-400 hover:text-white hover:bg-[#151515] rounded-xl"
             id="mobile-menu-toggle-btn"
           >
             <Menu size={22} />
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -210,13 +218,15 @@ export default function Sidebar({
             >
               {/* Close Button Inside Drawer */}
               <div className="p-4 flex justify-end border-b border-border-subtle h-[64px] items-center">
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => setIsOpenMobile(false)}
-                  className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-white rounded-lg hover:bg-[#151515] cursor-pointer"
+                  className="text-gray-400 hover:text-white rounded-lg hover:bg-[#151515]"
                   id="mobile-menu-close-btn"
                 >
                   <X size={20} />
-                </button>
+                </Button>
               </div>
               <div className="flex-1">
                 {sidebarContent}

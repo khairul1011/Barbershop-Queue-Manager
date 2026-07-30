@@ -10,6 +10,7 @@ import { useTranslation } from '../i18n';
 import { SegmentedToggle } from './ui/SegmentedToggle';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 
 interface ScheduleProps {
   queue: QueueEntry[];
@@ -399,17 +400,18 @@ export default function Schedule({
               idPrefix="schedule-view"
             />
             
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => {
                 setWeekOffset(0);
                 setMonthOffset(0);
                 setSelectedDay(todayKey as DayType);
                 setViewMode('Daily');
               }}
-              className="px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-gray-300 text-xs font-semibold rounded-xl transition-all cursor-pointer"
             >
               {t('schedule.today')}
-            </button>
+            </Button>
           </div>
 
           <div className="flex items-center gap-2">
@@ -446,7 +448,9 @@ export default function Schedule({
           <div className="flex flex-col bg-[#050505] border border-zinc-900 rounded-2xl overflow-hidden relative">
             <div className="flex items-center justify-between p-3 border-b border-zinc-900 bg-[#0A0A0A]">
               <div className="flex items-center gap-3">
-                <button 
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => {
                     const currentIndex = DAYS_OF_WEEK.indexOf(selectedDay);
                     if (currentIndex === 0) {
@@ -456,12 +460,14 @@ export default function Schedule({
                       setSelectedDay(DAYS_OF_WEEK[currentIndex - 1]);
                     }
                   }} 
-                  className="min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-zinc-800 rounded-lg text-gray-400 cursor-pointer"
+                  className="hover:bg-zinc-800 text-gray-400"
                 >
                   <ChevronLeft size={18}/>
-                </button>
+                </Button>
                 <span className="font-bold text-white min-w-[120px] text-center">{weekDates.find(d => d.day === selectedDay)?.label}</span>
-                <button 
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => {
                     const currentIndex = DAYS_OF_WEEK.indexOf(selectedDay);
                     if (currentIndex === 6) {
@@ -471,27 +477,28 @@ export default function Schedule({
                       setSelectedDay(DAYS_OF_WEEK[currentIndex + 1]);
                     }
                   }} 
-                  className="min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-zinc-800 rounded-lg text-gray-400 cursor-pointer"
+                  className="hover:bg-zinc-800 text-gray-400"
                 >
                   <ChevronRight size={18}/>
-                </button>
+                </Button>
               </div>
             </div>
 
             {/* Mobile Barber Tabs */}
             <div className="flex lg:hidden border-b border-zinc-900 overflow-x-auto scrollbar-none bg-[#0A0A0A] sticky top-[64px] md:top-[72px] z-30">
               {activeBarbers.map((b, idx) => (
-                <button
+                <Button
+                  variant="ghost"
                   key={b.id}
                   onClick={() => setActiveMobileBarberIndex(idx)}
-                  className={`flex-1 min-w-0 py-2.5 text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all border-b-2 ${
+                  className={`flex-1 rounded-none border-b-2 py-2.5 h-auto ${
                     activeMobileBarberIndex === idx
                       ? 'border-amber-500 text-amber-500 bg-amber-500/5'
                       : 'border-transparent text-gray-500 hover:text-gray-300'
                   }`}
                 >
                   {b.name.split(' ')[0]}
-                </button>
+                </Button>
               ))}
             </div>
 
@@ -537,9 +544,13 @@ export default function Schedule({
         {viewMode === 'Weekly' && (
           <div className="flex-1 overflow-y-auto bg-[#050505] rounded-2xl border border-zinc-900 p-4 space-y-4">
              <div className="flex items-center gap-3 mb-4">
-                <button onClick={() => setWeekOffset(o => o - 1)} className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-zinc-900 rounded-full text-gray-400 hover:text-white cursor-pointer"><ChevronLeft size={18}/></button>
+                <Button variant="secondary" size="icon" onClick={() => setWeekOffset(o => o - 1)}>
+                  <ChevronLeft size={18}/>
+                </Button>
                 <span className="font-bold text-white text-lg">{weekRangeStr}</span>
-                <button onClick={() => setWeekOffset(o => o + 1)} className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-zinc-900 rounded-full text-gray-400 hover:text-white cursor-pointer"><ChevronRight size={18}/></button>
+                <Button variant="secondary" size="icon" onClick={() => setWeekOffset(o => o + 1)}>
+                  <ChevronRight size={18}/>
+                </Button>
              </div>
              
              <div className="flex flex-col gap-4">
@@ -561,9 +572,9 @@ export default function Schedule({
                        <div className={`mt-1 flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full ${date.isToday ? 'bg-amber-500/10 text-amber-500 font-extrabold text-lg sm:text-xl' : 'text-white font-bold text-lg sm:text-xl'}`}>
                          {date.dayNum}
                        </div>
-                       <button onClick={() => { setSelectedDay(date.day); setViewMode('Daily'); }} className="mt-2 sm:mt-3 text-[9px] uppercase tracking-wider text-gray-500 hover:text-amber-500 font-bold transition-colors cursor-pointer">
+                       <Button variant="ghost" size="sm" onClick={() => { setSelectedDay(date.day); setViewMode('Daily'); }} className="mt-2 sm:mt-3 text-[9px] uppercase tracking-wider text-gray-500 hover:text-amber-500 font-bold transition-colors">
                          View
-                       </button>
+                       </Button>
                      </div>
 
                      {/* Right: Entries List */}
@@ -615,12 +626,14 @@ export default function Schedule({
                            
                            {dayEntries.length > 4 && (
                              <div className="flex items-center justify-center pt-1">
-                               <button 
+                               <Button
+                                 variant="secondary"
+                                 size="sm"
                                  onClick={() => { setSelectedDay(date.day); setViewMode('Daily'); }} 
-                                 className="text-[10px] font-bold text-gray-400 bg-zinc-900 hover:bg-zinc-800 hover:text-white px-3 py-1.5 rounded-full transition-colors cursor-pointer"
+                                 className="rounded-full text-[10px]"
                                >
                                  + {dayEntries.length - 4} {t('schedule.moreEntries').replace('{n}', '').trim()}
-                               </button>
+                               </Button>
                              </div>
                            )}
                          </div>
@@ -637,9 +650,13 @@ export default function Schedule({
           <div className="bg-[#050505] rounded-2xl border border-zinc-900 p-4">
              <div className="flex items-center justify-between mb-4 flex-none">
                 <h2 className="text-xl font-bold text-white flex items-center gap-3">
-                  <button onClick={() => setMonthOffset(o => o - 1)} className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-zinc-900 rounded-full text-gray-400 hover:text-white cursor-pointer"><ChevronLeft size={18}/></button>
+                  <Button variant="secondary" size="icon" onClick={() => setMonthOffset(o => o - 1)}>
+                    <ChevronLeft size={18}/>
+                  </Button>
                   {monthName}
-                  <button onClick={() => setMonthOffset(o => o + 1)} className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-zinc-900 rounded-full text-gray-400 hover:text-white cursor-pointer"><ChevronRight size={18}/></button>
+                  <Button variant="secondary" size="icon" onClick={() => setMonthOffset(o => o + 1)}>
+                    <ChevronRight size={18}/>
+                  </Button>
                 </h2>
              </div>
              
@@ -779,8 +796,12 @@ export default function Schedule({
               </Select>
             </div>
             <div className="flex gap-2.5 pt-2">
-              <button type="submit" className="flex-1 bg-amber-500 hover:bg-amber-600 text-black font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/10 cursor-pointer"><Check size={14} /> {t('schedule.confirmBooking')}</button>
-              <button type="button" onClick={() => setBookingSlot(null)} className="px-4 py-2.5 bg-zinc-900 border border-zinc-850 text-gray-400 hover:text-white rounded-xl text-xs cursor-pointer">{t('requests.cancel')}</button>
+              <Button variant="default" type="submit" className="flex-1 w-full">
+                <Check size={14} className="mr-1.5" /> {t('schedule.confirmBooking')}
+              </Button>
+              <Button variant="secondary" type="button" onClick={() => setBookingSlot(null)}>
+                {t('requests.cancel')}
+              </Button>
             </div>
           </form>
         </DialogContent>
@@ -830,9 +851,13 @@ export default function Schedule({
               
               <div className="border-t border-zinc-900 pt-4 space-y-2.5">
                  {activeSlotDetails.entry.status === 'Pending Reply' && (
-                   <button onClick={() => handleWhatsAppAction(activeSlotDetails.entry)} className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-bold py-2.5 px-4 rounded-xl text-xs flex justify-center gap-1.5 cursor-pointer transition-colors">
-                     <MessageSquarePlus size={14} /> {t('schedule.sendWhatsAppNudge')}
-                   </button>
+                   <Button 
+                     variant="default"
+                     onClick={() => handleWhatsAppAction(activeSlotDetails.entry)} 
+                     className="w-full bg-emerald-500 hover:bg-emerald-600 text-black"
+                   >
+                     <MessageSquarePlus size={14} className="mr-1.5" /> {t('schedule.sendWhatsAppNudge')}
+                   </Button>
                  )}
                  <div className="flex flex-col gap-2">
                    {activeSlotDetails.entry.status === 'Estimated' && (
@@ -847,7 +872,9 @@ export default function Schedule({
                      </div>
                    )}
                    <div className="flex gap-2 mt-2">
-                     <button 
+                     <Button 
+                       variant="secondary"
+                       className="flex-1 text-emerald-400"
                        onClick={() => { 
                          if (activeSlotDetails.entry.status === 'Estimated') {
                            if (!confirmTime) {
@@ -861,20 +888,20 @@ export default function Schedule({
                          setActiveSlotDetails(null); 
                          setConfirmTime('');
                        }} 
-                       className="flex-1 bg-zinc-900 hover:bg-zinc-850 border border-zinc-850 text-emerald-400 font-bold rounded-xl text-[11px] flex justify-center items-center min-h-[44px] gap-1 cursor-pointer transition-colors"
                      >
-                       <Check size={11} /> {t('schedule.confirm')}
-                     </button>
-                     <button 
+                       <Check size={14} className="mr-1.5" /> {t('schedule.confirm')}
+                     </Button>
+                     <Button 
+                       variant="destructive"
+                       size="icon"
                        onClick={() => { 
                          onRemoveBooking && onRemoveBooking(activeSlotDetails.entry.id); 
                          setActiveSlotDetails(null); 
                          setConfirmTime('');
                        }} 
-                       className="min-w-[44px] min-h-[44px] bg-zinc-900 hover:bg-red-900/20 border border-red-950 text-red-400 rounded-xl flex justify-center items-center cursor-pointer transition-colors"
                      >
-                       <Trash2 size={13}/>
-                     </button>
+                       <Trash2 size={14}/>
+                     </Button>
                    </div>
                  </div>
               </div>

@@ -21,6 +21,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from '../i18n';
 import { SegmentedToggle, SegmentOption } from './ui/SegmentedToggle';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 
 interface SettingsProps {
   services: Service[];
@@ -186,14 +187,15 @@ export default function SettingsView({
                 id="setting-service-duration"
               />
             </div>
-            <button
+            <Button
+              variant="default"
               type="submit"
-              className="w-full bg-amber-500 hover:bg-amber-600 text-black font-bold py-2 rounded-lg text-xs flex items-center justify-center gap-1 transition-colors cursor-pointer"
+              className="w-full"
               id="setting-service-add-btn"
             >
-              <Plus size={14} />
+              <Plus size={14} className="mr-1.5" />
               {t('settings.addServiceItem')}
-            </button>
+            </Button>
           </form>
 
           {/* Active Services list */}
@@ -217,15 +219,15 @@ export default function SettingsView({
                       <span className="flex items-center gap-0.5"><Clock size={10} /> {svc.duration} {t('settings.mins')}</span>
                     </p>
                   </div>
-                  
-                  <button
+                  <Button
+                    variant="destructive"
+                    size="icon"
                     onClick={() => onRemoveService(svc.id)}
-                    className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-[#121212] border border-border-subtle text-red-400 hover:bg-red-500/15 hover:border-red-500/30 rounded-lg transition-all cursor-pointer"
                     title={t('settings.deleteService')}
                     id={`remove-service-${svc.id}`}
                   >
                     <Trash size={14} />
-                  </button>
+                  </Button>
                 </div>
               ))
             )}
@@ -240,12 +242,12 @@ export default function SettingsView({
               <h2 className="text-lg font-display font-bold text-white tracking-tight">{t('settings.barberDutyStatus')}</h2>
             </div>
             {!isBarberFormOpen && (
-              <button
+              <Button
                 onClick={() => setIsBarberFormOpen(true)}
-                className="bg-teal-500 hover:bg-teal-600 text-black font-semibold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1 transition-colors cursor-pointer"
+                className="bg-teal-500 hover:bg-teal-600 text-black px-4"
               >
-                <Plus size={14} /> Add Barber
-              </button>
+                <Plus size={14} className="mr-1.5" /> Add Barber
+              </Button>
             )}
           </div>
 
@@ -262,9 +264,9 @@ export default function SettingsView({
                   <span className="text-[10px] text-teal-400 font-mono font-bold uppercase block">
                     {editingBarberId ? 'Edit Barber' : 'Add New Barber'}
                   </span>
-                  <button type="button" onClick={resetBarberForm} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 hover:text-white">
+                  <Button variant="ghost" size="icon" type="button" onClick={resetBarberForm}>
                     <X size={14} />
-                  </button>
+                  </Button>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <input
@@ -300,13 +302,14 @@ export default function SettingsView({
                     )}
                   </div>
                 </div>
-                <button
+                <Button
+                  variant="default"
                   type="submit"
-                  className="w-full bg-teal-500 hover:bg-teal-600 text-black font-bold py-2 rounded-lg text-xs flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                  className="w-full bg-teal-500 hover:bg-teal-600 text-black"
                 >
-                  <Save size={14} />
+                  <Save size={14} className="mr-1.5" />
                   {editingBarberId ? 'Save Changes' : 'Save Barber'}
-                </button>
+                </Button>
               </motion.form>
             )}
           </AnimatePresence>
@@ -349,20 +352,23 @@ export default function SettingsView({
                       idPrefix={`barber-status-${barber.id}`}
                     />
                     <div className="flex gap-2">
-                      <button
+                      <Button
+                        variant="outline"
+                        size="icon"
                         onClick={() => startEditBarber(barber)}
-                        className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-[#121212] border border-border-subtle text-amber-500 hover:bg-amber-500/15 rounded-lg transition-all cursor-pointer"
+                        className="text-amber-500 hover:text-amber-400"
                         title="Edit"
                       >
                         <Edit3 size={14} />
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="icon"
                         onClick={() => onRemoveBarber(barber.id)}
-                        className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-[#121212] border border-border-subtle text-red-400 hover:bg-red-500/15 hover:border-red-500/30 rounded-lg transition-all cursor-pointer"
                         title="Delete"
                       >
                         <Trash size={14} />
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -378,15 +384,14 @@ export default function SettingsView({
               <MessageSquare size={18} className="text-amber-500" />
               <h2 className="text-lg font-display font-bold text-white tracking-tight">{t('settings.whatsappTemplatesTitle')}</h2>
             </div>
-            
-            <button
+            <Button
+              variant="default"
               onClick={handleSaveTemplates}
-              className="bg-amber-500 text-black font-semibold px-4 py-2 rounded-xl text-xs flex items-center gap-1 hover:bg-amber-600 transition-colors cursor-pointer"
               id="save-templates-btn"
             >
-              {isTemplateSaved ? <Check size={14} /> : <Save size={14} />}
+              {isTemplateSaved ? <Check size={14} className="mr-1.5" /> : <Save size={14} className="mr-1.5" />}
               <span>{isTemplateSaved ? t('settings.saved') : t('settings.saveTemplates')}</span>
-            </button>
+            </Button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

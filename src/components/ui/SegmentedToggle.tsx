@@ -1,4 +1,5 @@
 import React from 'react';
+import { Button } from '@/components/ui/button';
 
 export interface SegmentOption<T extends string> {
   value: T;
@@ -45,14 +46,15 @@ export function SegmentedToggle<T extends string>({
         }
 
         return (
-          <button
+          <Button
+            variant="ghost"
             key={option.value}
             onClick={() => onChange(option.value)}
             className={`${sizeClass} font-mono font-bold rounded-lg uppercase cursor-pointer transition-all ${activeClass}`}
             id={`${idPrefix}-${option.value}`}
           >
             {option.label}
-          </button>
+          </Button>
         );
       })}
     </div>

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronDown } from 'lucide-react';
 import { useTranslation } from '../i18n';
+import { Button } from '@/components/ui/button';
 
 export default function LanguageSwitcher() {
   const { lang, setLang } = useTranslation();
@@ -28,7 +29,8 @@ export default function LanguageSwitcher() {
 
   return (
     <div className="relative" ref={dropdownRef}>
-      <button
+      <Button
+        variant="ghost"
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 bg-[#0F0F0F] border border-[#1A1A1A] hover:bg-[#151515] hover:text-amber-500 rounded-xl px-3 py-2 transition-all cursor-pointer text-xs md:text-sm text-gray-300 h-[38px]"
         id="language-switcher-btn"
@@ -36,7 +38,7 @@ export default function LanguageSwitcher() {
         <span className="text-base leading-none">{currentLang.flag}</span>
         <span className="hidden sm:inline font-sans font-medium">{currentLang.label}</span>
         <ChevronDown size={14} className={`hidden sm:block text-gray-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
+      </Button>
 
       <AnimatePresence>
         {isOpen && (
@@ -49,7 +51,8 @@ export default function LanguageSwitcher() {
           >
             <div className="p-1">
               {languages.map((l) => (
-                <button
+                <Button
+                  variant="ghost"
                   key={l.code}
                   onClick={() => {
                     setLang(l.code);
@@ -69,7 +72,7 @@ export default function LanguageSwitcher() {
                   {lang === l.code && (
                     <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                   )}
-                </button>
+                </Button>
               ))}
             </div>
           </motion.div>

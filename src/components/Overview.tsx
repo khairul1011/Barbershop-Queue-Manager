@@ -19,6 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { BentoCard } from './ui/BentoCard';
 import { useTranslation } from '../i18n';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 
 interface OverviewProps {
   queue: QueueEntry[];
@@ -148,34 +149,34 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
               </div>
 
               <div className="flex items-center gap-1.5">
-                <button
+                <Button
+                  variant={isTimerRunning ? "outline" : "default"}
+                  size="icon"
                   onClick={() => setIsTimerRunning(!isTimerRunning)}
-                  className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl border transition-all cursor-pointer ${isTimerRunning
-                    ? 'bg-transparent border-border-subtle text-amber-500 hover:bg-[#151515]'
-                    : 'bg-amber-500 border-amber-500 text-black hover:bg-amber-600 shadow-md shadow-amber-500/10'
-                    }`}
                   title={isTimerRunning ? "Pause Timer" : "Resume Timer"}
                 >
                   {isTimerRunning ? <Pause size={18} /> : <Play size={18} />}
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
                   onClick={() => setElapsedSeconds(0)}
-                  className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl border border-border-subtle hover:bg-[#151515] text-gray-400 hover:text-white transition-all cursor-pointer"
                   title="Reset Timer"
                 >
                   <RotateCcw size={18} />
-                </button>
+                </Button>
               </div>
             </div>
 
             {/* Done Action Button */}
-            <button
+            <Button
+              variant="default"
+              className="w-full shadow-xl shadow-amber-500/5 hover:shadow-amber-500/15"
               onClick={handleDoneClick}
-              className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-black font-bold py-3 rounded-xl shadow-xl shadow-amber-500/5 hover:shadow-amber-500/15 transition-all text-sm flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
             >
-              <CheckCircle2 size={18} />
+              <CheckCircle2 size={18} className="mr-2" />
               {t('overview.completeSession')}
-            </button>
+            </Button>
           </motion.div>
         ) : (
           <motion.div
@@ -191,13 +192,15 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
               <h4 className="text-sm font-bold text-white font-sans">{t('overview.seatEmpty') as string || 'Seat Available'}</h4>
             </div>
             {nextInLine && (
-              <button
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={() => onCallNext(barber.id)}
-                className="flex items-center gap-1.5 bg-[#121212] hover:bg-[#1A1A1A] text-amber-500 font-semibold border border-border-subtle hover:border-amber-500/20 px-4 py-2 rounded-xl transition-all text-xs cursor-pointer"
+                className="text-amber-500 hover:text-amber-400 font-semibold border-border-subtle hover:border-amber-500/20"
               >
                 <span>{t('overview.callNextFor') as string || 'Call'} {nextInLine.customerName}</span>
-                <ArrowRight size={14} />
-              </button>
+                <ArrowRight size={14} className="ml-1.5" />
+              </Button>
             )}
           </motion.div>
         )}
@@ -269,14 +272,15 @@ export default function Overview({
           <h1 className="text-2xl md:text-3xl font-display font-bold text-white tracking-tight">{t('overview.title')}</h1>
           <p className="text-sm text-gray-400 font-sans mt-0.5">{t('overview.subtitle')}</p>
         </div>
-        <button
+        <Button
+          variant="default"
           onClick={() => setShowWalkInModal(true)}
-          className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-black font-semibold px-4 py-3 rounded-xl shadow-lg shadow-amber-500/10 hover:shadow-amber-500/25 transition-all text-sm cursor-pointer active:scale-95"
+          className="shadow-lg shadow-amber-500/10 hover:shadow-amber-500/25 active:scale-95 px-4"
           id="add-walk-in-btn"
         >
-          <PlusCircle size={18} />
+          <PlusCircle size={18} className="mr-2" />
           <span className="hidden sm:inline">{t('overview.newWalkIn')}</span>
-        </button>
+        </Button>
       </div>
 
       {/* Top Stat Cards */}
@@ -479,21 +483,22 @@ export default function Overview({
             </div>
 
             <div className="flex gap-3 pt-3">
-              <button
-                type="button"
+              <Button
+                variant="secondary"
                 onClick={() => setShowWalkInModal(false)}
-                className="flex-1 bg-[#121212] hover:bg-[#1A1A1A] border border-border-subtle text-gray-300 font-semibold py-3 rounded-xl text-sm transition-colors cursor-pointer"
+                className="flex-1"
                 id="walkin-cancel-btn"
               >
                 {t('overview.cancel')}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="default"
                 type="submit"
-                className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-black font-bold py-3 rounded-xl text-sm transition-all cursor-pointer shadow-lg shadow-amber-500/10"
+                className="flex-1"
                 id="walkin-submit-btn"
               >
                 {t('overview.addToQueue')}
-              </button>
+              </Button>
             </div>
           </form>
         </DialogContent>
