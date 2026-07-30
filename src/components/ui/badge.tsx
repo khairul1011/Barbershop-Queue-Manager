@@ -14,12 +14,14 @@ const badgeVariants = cva(
         destructive:
           "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
         outline: "text-foreground",
-        // Custom variants for Barbershop app
         amber: "bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500/20",
         emerald: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20",
         sky: "bg-sky-500/10 text-sky-400 border-sky-500/20 hover:bg-sky-500/20",
         violet: "bg-violet-500/10 text-violet-400 border-violet-500/20 shadow-[0_0_15px_rgba(139,92,246,0.3)] hover:bg-violet-500/20",
         gray: "bg-gray-500/10 text-gray-400 border-gray-500/20 hover:bg-gray-500/20",
+        teal: "bg-teal-500/10 text-teal-400 border-teal-500/20 hover:bg-teal-500/20",
+        red: "bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20",
+        blue: "bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20",
       },
     },
     defaultVariants: {
@@ -28,9 +30,7 @@ const badgeVariants = cva(
   }
 )
 
-export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof badgeVariants> {}
+export type BadgeProps = React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof badgeVariants>
 
 function Badge({ className, variant, ...props }: BadgeProps) {
   return (
