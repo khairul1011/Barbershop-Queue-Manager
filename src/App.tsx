@@ -283,6 +283,20 @@ export default function App() {
     return availableServices.length > 0 ? availableServices[0].id : '';
   };
 
+  const fuzzyMatchBarber = (extractedBarber: string | null | undefined, availableBarbers: any[]): any => {
+    if (!extractedBarber) return availableBarbers[0] || null;
+    const b = extractedBarber.toLowerCase();
+    const exactMatch = availableBarbers.find(barber => barber.name.toLowerCase() === b);
+    if (exactMatch) return exactMatch;
+
+    const partialMatch = availableBarbers.find(barber => 
+      barber.name.toLowerCase().includes(b) || b.includes(barber.name.toLowerCase())
+    );
+    if (partialMatch) return partialMatch;
+
+    return availableBarbers[0] || null;
+  };
+
   // Callback: Approve WhatsApp Booking
   const handleApproveRequest = async (id: string, customDay?: string, customTime?: string, customService?: string) => {
     const request = requests.find(r => r.id === id);
@@ -301,7 +315,7 @@ export default function App() {
     const serviceSelected = customService || request.extractedService;
 
     const endTime = calculateEndTime(timeSelected, serviceSelected);
-    const targetBarber = barbers[0]; // simplistic assignment
+    const targetBarber = fuzzyMatchBarber(request.extractedBarber, barbers);
 
     if (!targetBarber) return;
     const sId = fuzzyMatchService(serviceSelected, services);

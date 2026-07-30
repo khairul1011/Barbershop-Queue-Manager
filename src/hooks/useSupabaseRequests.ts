@@ -19,17 +19,21 @@ export function useSupabaseRequests() {
         
       if (supabaseError) throw supabaseError;
       
-      const formattedRequests: WhatsAppRequest[] = (data || []).map(row => ({
-        id: row.id,
-        senderName: row.sender_name,
-        senderPhone: row.sender_phone,
-        message: row.raw_message,
-        extractedDay: row.extracted_day as any,
-        extractedTime: row.extracted_time,
-        extractedService: row.extracted_service,
-        status: row.status as RequestStatus,
-        receivedTime: row.received_at
-      }));
+      const formattedRequests: WhatsAppRequest[] = (data || []).map(row => {
+        const parts = (row.extracted_service || '').split('|BARBER:');
+        return {
+          id: row.id,
+          senderName: row.sender_name,
+          senderPhone: row.sender_phone,
+          message: row.raw_message,
+          extractedDay: row.extracted_day as any,
+          extractedTime: row.extracted_time,
+          extractedService: parts[0],
+          extractedBarber: parts[1] || null,
+          status: row.status as RequestStatus,
+          receivedTime: row.received_at
+        };
+      });
       
       setRequests(formattedRequests);
     } catch (err) {

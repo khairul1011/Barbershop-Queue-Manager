@@ -12,6 +12,7 @@ FORMAT OUTPUT WAJIB:
   "hari": string atau null,
   "jam": string atau null,
   "servis": string atau null,
+  "kapster": string atau null,
   "isBookingIntent": boolean,
   "naturalReply": string atau null
 }
@@ -37,27 +38,29 @@ ATURAN KRITIS — BACA DENGAN SEKSAMA:
 
 5. FIELD "servis": Cari jenis servis jika disebutkan (potong, cukur, creambath, dll). Normalisasi ke bahasa Indonesia yang jelas.
 
-6. Tangani bahasa campur Indonesia-Inggris secara natural. Contoh: "book dong bro, sabtu jam 3 sore" adalah pesan booking yang valid.
+6. FIELD "kapster": Cari nama kapster/barber yang diminta jika disebutkan (misal: "dengan bg alex", "sama kenji"). Jika tidak disebut, WAJIB null.
+
+7. Tangani bahasa campur Indonesia-Inggris secara natural. Contoh: "book dong bro, sabtu jam 3 sore" adalah pesan booking yang valid.
 
 CONTOH INPUT-OUTPUT:
 
 Input: "bang mau booking sabtu jam 2 siang, potong doang"
-Output: {"nama":null,"hari":"Sabtu","jam":"14:00","servis":"Potong","isBookingIntent":true,"naturalReply":null}
+Output: {"nama":null,"hari":"Sabtu","jam":"14:00","servis":"Potong","kapster":null,"isBookingIntent":true,"naturalReply":null}
 
-Input: "besok bisa gak? gua si Reza, mau cukur sama creambath"
-Output: {"nama":"Reza","hari":"besok","jam":null,"servis":"Cukur + Creambath","isBookingIntent":true,"naturalReply":null}
+Input: "besok bisa gak? gua si Reza, mau cukur sama creambath dengan marcus"
+Output: {"nama":"Reza","hari":"besok","jam":null,"servis":"Cukur + Creambath","kapster":"Marcus","isBookingIntent":true,"naturalReply":null}
 
 Input: "kak mau tanya bang kenji besok ada jadwal kosong nggak ya?"
-Output: {"nama":null,"hari":"besok","jam":null,"servis":null,"isBookingIntent":false,"naturalReply":"Halo kak! Bang Kenji besok masih ada beberapa slot kosong kok. Kakak rencananya mau datang jam berapa biar bisa saya cek slot tepatnya?"}
+Output: {"nama":null,"hari":"besok","jam":null,"servis":null,"kapster":"Kenji","isBookingIntent":false,"naturalReply":"Halo kak! Bang Kenji besok masih ada beberapa slot kosong kok. Kakak rencananya mau datang jam berapa biar bisa saya cek slot tepatnya?"}
 
 Input: "pangkas aja"
-Output: {"nama":null,"hari":null,"jam":null,"servis":"Potong","isBookingIntent":false,"naturalReply":null}
+Output: {"nama":null,"hari":null,"jam":null,"servis":"Potong","kapster":null,"isBookingIntent":false,"naturalReply":null}
 
 Input: "buka jam berapa bang?"
-Output: {"nama":null,"hari":null,"jam":null,"servis":null,"isBookingIntent":false,"naturalReply":"Halo kak! Kami buka dari jam 9 pagi sampai jam 8 malam. Ada yang mau ditanyakan lagi atau mau langsung booking?"}
+Output: {"nama":null,"hari":null,"jam":null,"servis":null,"kapster":null,"isBookingIntent":false,"naturalReply":"Halo kak! Kami buka dari jam 9 pagi sampai jam 8 malam. Ada yang mau ditanyakan lagi atau mau langsung booking?"}
 
 Input: "ok makasih"
-Output: {"nama":null,"hari":null,"jam":null,"servis":null,"isBookingIntent":false,"naturalReply":"Sama-sama kak! Ditunggu kedatangannya ya."}`;
+Output: {"nama":null,"hari":null,"jam":null,"servis":null,"kapster":null,"isBookingIntent":false,"naturalReply":"Sama-sama kak! Ditunggu kedatangannya ya."}`;
 
 const MODEL_CHAIN = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite', 'gemini-3.1-flash', 'gemini-3.5-flash'];
 

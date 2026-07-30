@@ -17,6 +17,93 @@ async function replyAndSaveHistory(msg, text) {
 
 const API_URL = process.env.API_URL || 'http://localhost:3001';
 
+function getTargetDateStr(dayStr) {
+  const d = (dayStr || '').toLowerCase();
+  const today = new Date();
+  
+  let targetIdx = today.getDay();
+  if (d.includes('besok')) {
+    targetIdx = (today.getDay() + 1) % 7;
+  } else if (d.includes('lusa')) {
+    targetIdx = (today.getDay() + 2) % 7;
+  } else if (d.includes('senin')) targetIdx = 1;
+  else if (d.includes('selasa')) targetIdx = 2;
+  else if (d.includes('rabu')) targetIdx = 3;
+  else if (d.includes('kamis')) targetIdx = 4;
+  else if (d.includes('jumat')) targetIdx = 5;
+  else if (d.includes('sabtu')) targetIdx = 6;
+  else if (d.includes('minggu')) targetIdx = 0;
+
+  const diff = (targetIdx - today.getDay() + 7) % 7;
+  const target = new Date(today);
+  target.setDate(today.getDate() + diff);
+  
+  const y = target.getFullYear();
+  const m = String(target.getMonth() + 1).padStart(2, '0');
+  const dd = String(target.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+
+async function checkAvailability(hariStr, jamStr, kapsterStr) {
+  const dateStr = getTargetDateStr(hariStr);
+  const { data: queue } = await supabase.from('queue_entries')
+    .select('barber_id, scheduled_time, status')
+    .eq('scheduled_date', dateStr);
+    
+  const { data: barbers } = await supabase.from('barbers').select('id, name');
+  
+  const { data: waReqs } = await supabase.from('whatsapp_requests')
+    .select('extracted_day, extracted_time, extracted_service')
+    .in('status', ['pending']);
+
+  let requestedBarberId = null;
+  if (kapsterStr) {
+    const k = kapsterStr.toLowerCase();
+    const match = barbers.find(b => b.name.toLowerCase().includes(k) || k.includes(b.name.toLowerCase()));
+    if (match) requestedBarberId = match.id;
+  }
+
+  const busyBarbers = (queue || [])
+    .filter(q => q.scheduled_time === jamStr && q.status !== 'Completed' && q.status !== 'cancelled')
+    .map(q => q.barber_id);
+    
+  let anyCount = 0;
+  (waReqs || []).forEach(r => {
+    if (getTargetDateStr(r.extracted_day) === dateStr && r.extracted_time === jamStr) {
+      const parts = (r.extracted_service || '').split('|BARBER:');
+      const bName = parts[1];
+      if (bName) {
+         const match = barbers.find(b => b.name.toLowerCase().includes(bName.toLowerCase()));
+         if (match) busyBarbers.push(match.id);
+      } else {
+         anyCount++;
+      }
+    }
+  });
+
+  if (requestedBarberId) {
+     if (busyBarbers.includes(requestedBarberId)) {
+        const availableBarbers = barbers.filter(b => !busyBarbers.includes(b.id));
+        return { 
+           conflict: true, 
+           msg: `Maaf kak, kapster ${kapsterStr} sudah ada jadwal jam ${jamStr}. ` + 
+                (availableBarbers.length > 0 
+                  ? `Yang kosong ada ${availableBarbers.map(b=>b.name).join(', ')}. Mau ganti kapster atau ganti jam?` 
+                  : `Semua kapster juga penuh jam segitu. Boleh pilih jam lain?`)
+        };
+     }
+  } else {
+     if (busyBarbers.length + anyCount >= barbers.length) {
+        return {
+           conflict: true,
+           msg: `Maaf kak, semua kapster sudah penuh untuk jam ${jamStr}. Boleh pilih jam lain?`
+        };
+     }
+  }
+  
+  return { conflict: false };
+}
+
 async function getBusinessContext() {
   try {
     const { data: barbers } = await supabase.from('barbers').select('name, specialization, status').eq('status', 'active');
@@ -126,13 +213,14 @@ client.on('message', async msg => {
     const effectiveBookingIntent = parsedData.isBookingIntent || hasActiveState;
 
     if (effectiveBookingIntent === true) {
-      const oldState = conversationState.get(msg.from) || { nama: null, hari: null, jam: null, servis: null };
+      const oldState = conversationState.get(msg.from) || { nama: null, hari: null, jam: null, servis: null, kapster: null };
       
       const merged = {
         nama: parsedData.nama ?? oldState.nama,
         hari: parsedData.hari ?? oldState.hari,
         jam: parsedData.jam ?? oldState.jam,
-        servis: parsedData.servis ?? oldState.servis
+        servis: parsedData.servis ?? oldState.servis,
+        kapster: parsedData.kapster ?? oldState.kapster
       };
       
       conversationState.set(msg.from, { ...merged, awaitingConfirmation: oldState.awaitingConfirmation || false, lastUpdated: Date.now() });
@@ -199,13 +287,14 @@ client.on('message', async msg => {
             await replyAndSaveHistory(msg, `Sip kak! Booking sudah lengkap:\n\nHari: ${merged.hari}\nJam: ${merged.jam}\nServis: ${merged.servis}\nNama: ${merged.nama}\n\nTerima kasih, ditunggu kedatangannya!`);
 
             try {
+              const finalService = merged.kapster ? `${merged.servis}|BARBER:${merged.kapster}` : merged.servis;
               const { error } = await supabase.from('whatsapp_requests').insert({
                 sender_name: merged.nama,
                 sender_phone: msg.from,
                 raw_message: msg.body,
                 extracted_day: merged.hari,
                 extracted_time: merged.jam,
-                extracted_service: merged.servis,
+                extracted_service: finalService,
                 is_booking_intent: true
               });
               if (error) throw error;
@@ -235,10 +324,26 @@ client.on('message', async msg => {
 
       } else {
         // (c) Semua terisi tapi belum pernah minta konfirmasi — kirim ringkasan & minta konfirmasi
+        
+        // CEK KETERSEDIAAN DULU
+        const { conflict, msg: conflictMsg } = await checkAvailability(merged.hari, merged.jam, merged.kapster);
+        if (conflict) {
+          // Ada bentrok, minta ubah data
+          conversationState.set(msg.from, { ...merged, jam: null, kapster: null, awaitingConfirmation: false, lastUpdated: Date.now() });
+          try {
+            console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
+            await replyAndSaveHistory(msg, conflictMsg);
+          } catch (err) {
+            console.error('[REPLY ERROR]', err.message, '| target:', msg.from);
+          }
+          return;
+        }
+
         conversationState.set(msg.from, { ...merged, awaitingConfirmation: true, lastUpdated: Date.now() });
         try {
           console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
-          await replyAndSaveHistory(msg, `Baik kak, jadi booking untuk hari ${merged.hari} jam ${merged.jam}, servis ${merged.servis}, atas nama ${merged.nama} -- benar begitu kak? Balas 'ya' untuk konfirmasi ya.`);
+          const kapsterText = merged.kapster ? ` dengan kapster ${merged.kapster}` : '';
+          await replyAndSaveHistory(msg, `Baik kak, jadi booking untuk hari ${merged.hari} jam ${merged.jam}, servis ${merged.servis}${kapsterText}, atas nama ${merged.nama} -- benar begitu kak? Balas 'ya' untuk konfirmasi ya.`);
         } catch (err) {
           console.error('[REPLY ERROR]', err.message, '| target:', msg.from);
         }

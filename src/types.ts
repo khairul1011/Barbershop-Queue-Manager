@@ -27,6 +27,7 @@ export interface WhatsAppRequest {
   extractedDay: 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
   extractedTime: string; // e.g. "14:00" or "Afternoon"
   extractedService: string;
+  extractedBarber?: string | null;
   status: RequestStatus;
 }
 
