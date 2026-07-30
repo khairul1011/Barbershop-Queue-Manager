@@ -29,6 +29,24 @@ async function getBusinessContext() {
       context += `Layanan: ${serviceList}.`;
     }
 
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+    const { data: timeOffs } = await supabase
+      .from('barber_time_off')
+      .select('off_date, barbers(name)')
+      .in('off_date', [todayStr, tomorrowStr]);
+
+    if (timeOffs && timeOffs.length > 0) {
+      const offList = timeOffs.map(t => `${t.barbers.name} libur pada ${t.off_date === todayStr ? 'hari ini' : 'besok'}`).join(', ');
+      context += `\nInfo cuti: ${offList}.`;
+    } else {
+      context += `\nInfo cuti: Tidak ada kapster yang libur hari ini atau besok (semua kapster aktif tersedia sesuai jam operasional).`;
+    }
+
     return context || "Info bisnis sedang tidak dapat diakses, mohon maaf.";
   } catch (err) {
     console.error('[BUSINESS CONTEXT ERROR]', err.message);
