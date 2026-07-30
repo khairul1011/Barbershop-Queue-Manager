@@ -73,7 +73,10 @@ client.on('message', async msg => {
   if (msg.from === 'status@broadcast') return;
 
   // 3. Skip pesan yang terlalu pendek HANYA jika pengguna belum ada di state percakapan
-  if (!msg.body || (msg.body.trim().length < 5 && !conversationState.has(msg.from))) return;
+  const GREETING_WORDS = ['halo', 'hallo', 'hai', 'hi', 'hey', 'min', 'bang', 'bg', 'kak', 'permisi', 'pagi', 'siang', 'sore', 'malam'];
+  const bodyNormalized = (msg.body || '').trim().toLowerCase();
+  const isGreeting = GREETING_WORDS.some(g => bodyNormalized === g || bodyNormalized.startsWith(g + ' ') || bodyNormalized.startsWith(g + ','));
+  if (!msg.body || (msg.body.trim().length < 5 && !conversationState.has(msg.from) && !isGreeting)) return;
 
   console.log(`\\n[NEW MESSAGE] ${msg.from}: ${msg.body}`);
 
