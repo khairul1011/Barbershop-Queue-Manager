@@ -3,11 +3,12 @@ import { QueueEntry, QueueStatus, Barber, Service } from '../types';
 import { 
   Calendar, Clock, MapPin, User, ChevronRight, ChevronLeft, ChevronDown, 
   Phone, MessageSquarePlus, Info, X, Plus, Trash2, Check, Sparkles, 
-  Scissors, Bell, Filter
+  Scissors, Bell, Filter, Edit2
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { useTranslation } from '../i18n';
 import { SegmentedToggle } from './ui/SegmentedToggle';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface ScheduleProps {
   queue: QueueEntry[];
@@ -731,152 +732,143 @@ export default function Schedule({
       )}
 
       {/* MODALS */}
-      <AnimatePresence>
-        {bookingSlot && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="bg-[#0F0F0F] border border-zinc-800 w-full max-w-md rounded-2xl overflow-hidden shadow-2xl"
-            >
-              <div className="p-5 border-b border-zinc-900 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500">
-                    <Calendar size={16} />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-white text-base">{t('schedule.quickBookTitle')}</h3>
-                    <p className="text-xs text-gray-500 font-sans mt-0.5">
-                      {bookingSlot.day} — {t('schedule.slot')} {bookingSlot.hour}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setBookingSlot(null)}
-                  className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-zinc-900 hover:bg-zinc-800 text-gray-400 hover:text-white rounded-lg transition-all cursor-pointer"
-                >
-                  <X size={15} />
-                </button>
+      <Dialog open={!!bookingSlot} onOpenChange={(open) => !open && setBookingSlot(null)}>
+        <DialogContent className="p-0 sm:rounded-2xl gap-0 overflow-hidden bg-[#0F0F0F] border-zinc-800 shadow-2xl">
+          <div className="p-5 border-b border-zinc-900">
+            <DialogTitle className="flex items-center gap-2 m-0 p-0">
+              <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500">
+                <Calendar size={16} />
               </div>
-
-              <form onSubmit={handleConfirmQuickBook} className="p-5 space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-gray-500 uppercase tracking-wider font-mono font-bold block">{t('schedule.customerName')}</label>
-                  <input type="text" required value={newCustomerName} onChange={e => setNewCustomerName(e.target.value)} placeholder={t('schedule.customerNamePlaceholder')} className="w-full bg-[#121212] border border-zinc-850 text-white text-sm rounded-xl px-3.5 py-2.5 focus:border-amber-500 outline-none" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-gray-500 uppercase tracking-wider font-mono font-bold block">{t('schedule.selectService')}</label>
-                  <select value={selectedServiceId} onChange={e => setSelectedServiceId(e.target.value)} className="w-full bg-[#121212] border border-zinc-850 text-white text-sm rounded-xl px-3.5 py-2.5 focus:border-amber-500 outline-none cursor-pointer">
-                    {services.map(s => <option key={s.id} value={s.id}>{s.name} — Rp {s.price.toLocaleString()}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-gray-500 uppercase tracking-wider font-mono font-bold block">{t('schedule.selectBarber')}</label>
-                  <select value={selectedBarberId} onChange={e => setSelectedBarberId(e.target.value)} className="w-full bg-[#121212] border border-zinc-850 text-white text-sm rounded-xl px-3.5 py-2.5 focus:border-amber-500 outline-none cursor-pointer">
-                    {barbers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                  </select>
-                </div>
-                <div className="flex gap-2.5 pt-2">
-                  <button type="submit" className="flex-1 bg-amber-500 hover:bg-amber-600 text-black font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/10 cursor-pointer"><Check size={14} /> {t('schedule.confirmBooking')}</button>
-                  <button type="button" onClick={() => setBookingSlot(null)} className="px-4 py-2.5 bg-zinc-900 border border-zinc-850 text-gray-400 hover:text-white rounded-xl text-xs cursor-pointer">{t('requests.cancel')}</button>
-                </div>
-              </form>
-            </motion.div>
+              <div className="flex flex-col text-left">
+                <span className="font-bold text-white text-base leading-none mb-1">{t('schedule.quickBookTitle')}</span>
+                <span className="text-xs text-gray-500 font-sans normal-case">
+                  {bookingSlot?.day} — {t('schedule.slot')} {bookingSlot?.hour}
+                </span>
+              </div>
+            </DialogTitle>
           </div>
-        )}
-      </AnimatePresence>
 
-      <AnimatePresence>
-        {activeSlotDetails && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-             <motion.div initial={{ opacity: 0, scale: 0.95, y: 15 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 15 }} className="bg-[#0F0F0F] border border-zinc-800 w-full max-w-md rounded-2xl overflow-hidden shadow-2xl">
-               <div className="p-5 border-b border-zinc-900 flex justify-between items-center">
-                 <div className="flex items-center gap-2">
-                    <div className="p-2 rounded-xl bg-teal-500/10 text-teal-400"><User size={16}/></div>
-                    <div>
-                      <div className="font-bold text-white text-base">{t('schedule.appointmentDetails')}</div>
-                      <div className="text-xs text-gray-500 font-sans mt-0.5">{activeSlotDetails.day} — {activeSlotDetails.timeRange}</div>
-                    </div>
-                 </div>
-                 <button onClick={() => setActiveSlotDetails(null)} className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-zinc-900 hover:bg-zinc-800 rounded-lg text-gray-400 cursor-pointer"><X size={15}/></button>
-               </div>
-               
-               <div className="p-5 space-y-4">
-                 <div className="bg-[#121212] border border-zinc-850 p-4 rounded-xl space-y-1">
-                   <div className="text-[9px] text-gray-500 uppercase font-mono font-bold">{t('schedule.customerName')}</div>
-                   <div className="text-base font-bold text-white flex items-center gap-2">
-                     {activeSlotDetails.entry.customerName}
-                     {activeSlotDetails.entry.queueNumber && <span className="text-[10px] bg-amber-500/10 text-amber-500 font-mono px-1.5 py-0.5 rounded">No. {activeSlotDetails.entry.queueNumber}</span>}
-                   </div>
-                   <div className="text-xs text-gray-400 font-mono">{t('schedule.phone')} {activeSlotDetails.entry.phone}</div>
-                 </div>
-                 <div className="grid grid-cols-2 gap-3.5">
-                   <div className="bg-[#121212] border border-zinc-850 p-3 rounded-xl">
-                     <div className="text-[9px] text-gray-500 uppercase font-mono font-bold mb-1 flex items-center gap-1"><Scissors size={10} className="text-amber-500"/> {t('requests.service')}</div>
-                     <div className="text-xs font-semibold text-gray-200 truncate">{activeSlotDetails.entry.service}</div>
-                   </div>
-                   <div className="bg-[#121212] border border-zinc-850 p-3 rounded-xl">
-                     <div className="text-[9px] text-gray-500 uppercase font-mono font-bold mb-1 flex items-center gap-1"><User size={10} className="text-teal-400"/> {t('schedule.assignedBarber')}</div>
-                     <div className="text-xs font-semibold text-gray-200 truncate">{activeSlotDetails.entry.barber}</div>
-                   </div>
-                 </div>
-                 
-                 <div className="border-t border-zinc-900 pt-4 space-y-2.5">
-                    {activeSlotDetails.entry.status === 'Pending Reply' && (
-                      <button onClick={() => handleWhatsAppAction(activeSlotDetails.entry)} className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-bold py-2.5 px-4 rounded-xl text-xs flex justify-center gap-1.5 cursor-pointer transition-colors">
-                        <MessageSquarePlus size={14} /> {t('schedule.sendWhatsAppNudge')}
-                      </button>
-                    )}
-                    <div className="flex flex-col gap-2">
-                      {activeSlotDetails.entry.status === 'Estimated' && (
-                        <div className="bg-[#121212] border border-zinc-850 p-3 rounded-xl flex items-center justify-between">
-                           <div className="text-[10px] text-gray-400 font-mono font-bold uppercase">{t('schedule.scheduledTime', 'Set Time')}</div>
-                           <input 
-                             type="time" 
-                             value={confirmTime}
-                             onChange={(e) => setConfirmTime(e.target.value)}
-                             className="bg-[#1A1A1A] text-white text-sm font-bold p-1.5 rounded-lg border border-zinc-800 outline-none"
-                           />
-                        </div>
-                      )}
-                      <div className="flex gap-2 mt-2">
-                        <button 
-                          onClick={() => { 
-                            if (activeSlotDetails.entry.status === 'Estimated') {
-                              if (!confirmTime) {
-                                alert('Silakan isi jam terlebih dahulu!');
-                                return;
-                              }
-                              onUpdateStatus(activeSlotDetails.entry.id, 'Confirmed', confirmTime);
-                            } else {
-                              onUpdateStatus(activeSlotDetails.entry.id, 'Confirmed');
-                            }
-                            setActiveSlotDetails(null); 
-                            setConfirmTime('');
-                          }} 
-                          className="flex-1 bg-zinc-900 hover:bg-zinc-850 border border-zinc-850 text-emerald-400 font-bold rounded-xl text-[11px] flex justify-center items-center min-h-[44px] gap-1 cursor-pointer transition-colors"
-                        >
-                          <Check size={11} /> {t('schedule.confirm')}
-                        </button>
-                        <button 
-                          onClick={() => { 
-                            onRemoveBooking && onRemoveBooking(activeSlotDetails.entry.id); 
-                            setActiveSlotDetails(null); 
-                            setConfirmTime('');
-                          }} 
-                          className="min-w-[44px] min-h-[44px] bg-zinc-900 hover:bg-red-900/20 border border-red-950 text-red-400 rounded-xl flex justify-center items-center cursor-pointer transition-colors"
-                        >
-                          <Trash2 size={13}/>
-                        </button>
-                      </div>
-                    </div>
-                 </div>
-               </div>
-             </motion.div>
+          <form onSubmit={handleConfirmQuickBook} className="p-5 space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] text-gray-500 uppercase tracking-wider font-mono font-bold block">{t('schedule.customerName')}</label>
+              <input type="text" required value={newCustomerName} onChange={e => setNewCustomerName(e.target.value)} placeholder={t('schedule.customerNamePlaceholder')} className="w-full bg-[#121212] border border-zinc-850 text-white text-sm rounded-xl px-3.5 py-2.5 focus:border-amber-500 outline-none" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] text-gray-500 uppercase tracking-wider font-mono font-bold block">{t('schedule.selectService')}</label>
+              <select value={selectedServiceId} onChange={e => setSelectedServiceId(e.target.value)} className="w-full bg-[#121212] border border-zinc-850 text-white text-sm rounded-xl px-3.5 py-2.5 focus:border-amber-500 outline-none cursor-pointer">
+                {services.map(s => <option key={s.id} value={s.id}>{s.name} — Rp {s.price.toLocaleString()}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] text-gray-500 uppercase tracking-wider font-mono font-bold block">{t('schedule.selectBarber')}</label>
+              <select value={selectedBarberId} onChange={e => setSelectedBarberId(e.target.value)} className="w-full bg-[#121212] border border-zinc-850 text-white text-sm rounded-xl px-3.5 py-2.5 focus:border-amber-500 outline-none cursor-pointer">
+                {barbers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            </div>
+            <div className="flex gap-2.5 pt-2">
+              <button type="submit" className="flex-1 bg-amber-500 hover:bg-amber-600 text-black font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/10 cursor-pointer"><Check size={14} /> {t('schedule.confirmBooking')}</button>
+              <button type="button" onClick={() => setBookingSlot(null)} className="px-4 py-2.5 bg-zinc-900 border border-zinc-850 text-gray-400 hover:text-white rounded-xl text-xs cursor-pointer">{t('requests.cancel')}</button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!activeSlotDetails} onOpenChange={(open) => {
+        if (!open) {
+          setActiveSlotDetails(null);
+          setConfirmTime('');
+        }
+      }}>
+        <DialogContent className="p-0 sm:rounded-2xl gap-0 overflow-hidden bg-[#0F0F0F] border-zinc-800 shadow-2xl">
+          <div className="p-5 border-b border-zinc-900">
+            <DialogTitle className="flex items-center gap-2 m-0 p-0">
+              <div className="p-2 rounded-xl bg-teal-500/10 text-teal-400">
+                <User size={16}/>
+              </div>
+              <div className="flex flex-col text-left">
+                <span className="font-bold text-white text-base leading-none mb-1">{t('schedule.appointmentDetails')}</span>
+                <span className="text-xs text-gray-500 font-sans normal-case">
+                  {activeSlotDetails?.day} — {activeSlotDetails?.timeRange}
+                </span>
+              </div>
+            </DialogTitle>
           </div>
-        )}
-      </AnimatePresence>
+          
+          {activeSlotDetails && (
+            <div className="p-5 space-y-4">
+              <div className="bg-[#121212] border border-zinc-850 p-4 rounded-xl space-y-1">
+                <div className="text-[9px] text-gray-500 uppercase font-mono font-bold">{t('schedule.customerName')}</div>
+                <div className="text-base font-bold text-white flex items-center gap-2">
+                  {activeSlotDetails.entry.customerName}
+                  {activeSlotDetails.entry.queueNumber && <span className="text-[10px] bg-amber-500/10 text-amber-500 font-mono px-1.5 py-0.5 rounded">No. {activeSlotDetails.entry.queueNumber}</span>}
+                </div>
+                <div className="text-xs text-gray-400 font-mono">{t('schedule.phone')} {activeSlotDetails.entry.phone}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-3.5">
+                <div className="bg-[#121212] border border-zinc-850 p-3 rounded-xl">
+                  <div className="text-[9px] text-gray-500 uppercase font-mono font-bold mb-1 flex items-center gap-1"><Scissors size={10} className="text-amber-500"/> {t('requests.service')}</div>
+                  <div className="text-xs font-semibold text-gray-200 truncate">{activeSlotDetails.entry.service}</div>
+                </div>
+                <div className="bg-[#121212] border border-zinc-850 p-3 rounded-xl">
+                  <div className="text-[9px] text-gray-500 uppercase font-mono font-bold mb-1 flex items-center gap-1"><User size={10} className="text-teal-400"/> {t('schedule.assignedBarber')}</div>
+                  <div className="text-xs font-semibold text-gray-200 truncate">{activeSlotDetails.entry.barber}</div>
+                </div>
+              </div>
+              
+              <div className="border-t border-zinc-900 pt-4 space-y-2.5">
+                 {activeSlotDetails.entry.status === 'Pending Reply' && (
+                   <button onClick={() => handleWhatsAppAction(activeSlotDetails.entry)} className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-bold py-2.5 px-4 rounded-xl text-xs flex justify-center gap-1.5 cursor-pointer transition-colors">
+                     <MessageSquarePlus size={14} /> {t('schedule.sendWhatsAppNudge')}
+                   </button>
+                 )}
+                 <div className="flex flex-col gap-2">
+                   {activeSlotDetails.entry.status === 'Estimated' && (
+                     <div className="bg-[#121212] border border-zinc-850 p-3 rounded-xl flex items-center justify-between">
+                        <div className="text-[10px] text-gray-400 font-mono font-bold uppercase">{t('schedule.scheduledTime', 'Set Time')}</div>
+                        <input 
+                          type="time" 
+                          value={confirmTime}
+                          onChange={(e) => setConfirmTime(e.target.value)}
+                          className="bg-[#1A1A1A] text-white text-sm font-bold p-1.5 rounded-lg border border-zinc-800 outline-none"
+                        />
+                     </div>
+                   )}
+                   <div className="flex gap-2 mt-2">
+                     <button 
+                       onClick={() => { 
+                         if (activeSlotDetails.entry.status === 'Estimated') {
+                           if (!confirmTime) {
+                             alert('Silakan isi jam terlebih dahulu!');
+                             return;
+                           }
+                           onUpdateStatus(activeSlotDetails.entry.id, 'Confirmed', confirmTime);
+                         } else {
+                           onUpdateStatus(activeSlotDetails.entry.id, 'Confirmed');
+                         }
+                         setActiveSlotDetails(null); 
+                         setConfirmTime('');
+                       }} 
+                       className="flex-1 bg-zinc-900 hover:bg-zinc-850 border border-zinc-850 text-emerald-400 font-bold rounded-xl text-[11px] flex justify-center items-center min-h-[44px] gap-1 cursor-pointer transition-colors"
+                     >
+                       <Check size={11} /> {t('schedule.confirm')}
+                     </button>
+                     <button 
+                       onClick={() => { 
+                         onRemoveBooking && onRemoveBooking(activeSlotDetails.entry.id); 
+                         setActiveSlotDetails(null); 
+                         setConfirmTime('');
+                       }} 
+                       className="min-w-[44px] min-h-[44px] bg-zinc-900 hover:bg-red-900/20 border border-red-950 text-red-400 rounded-xl flex justify-center items-center cursor-pointer transition-colors"
+                     >
+                       <Trash2 size={13}/>
+                     </button>
+                   </div>
+                 </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

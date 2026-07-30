@@ -14,7 +14,8 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { QueueEntry, Service, Barber } from '../types';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { BentoCard } from './ui/BentoCard';
 import { useTranslation } from '../i18n';
 
@@ -425,94 +426,77 @@ export default function Overview({
         </div>
       </div>
 
-      {/* WALK-IN DIALOG (AnimatePresence) */}
-      <AnimatePresence>
-        {showWalkInModal && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.6 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowWalkInModal(false)}
-              className="fixed inset-0 bg-black z-50 flex items-center justify-center p-4"
-            />
+      {/* WALK-IN DIALOG */}
+      <Dialog open={showWalkInModal} onOpenChange={setShowWalkInModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-xl font-display font-bold text-white tracking-tight mb-4">{t('overview.walkInTitle')}</DialogTitle>
+          </DialogHeader>
 
-            {/* Modal */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-[#0A0A0A] border border-border-subtle rounded-2xl p-6 z-50 shadow-2xl"
-            >
-              <h3 className="text-xl font-display font-bold text-white tracking-tight mb-4">{t('overview.walkInTitle')}</h3>
+          <form onSubmit={handleWalkInSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs text-gray-400 uppercase tracking-wider font-mono mb-1.5">{t('overview.customerName')}</label>
+              <input
+                type="text"
+                required
+                value={walkInName}
+                onChange={(e) => setWalkInName(e.target.value)}
+                placeholder={t('overview.customerNamePlaceholder')}
+                className="w-full bg-[#070707] border border-border-subtle rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-amber-500 font-sans placeholder-gray-600"
+                id="walkin-name-input"
+              />
+            </div>
 
-              <form onSubmit={handleWalkInSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-xs text-gray-400 uppercase tracking-wider font-mono mb-1.5">{t('overview.customerName')}</label>
-                  <input
-                    type="text"
-                    required
-                    value={walkInName}
-                    onChange={(e) => setWalkInName(e.target.value)}
-                    placeholder={t('overview.customerNamePlaceholder')}
-                    className="w-full bg-[#070707] border border-border-subtle rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-amber-500 font-sans placeholder-gray-600"
-                    id="walkin-name-input"
-                  />
-                </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs text-gray-400 uppercase tracking-wider font-mono mb-1.5">{t('overview.selectService')}</label>
+                <select
+                  value={walkInService}
+                  onChange={(e) => setWalkInService(e.target.value)}
+                  className="w-full bg-[#070707] border border-border-subtle rounded-xl px-3 py-3 text-white text-sm focus:outline-none focus:border-amber-500 font-sans cursor-pointer"
+                  id="walkin-service-select"
+                >
+                  {services.map(s => (
+                    <option key={s.id} value={s.name}>{s.name} - {s.price / 1000}k</option>
+                  ))}
+                </select>
+              </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs text-gray-400 uppercase tracking-wider font-mono mb-1.5">{t('overview.selectService')}</label>
-                    <select
-                      value={walkInService}
-                      onChange={(e) => setWalkInService(e.target.value)}
-                      className="w-full bg-[#070707] border border-border-subtle rounded-xl px-3 py-3 text-white text-sm focus:outline-none focus:border-amber-500 font-sans cursor-pointer"
-                      id="walkin-service-select"
-                    >
-                      {services.map(s => (
-                        <option key={s.id} value={s.name}>{s.name} - {s.price / 1000}k</option>
-                      ))}
-                    </select>
-                  </div>
+              <div>
+                <label className="block text-xs text-gray-400 uppercase tracking-wider font-mono mb-1.5">{t('overview.selectBarber')}</label>
+                <select
+                  value={walkInBarber}
+                  onChange={(e) => setWalkInBarber(e.target.value)}
+                  className="w-full bg-[#070707] border border-border-subtle rounded-xl px-3 py-3 text-white text-sm focus:outline-none focus:border-amber-500 font-sans cursor-pointer"
+                  id="walkin-barber-select"
+                >
+                  {barbers.map(b => (
+                    <option key={b.id} value={b.name}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
-                  <div>
-                    <label className="block text-xs text-gray-400 uppercase tracking-wider font-mono mb-1.5">{t('overview.selectBarber')}</label>
-                    <select
-                      value={walkInBarber}
-                      onChange={(e) => setWalkInBarber(e.target.value)}
-                      className="w-full bg-[#070707] border border-border-subtle rounded-xl px-3 py-3 text-white text-sm focus:outline-none focus:border-amber-500 font-sans cursor-pointer"
-                      id="walkin-barber-select"
-                    >
-                      {barbers.map(b => (
-                        <option key={b.id} value={b.name}>{b.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex gap-3 pt-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowWalkInModal(false)}
-                    className="flex-1 bg-[#121212] hover:bg-[#1A1A1A] border border-border-subtle text-gray-300 font-semibold py-3 rounded-xl text-sm transition-colors cursor-pointer"
-                    id="walkin-cancel-btn"
-                  >
-                    {t('overview.cancel')}
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-black font-bold py-3 rounded-xl text-sm transition-all cursor-pointer shadow-lg shadow-amber-500/10"
-                    id="walkin-submit-btn"
-                  >
-                    {t('overview.addToQueue')}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+            <div className="flex gap-3 pt-3">
+              <button
+                type="button"
+                onClick={() => setShowWalkInModal(false)}
+                className="flex-1 bg-[#121212] hover:bg-[#1A1A1A] border border-border-subtle text-gray-300 font-semibold py-3 rounded-xl text-sm transition-colors cursor-pointer"
+                id="walkin-cancel-btn"
+              >
+                {t('overview.cancel')}
+              </button>
+              <button
+                type="submit"
+                className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-black font-bold py-3 rounded-xl text-sm transition-all cursor-pointer shadow-lg shadow-amber-500/10"
+                id="walkin-submit-btn"
+              >
+                {t('overview.addToQueue')}
+              </button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
