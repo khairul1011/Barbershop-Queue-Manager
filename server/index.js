@@ -92,6 +92,8 @@ async function checkAvailability(hariStr, jamStr, kapsterStr) {
                   : `Semua kapster juga penuh jam segitu. Boleh pilih jam lain?`)
         };
      }
+     const match = barbers.find(b => b.id === requestedBarberId);
+     return { conflict: false, assignedBarber: match.name };
   } else {
      if (busyBarbers.length + anyCount >= barbers.length) {
         return {
@@ -99,9 +101,9 @@ async function checkAvailability(hariStr, jamStr, kapsterStr) {
            msg: `Maaf kak, semua kapster sudah penuh untuk jam ${jamStr}. Boleh pilih jam lain?`
         };
      }
+     const availableBarbers = barbers.filter(b => !busyBarbers.includes(b.id));
+     return { conflict: false, assignedBarber: availableBarbers[0].name };
   }
-  
-  return { conflict: false };
 }
 
 async function getBusinessContext() {
@@ -281,13 +283,27 @@ client.on('message', async msg => {
       } else if (oldState.awaitingConfirmation === true) {
         // (b) Semua terisi & sedang menunggu konfirmasi
         if (isKonfirmasi) {
-          // Customer konfirmasi — simpan ke Supabase
+          // CEK KETERSEDIAAN ULANG SAAT KONFIRMASI (BISA JADI SUDAH DIAMBIL ORANG SAAT MENUNGGU BALASAN)
+          const { conflict, msg: conflictMsg, assignedBarber } = await checkAvailability(merged.hari, merged.jam, merged.kapster);
+          if (conflict) {
+            conversationState.set(msg.from, { ...merged, jam: null, kapster: null, awaitingConfirmation: false, lastUpdated: Date.now() });
+            try {
+              console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
+              await replyAndSaveHistory(msg, `Waduh kak, barusan saja jadwalnya diambil orang lain. ${conflictMsg}`);
+            } catch (err) {
+              console.error('[REPLY ERROR]', err.message, '| target:', msg.from);
+            }
+            return;
+          }
+
+          // Customer konfirmasi & jadwal masih aman — simpan ke Supabase
+          const finalKapster = assignedBarber || merged.kapster;
           try {
             console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
-            await replyAndSaveHistory(msg, `Sip kak! Booking sudah lengkap:\n\nHari: ${merged.hari}\nJam: ${merged.jam}\nServis: ${merged.servis}\nNama: ${merged.nama}\n\nTerima kasih, ditunggu kedatangannya!`);
+            await replyAndSaveHistory(msg, `Sip kak! Booking sudah lengkap:\n\nHari: ${merged.hari}\nJam: ${merged.jam}\nServis: ${merged.servis}\nKapster: ${finalKapster}\nNama: ${merged.nama}\n\nTerima kasih, ditunggu kedatangannya!`);
 
             try {
-              const finalService = merged.kapster ? `${merged.servis}|BARBER:${merged.kapster}` : merged.servis;
+              const finalService = `${merged.servis}|BARBER:${finalKapster}`;
               const { error } = await supabase.from('whatsapp_requests').insert({
                 sender_name: merged.nama,
                 sender_phone: msg.from,
@@ -310,23 +326,22 @@ client.on('message', async msg => {
         } else {
           // Customer kirim sesuatu lain (kemungkinan koreksi) — reset & minta konfirmasi ulang
           console.log('[CONFIRM RESET] pesan bukan konfirmasi, kirim ringkasan ulang ke', msg.from);
-          conversationState.set(msg.from, { ...merged, awaitingConfirmation: false, lastUpdated: Date.now() });
-
+          
           // Langsung jatuh ke cabang (c): kirim ringkasan & minta konfirmasi ulang
           conversationState.set(msg.from, { ...merged, awaitingConfirmation: true, lastUpdated: Date.now() });
           try {
             console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
-            await replyAndSaveHistory(msg, `Baik kak, jadi booking untuk hari ${merged.hari} jam ${merged.jam}, servis ${merged.servis}, atas nama ${merged.nama} -- benar begitu kak? Balas 'ya' untuk konfirmasi ya.`);
+            const kapsterText = merged.kapster ? ` dengan kapster ${merged.kapster}` : '';
+            await replyAndSaveHistory(msg, `Baik kak, jadi booking untuk hari ${merged.hari} jam ${merged.jam}, servis ${merged.servis}${kapsterText}, atas nama ${merged.nama} -- benar begitu kak? Balas 'ya' untuk konfirmasi ya.`);
           } catch (err) {
             console.error('[REPLY ERROR]', err.message, '| target:', msg.from);
           }
         }
-
       } else {
         // (c) Semua terisi tapi belum pernah minta konfirmasi — kirim ringkasan & minta konfirmasi
         
         // CEK KETERSEDIAAN DULU
-        const { conflict, msg: conflictMsg } = await checkAvailability(merged.hari, merged.jam, merged.kapster);
+        const { conflict, msg: conflictMsg, assignedBarber } = await checkAvailability(merged.hari, merged.jam, merged.kapster);
         if (conflict) {
           // Ada bentrok, minta ubah data
           conversationState.set(msg.from, { ...merged, jam: null, kapster: null, awaitingConfirmation: false, lastUpdated: Date.now() });
@@ -339,11 +354,12 @@ client.on('message', async msg => {
           return;
         }
 
+        // Simpan kapster yang ditugaskan ke state agar konsisten
+        merged.kapster = assignedBarber;
         conversationState.set(msg.from, { ...merged, awaitingConfirmation: true, lastUpdated: Date.now() });
         try {
           console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
-          const kapsterText = merged.kapster ? ` dengan kapster ${merged.kapster}` : '';
-          await replyAndSaveHistory(msg, `Baik kak, jadi booking untuk hari ${merged.hari} jam ${merged.jam}, servis ${merged.servis}${kapsterText}, atas nama ${merged.nama} -- benar begitu kak? Balas 'ya' untuk konfirmasi ya.`);
+          await replyAndSaveHistory(msg, `Baik kak, jadi booking untuk hari ${merged.hari} jam ${merged.jam}, servis ${merged.servis} dengan kapster **${assignedBarber}**, atas nama ${merged.nama} -- benar begitu kak? Balas 'ya' untuk konfirmasi ya.`);
         } catch (err) {
           console.error('[REPLY ERROR]', err.message, '| target:', msg.from);
         }
