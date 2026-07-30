@@ -283,18 +283,34 @@ export default function App() {
     return availableServices.length > 0 ? availableServices[0].id : '';
   };
 
-  const fuzzyMatchBarber = (extractedBarber: string | null | undefined, availableBarbers: any[]): any => {
-    if (!extractedBarber) return availableBarbers[0] || null;
-    const b = extractedBarber.toLowerCase();
-    const exactMatch = availableBarbers.find(barber => barber.name.toLowerCase() === b);
-    if (exactMatch) return exactMatch;
+  const fuzzyMatchBarber = (
+    extractedBarber: string | null | undefined, 
+    availableBarbers: any[],
+    daySelected: string,
+    timeSelected: string,
+    currentQueue: any[]
+  ): any => {
+    const isBusy = (bName: string) => {
+       return currentQueue.some(q => 
+         q.day === daySelected && 
+         (q.timeRange || '').includes(timeSelected) && 
+         q.barber === bName
+       );
+    };
 
-    const partialMatch = availableBarbers.find(barber => 
-      barber.name.toLowerCase().includes(b) || b.includes(barber.name.toLowerCase())
-    );
-    if (partialMatch) return partialMatch;
+    if (extractedBarber) {
+      const b = extractedBarber.toLowerCase();
+      const exactMatch = availableBarbers.find(barber => barber.name.toLowerCase() === b);
+      if (exactMatch) return exactMatch;
 
-    return availableBarbers[0] || null;
+      const partialMatch = availableBarbers.find(barber => 
+        barber.name.toLowerCase().includes(b) || b.includes(barber.name.toLowerCase())
+      );
+      if (partialMatch) return partialMatch;
+    }
+
+    const available = availableBarbers.find(barber => !isBusy(barber.name));
+    return available || availableBarbers[0] || null;
   };
 
   // Callback: Approve WhatsApp Booking
@@ -315,7 +331,7 @@ export default function App() {
     const serviceSelected = customService || request.extractedService;
 
     const endTime = calculateEndTime(timeSelected, serviceSelected);
-    const targetBarber = fuzzyMatchBarber(request.extractedBarber, barbers);
+    const targetBarber = fuzzyMatchBarber(request.extractedBarber, barbers, daySelected, timeSelected, queueEntries);
 
     if (!targetBarber) return;
     const sId = fuzzyMatchService(serviceSelected, services);
