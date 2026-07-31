@@ -20,3 +20,4 @@ server/*.log
 # Security: Never track SSH or private keys
 *.pem
 *.key
+.antigravity/
