@@ -13,6 +13,11 @@ import { BentoCard } from './ui/BentoCard';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from '../i18n';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { Calendar as CalendarIcon, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface HistoryProps {
   completedEntries: QueueEntry[];
@@ -23,7 +28,7 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
   const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBarberFilter, setSelectedBarberFilter] = useState(t('history.allBarbers'));
-  const [selectedDateFilter, setSelectedDateFilter] = useState<string>('');
+  const [selectedDateFilter, setSelectedDateFilter] = useState<Date | undefined>(undefined);
 
   // Sort completed entries by completedAt descending (newest first)
   const sortedEntries = [...completedEntries].sort((a, b) => {
@@ -36,7 +41,7 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
     const matchesSearch = item.customerName.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           item.service.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesBarber = selectedBarberFilter === t('history.allBarbers') || item.barber === selectedBarberFilter;
-    const matchesDate = selectedDateFilter === '' || item.scheduledDate === selectedDateFilter;
+    const matchesDate = !selectedDateFilter || item.scheduledDate === format(selectedDateFilter, "yyyy-MM-dd");
     return matchesSearch && matchesBarber && matchesDate;
   });
 
@@ -86,19 +91,37 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
         </div>
 
         {/* Date Filter */}
-        <div className="relative flex items-center bg-[#0A0A0A] border border-border-subtle rounded-xl px-3 h-[46px] w-full sm:w-auto overflow-hidden">
-          <input
-            type="date"
-            value={selectedDateFilter}
-            onChange={(e) => setSelectedDateFilter(e.target.value)}
-            className="w-full bg-transparent border-none text-sm text-white focus:outline-none focus:ring-0 h-full font-sans cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-50 [&::-webkit-calendar-picker-indicator]:hover:opacity-100"
-          />
+        <div className="relative flex items-center bg-[#0A0A0A] border border-border-subtle rounded-xl w-full sm:w-auto overflow-hidden">
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                className={cn(
+                  "flex items-center gap-2 w-full sm:w-[180px] h-[46px] px-3 text-sm text-left font-normal bg-transparent text-white focus:outline-none transition-colors",
+                  !selectedDateFilter && "text-gray-500"
+                )}
+              >
+                <CalendarIcon size={16} className="text-gray-500 shrink-0" />
+                <span className="truncate">
+                  {selectedDateFilter ? format(selectedDateFilter, "PP") : "Semua Tanggal"}
+                </span>
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 border-[#222222] bg-[#0A0A0A]" align="start">
+              <Calendar
+                mode="single"
+                selected={selectedDateFilter}
+                onSelect={setSelectedDateFilter}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+
           {selectedDateFilter && (
             <button
-              onClick={() => setSelectedDateFilter('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-red-400 text-xs px-2 py-1 bg-[#1A1A1A] rounded-md transition-colors"
+              onClick={() => setSelectedDateFilter(undefined)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-red-400 bg-[#0A0A0A] transition-colors"
             >
-              Reset
+              <X size={16} />
             </button>
           )}
         </div>
