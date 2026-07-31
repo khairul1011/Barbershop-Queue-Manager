@@ -54,7 +54,15 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
   onCallNext
 }) => {
   const { t } = useTranslation();
-  const [elapsedSeconds, setElapsedSeconds] = useState(session ? 420 : 0);
+
+  // Hitung detik yang sudah berlalu sejak sesi dimulai (bertahan setelah refresh)
+  const getElapsedFromSession = (sess: typeof session) => {
+    if (!sess?.startedAt) return 0;
+    const diffMs = Date.now() - new Date(sess.startedAt).getTime();
+    return Math.max(0, Math.floor(diffMs / 1000));
+  };
+
+  const [elapsedSeconds, setElapsedSeconds] = useState(() => getElapsedFromSession(session));
   const [isTimerRunning, setIsTimerRunning] = useState(!!session);
 
   useEffect(() => {
@@ -71,13 +79,15 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
 
   useEffect(() => {
     if (session) {
-      setElapsedSeconds(420);
+      // Sinkronisasi ulang ketika sesi berganti (panggil pelanggan baru)
+      setElapsedSeconds(getElapsedFromSession(session));
       setIsTimerRunning(true);
     } else {
       setElapsedSeconds(0);
       setIsTimerRunning(false);
     }
-  }, [session]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.id, session?.startedAt]);
 
   const formatTime = (totalSeconds: number) => {
     const mins = Math.floor(totalSeconds / 60);
