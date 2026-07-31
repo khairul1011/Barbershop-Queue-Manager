@@ -229,27 +229,33 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
             <div>
               <h4 className="text-sm font-bold text-white font-sans">{t('overview.seatEmpty') as string || 'Seat Available'}</h4>
             </div>
-            {nextInLine && (
+            <div className="flex gap-2 w-full mt-2">
+              {nextInLine && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => onCallNext(barber.id)}
+                  className="flex-1 text-amber-500 hover:text-amber-400 font-semibold border border-amber-500/20 hover:border-amber-500/40 bg-amber-500/5 hover:bg-amber-500/10 transition-colors"
+                >
+                  <span className="truncate">Panggil {nextInLine.customerName}</span>
+                  <ArrowRight size={14} className="ml-1.5 shrink-0" />
+                </Button>
+              )}
+              
               <Button
-                variant="secondary"
+                variant="outline"
                 size="sm"
-                onClick={() => onCallNext(barber.id)}
-                className="text-amber-500 hover:text-amber-400 font-semibold border-border-subtle hover:border-amber-500/20 w-full mb-2"
+                onClick={() => onQuickStart(barber.id)}
+                className={`flex-1 transition-colors ${
+                  !nextInLine 
+                    ? 'border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-semibold' 
+                    : 'text-gray-300 hover:text-white border-[#222222] hover:bg-[#1A1A1A]'
+                }`}
               >
-                <span>{t('overview.callNextFor') as string || 'Call'} {nextInLine.customerName}</span>
-                <ArrowRight size={14} className="ml-1.5" />
+                <PlusCircle size={14} className="mr-1.5 shrink-0" />
+                Mulai Cepat
               </Button>
-            )}
-            
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onQuickStart(barber.id)}
-              className="text-gray-300 hover:text-white border-[#222222] hover:bg-[#1A1A1A] w-full"
-            >
-              <PlusCircle size={14} className="mr-1.5" />
-              Mulai Cepat
-            </Button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
