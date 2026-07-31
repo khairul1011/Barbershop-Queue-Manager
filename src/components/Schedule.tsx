@@ -527,45 +527,41 @@ export default function Schedule({
               ))}
             </div>
 
-            {/* Scrollable Container for both Headers and Grid */}
-            <div className="relative flex flex-col overflow-x-auto bg-[#0A0A0A]">
-              
-              {/* BARBER HEADERS (Sticky Desktop) */}
-              <div className="hidden lg:flex border-b border-zinc-900 bg-[#0A0A0A] sticky top-[64px] md:top-[72px] z-30 min-w-min">
-                <div className="w-[60px] flex-none border-r border-zinc-900 bg-[#0A0A0A] sticky left-0 z-40"></div>
-                <div className="flex flex-1">
-                  {activeBarbers.map(b => (
-                    <div key={b.id} className="w-[250px] lg:flex-1 lg:min-w-[200px] p-3 text-center border-r border-zinc-900/50">
-                      <div className="font-bold text-sm text-white">{b.name}</div>
-                      <div className="text-[10px] text-gray-500 uppercase font-mono tracking-wider mt-0.5 flex justify-center gap-1">
-                        {b.status === 'break' && <span className="text-amber-500">{t('overview.statusBreak')}</span>}
-                        {b.status === 'active' && <span className="text-teal-500">{t('overview.statusOnSeat')}</span>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            {/* Single horizontal scrollable row: time axis + barber columns (each with own header) */}
+            <div className="relative flex overflow-x-auto bg-[#0A0A0A]">
+
+              {/* Time Axis */}
+              <div className="w-[60px] flex-none shrink-0 border-r border-zinc-900 bg-[#050505] sticky left-0 z-20 pt-[56px]"
+                   style={{ height: `calc(${(businessHours.closeHour - businessHours.openHour + 1) * 60 * PIXELS_PER_MINUTE}px + 56px)` }}>
+                {Array.from({ length: businessHours.closeHour - businessHours.openHour + 1 }, (_, i) => i + businessHours.openHour).map(hour => (
+                  <div key={hour}
+                       className={`absolute w-full text-right pr-2 text-xs text-gray-500 font-mono ${hour === businessHours.openHour ? 'translate-y-1' : '-translate-y-2'}`}
+                       style={{ top: `calc(56px + ${(hour - businessHours.openHour) * 60 * PIXELS_PER_MINUTE}px)` }}>
+                    {hour.toString().padStart(2, '0')}:00
+                  </div>
+                ))}
               </div>
 
-              {/* Grid Area */}
-              <div className="relative flex min-w-min pt-4 pb-4">
-                {/* Time Axis */}
-                <div className="w-[60px] flex-none border-r border-zinc-900 bg-[#0A0A0A] sticky left-0 z-20">
-                     {Array.from({ length: businessHours.closeHour - businessHours.openHour + 1 }, (_, i) => i + businessHours.openHour).map(hour => (
-                       <div key={hour} className={`absolute w-full text-right pr-2 text-xs text-gray-500 font-mono ${hour === businessHours.openHour ? 'translate-y-1' : '-translate-y-2'}`} style={{ top: (hour - businessHours.openHour) * 60 * PIXELS_PER_MINUTE }}>
-                         {hour.toString().padStart(2, '0')}:00
-                       </div>
-                     ))}
+              {/* Barber Columns — each owns its own header + grid */}
+              {activeBarbers.map((b, idx) => (
+                <div key={b.id}
+                     className={`flex-1 min-w-[200px] flex flex-col border-r border-zinc-900/50 ${activeMobileBarberIndex === idx ? 'flex' : 'hidden lg:flex'}`}>
+
+                  {/* Column Header */}
+                  <div className="h-[56px] flex flex-col items-center justify-center border-b border-zinc-900 bg-[#0A0A0A] shrink-0">
+                    <div className="font-bold text-sm text-white">{b.name}</div>
+                    <div className="text-[10px] text-gray-500 uppercase font-mono tracking-wider mt-0.5 flex justify-center gap-1">
+                      {b.status === 'break' && <span className="text-amber-500">{t('overview.statusBreak')}</span>}
+                      {b.status === 'active' && <span className="text-teal-500">{t('overview.statusOnSeat')}</span>}
+                    </div>
                   </div>
-                  
-                  {/* Columns */}
-                  <div className="flex flex-1">
-                    {activeBarbers.map((b, idx) => (
-                      <div key={b.id} className={`w-[250px] lg:flex-1 lg:min-w-[200px] ${activeMobileBarberIndex === idx ? 'block' : 'hidden lg:block'}`}>
-                        {renderTimeGridColumn(b, selectedDay)}
-                      </div>
-                    ))}
+
+                  {/* Grid */}
+                  <div className="relative flex-1">
+                    {renderTimeGridColumn(b, selectedDay)}
                   </div>
-              </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
