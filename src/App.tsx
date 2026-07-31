@@ -671,26 +671,32 @@ export default function App() {
   const pendingRequestsCount = requests.filter(r => r.status === 'pending').length;
 
   return (
-    <div className="relative min-h-dvh bg-[#070707] text-gray-100 flex flex-col md:flex-row font-sans selection:bg-amber-500/20 selection:text-amber-400 overflow-hidden">
+    <div className="relative min-h-dvh bg-[#070707] text-gray-100 flex flex-col md:flex-row font-sans selection:bg-amber-500/20 selection:text-amber-400 overflow-hidden z-0">
+      
+      {/* Ambient Depth Background */}
+      <div className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-500/5 via-[#070707]/80 to-[#070707]" />
+
       {/* Subtle Dot Pattern Background */}
       <DotPattern
-        className="[mask-image:radial-gradient(1000px_circle_at_center,white,transparent)] opacity-60"
+        className="[mask-image:radial-gradient(1500px_circle_at_center,white,transparent)] z-0"
         cx={1} cy={1} cr={1}
       />
       
       {/* SIDEBAR NAVIGATION */}
-      <Sidebar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        isCollapsed={isCollapsed}
-        setIsCollapsed={setIsCollapsed}
-        isOpenMobile={isOpenMobile}
-        setIsOpenMobile={setIsOpenMobile}
-        pendingRequestsCount={pendingRequestsCount}
-      />
+      <div className="z-10 flex">
+        <Sidebar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          isCollapsed={isCollapsed}
+          setIsCollapsed={setIsCollapsed}
+          isOpenMobile={isOpenMobile}
+          setIsOpenMobile={setIsOpenMobile}
+          pendingRequestsCount={pendingRequestsCount}
+        />
+      </div>
 
       {/* MAIN VIEW AREA */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 z-10 relative">
 
         {/* TOP INTEGRATION BAR (Sticky) */}
         <header className="bg-[#0A0A0A]/95 backdrop-blur border-b border-[#1A1A1A] h-[72px] px-6 flex items-center justify-between sticky top-0 z-50">
