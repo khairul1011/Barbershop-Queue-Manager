@@ -12,6 +12,7 @@ import QueueList from './components/QueueList';
 import SettingsView from './components/Settings';
 import HistoryTab from './components/History.tsx';
 import LanguageSwitcher from './components/LanguageSwitcher';
+import { DotPattern } from './components/ui/dot-pattern';
 import { useTranslation } from './i18n';
 import { QueueEntry, WhatsAppRequest, Barber, Service, QueueStatus } from './types';
 import {
@@ -670,8 +671,13 @@ export default function App() {
   const pendingRequestsCount = requests.filter(r => r.status === 'pending').length;
 
   return (
-    <div className="min-h-dvh bg-[#070707] text-gray-100 flex flex-col md:flex-row font-sans selection:bg-amber-500/20 selection:text-amber-400">
-
+    <div className="relative min-h-dvh bg-[#070707] text-gray-100 flex flex-col md:flex-row font-sans selection:bg-amber-500/20 selection:text-amber-400 overflow-hidden">
+      {/* Subtle Dot Pattern Background */}
+      <DotPattern
+        className="[mask-image:radial-gradient(ellipse_at_center,black,transparent_80%)] opacity-30"
+        cx={1} cy={1} cr={1}
+      />
+      
       {/* SIDEBAR NAVIGATION */}
       <Sidebar
         activeTab={activeTab}
