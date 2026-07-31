@@ -399,7 +399,7 @@ export default function Schedule({
             
             <Button
               variant="secondary"
-              size="sm"
+              className="h-[42px] px-4 text-xs font-semibold"
               onClick={() => {
                 setWeekOffset(0);
                 setMonthOffset(0);
@@ -412,10 +412,10 @@ export default function Schedule({
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 px-3 bg-zinc-950 border border-zinc-800 rounded-xl">
-              <Filter size={12} className="text-gray-500" />
+            <div className="flex items-center gap-2 px-3 h-[42px] bg-zinc-950 border border-zinc-800 rounded-xl">
+              <Filter size={14} className="text-gray-500" />
               <Select value={filterBarberId} onValueChange={setFilterBarberId}>
-                <SelectTrigger className="w-[130px] border-none bg-transparent shadow-none px-0 py-1.5 focus:ring-0 text-xs text-gray-300">
+                <SelectTrigger className="w-[130px] h-full border-none bg-transparent shadow-none px-0 py-0 focus:ring-0 text-xs text-gray-300">
                   <SelectValue placeholder={t('schedule.filterAll')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -424,9 +424,9 @@ export default function Schedule({
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center gap-2 px-3 bg-zinc-950 border border-zinc-800 rounded-xl">
+            <div className="flex items-center gap-2 px-3 h-[42px] bg-zinc-950 border border-zinc-800 rounded-xl">
               <Select value={filterServiceId} onValueChange={setFilterServiceId}>
-                <SelectTrigger className="w-[120px] border-none bg-transparent shadow-none px-0 py-1.5 focus:ring-0 text-xs text-gray-300">
+                <SelectTrigger className="w-[120px] h-full border-none bg-transparent shadow-none px-0 py-0 focus:ring-0 text-xs text-gray-300">
                   <SelectValue placeholder={t('schedule.filterAll')} />
                 </SelectTrigger>
                 <SelectContent>

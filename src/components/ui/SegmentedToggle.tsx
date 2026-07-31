@@ -28,7 +28,7 @@ export function SegmentedToggle<T extends string>({
     <div className={`flex bg-[#0D0D0D] p-1 rounded-xl border border-border-subtle ${className}`}>
       {options.map((option) => {
         const isActive = value === option.value;
-        const sizeClass = size === 'sm' ? 'px-2.5 py-1 text-[10px]' : 'px-4 py-1.5 text-xs';
+        const sizeClass = size === 'sm' ? 'h-6 px-2.5 text-[10px]' : 'h-8 px-4 text-xs';
         
         let activeClass = 'text-gray-500 hover:text-white';
         if (isActive) {
@@ -46,15 +46,14 @@ export function SegmentedToggle<T extends string>({
         }
 
         return (
-          <Button
-            variant="ghost"
+          <button
             key={option.value}
             onClick={() => onChange(option.value)}
-            className={`${sizeClass} font-mono font-bold rounded-lg uppercase cursor-pointer transition-all ${activeClass}`}
+            className={`inline-flex items-center justify-center whitespace-nowrap ${sizeClass} font-mono font-bold rounded-lg uppercase cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 ${activeClass}`}
             id={`${idPrefix}-${option.value}`}
           >
             {option.label}
-          </Button>
+          </button>
         );
       })}
     </div>
