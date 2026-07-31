@@ -296,9 +296,9 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[]) {
       const scheduled_date = getLocalDateString(today);
 
       const payload = {
-        customer_name: 'TBD', // Placeholder
+        customer_name: 'TBD', // Placeholder, akan diupdate saat sesi selesai
         phone: '',
-        status: 'serving',
+        status: 'confirmed', // 'confirmed' + started_at = session aktif (logika partisi di fetchQueueEntries)
         scheduled_date,
         scheduled_time: null,
         barber_id: barberId,

@@ -445,7 +445,7 @@ export default function Overview({
           <div className="flex items-center gap-2 mb-4">
             <h2 className="text-lg font-bold text-white font-display tracking-tight">{t('overview.allSeats') as string || 'Active Barber Seats'}</h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {barbers.map(barber => (
               <BarberSeatCard
                 key={barber.id}

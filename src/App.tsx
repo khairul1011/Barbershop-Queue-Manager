@@ -581,6 +581,18 @@ export default function App() {
     }
   };
 
+  // Callback: Quick Walk-In (starts session immediately without filling customer data)
+  const handleQuickStart = async (barberId: string) => {
+    try {
+      await startQuickWalkIn(barberId);
+      const barberName = barbers.find(b => b.id === barberId)?.name || 'Kapster';
+      triggerToast(`Sesi dimulai untuk ${barberName}! Timer berjalan.`, 'success', 'Mulai Cepat');
+    } catch (err) {
+      console.error('Quick walk-in failed:', err);
+      triggerToast('Gagal memulai sesi. Coba lagi.', 'error', 'Gagal');
+    }
+  };
+
   // Main navigation tabs render
   const renderActiveTab = () => {
     switch (activeTab) {
@@ -590,7 +602,7 @@ export default function App() {
             queue={queue}
             servingSessions={servingSessions}
             onCompleteSession={handleCompleteSession}
-            onQuickStart={startQuickWalkIn}
+            onQuickStart={handleQuickStart}
             onServeNow={handleServeNow}
             onCallNextForBarber={handleCallNextForBarber}
             onAddWalkIn={handleAddWalkIn}
