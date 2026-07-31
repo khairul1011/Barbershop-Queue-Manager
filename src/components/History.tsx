@@ -23,6 +23,7 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
   const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBarberFilter, setSelectedBarberFilter] = useState(t('history.allBarbers'));
+  const [selectedDateFilter, setSelectedDateFilter] = useState<string>('');
 
   // Sort completed entries by completedAt descending (newest first)
   const sortedEntries = [...completedEntries].sort((a, b) => {
@@ -35,7 +36,8 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
     const matchesSearch = item.customerName.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           item.service.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesBarber = selectedBarberFilter === t('history.allBarbers') || item.barber === selectedBarberFilter;
-    return matchesSearch && matchesBarber;
+    const matchesDate = selectedDateFilter === '' || item.scheduledDate === selectedDateFilter;
+    return matchesSearch && matchesBarber && matchesDate;
   });
 
   const formatTime = (isoString?: string) => {
@@ -69,7 +71,7 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
         </div>
 
         <div className="relative flex items-center gap-2 bg-[#0A0A0A] border border-border-subtle rounded-xl px-3 h-[46px] w-full sm:w-auto min-w-[180px]">
-          <Filter size={16} className="text-gray-500" />
+          <Filter size={16} className="text-gray-500 shrink-0" />
           <Select value={selectedBarberFilter} onValueChange={setSelectedBarberFilter}>
             <SelectTrigger className="w-full border-none bg-transparent shadow-none px-0 focus:ring-0 text-sm text-white">
               <SelectValue placeholder={t('history.allBarbers')} />
@@ -81,6 +83,24 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        {/* Date Filter */}
+        <div className="relative flex items-center bg-[#0A0A0A] border border-border-subtle rounded-xl px-3 h-[46px] w-full sm:w-auto overflow-hidden">
+          <input
+            type="date"
+            value={selectedDateFilter}
+            onChange={(e) => setSelectedDateFilter(e.target.value)}
+            className="w-full bg-transparent border-none text-sm text-white focus:outline-none focus:ring-0 h-full font-sans cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-50 [&::-webkit-calendar-picker-indicator]:hover:opacity-100"
+          />
+          {selectedDateFilter && (
+            <button
+              onClick={() => setSelectedDateFilter('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-red-400 text-xs px-2 py-1 bg-[#1A1A1A] rounded-md transition-colors"
+            >
+              Reset
+            </button>
+          )}
         </div>
       </div>
 

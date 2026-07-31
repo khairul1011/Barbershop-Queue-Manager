@@ -62,7 +62,7 @@ export const en = {
 
   // History
   'history.title': 'Customer History',
-  'history.subtitle': 'Record of all completed sessions today.',
+  'history.subtitle': 'Record of all completed sessions.',
   'history.totalCompleted': 'total completed.',
   'history.searchPlaceholder': 'Search completed customer or service...',
   'history.allBarbers': 'All Barbers',

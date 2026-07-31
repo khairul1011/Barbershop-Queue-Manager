@@ -62,7 +62,7 @@ export const id = {
 
   // History
   'history.title': 'Riwayat Pelanggan',
-  'history.subtitle': 'Catatan semua sesi selesai hari ini.',
+  'history.subtitle': 'Catatan semua sesi selesai.',
   'history.totalCompleted': 'total selesai.',
   'history.searchPlaceholder': 'Cari nama pelanggan atau layanan...',
   'history.allBarbers': 'Semua Kapster',
