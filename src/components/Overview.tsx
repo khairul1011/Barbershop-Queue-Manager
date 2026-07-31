@@ -232,27 +232,24 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
             <div className="flex gap-2 w-full mt-2">
               {nextInLine && (
                 <Button
-                  variant="secondary"
-                  size="sm"
                   onClick={() => onCallNext(barber.id)}
-                  className="flex-1 text-amber-500 hover:text-amber-400 font-semibold border border-amber-500/20 hover:border-amber-500/40 bg-amber-500/5 hover:bg-amber-500/10 transition-colors"
+                  className="flex-1 h-10 bg-amber-500 hover:bg-amber-600 text-amber-950 font-bold border-none transition-colors shadow-lg shadow-amber-500/10"
                 >
                   <span className="truncate">Panggil {nextInLine.customerName}</span>
-                  <ArrowRight size={14} className="ml-1.5 shrink-0" />
+                  <ArrowRight size={16} className="ml-1.5 shrink-0" />
                 </Button>
               )}
               
               <Button
-                variant="outline"
-                size="sm"
+                variant={!nextInLine ? "default" : "outline"}
                 onClick={() => onQuickStart(barber.id)}
-                className={`flex-1 transition-colors ${
+                className={`flex-1 h-10 transition-colors ${
                   !nextInLine 
-                    ? 'border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-semibold' 
-                    : 'text-gray-300 hover:text-white border-[#222222] hover:bg-[#1A1A1A]'
+                    ? 'bg-emerald-500 hover:bg-emerald-600 text-emerald-950 font-bold border-none shadow-lg shadow-emerald-500/10' 
+                    : 'text-gray-400 hover:text-white border-border-subtle hover:bg-[#1A1A1A] font-medium shadow-none'
                 }`}
               >
-                <PlusCircle size={14} className="mr-1.5 shrink-0" />
+                <PlusCircle size={16} className="mr-1.5 shrink-0" />
                 Mulai Cepat
               </Button>
             </div>
