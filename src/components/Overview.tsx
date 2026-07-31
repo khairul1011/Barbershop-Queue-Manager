@@ -22,6 +22,7 @@ import { useTranslation } from '../i18n';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { NeonButton } from '@/components/ui/neon-button';
 
 interface OverviewProps {
   queue: QueueEntry[];
@@ -491,14 +492,14 @@ export default function Overview({
               >
                 {t('overview.cancel')}
               </Button>
-              <Button
-                variant="default"
+              <NeonButton
+                variant="solid"
                 type="submit"
                 className="flex-1"
                 id="walkin-submit-btn"
               >
                 {t('overview.addToQueue')}
-              </Button>
+              </NeonButton>
             </div>
           </form>
         </DialogContent>
