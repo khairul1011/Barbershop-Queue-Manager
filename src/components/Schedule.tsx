@@ -74,6 +74,32 @@ export default function Schedule({
   const [selectedBarberId, setSelectedBarberId] = useState(''); // Populated dynamically
 
   // Date calculation helpers
+  const jumpToDate = (targetDate: Date) => {
+    const systemToday = currentTime || new Date();
+    
+    const today = new Date(systemToday.getFullYear(), systemToday.getMonth(), systemToday.getDate());
+    const target = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+    
+    const todayDay = today.getDay();
+    const diffToMondayToday = todayDay === 0 ? -6 : 1 - todayDay;
+    const mondayToday = new Date(today);
+    mondayToday.setDate(today.getDate() + diffToMondayToday);
+    
+    const targetDay = target.getDay();
+    const diffToMondayTarget = targetDay === 0 ? -6 : 1 - targetDay;
+    const mondayTarget = new Date(target);
+    mondayTarget.setDate(target.getDate() + diffToMondayTarget);
+    
+    const diffTime = mondayTarget.getTime() - mondayToday.getTime();
+    const diffWeeks = Math.round(diffTime / (1000 * 60 * 60 * 24 * 7));
+    
+    setWeekOffset(diffWeeks);
+    
+    const targetDayOfWeek = DAYS_OF_WEEK[targetDay === 0 ? 6 : targetDay - 1];
+    setSelectedDay(targetDayOfWeek as DayType);
+    setViewMode('Daily');
+  };
+
   const getDatesForWeek = (offsetWeeks: number) => {
     const systemToday = currentTime || new Date();
     const anchorDate = new Date(systemToday);
@@ -687,7 +713,7 @@ export default function Schedule({
                  return (
                    <div 
                      key={idx} 
-                     onClick={() => { setSelectedDay(md.day); setViewMode('Daily'); }} 
+                     onClick={() => jumpToDate(md.fullDate)} 
                      className={`bg-[#0A0A0A] hover:bg-zinc-900 min-h-[80px] sm:min-h-[100px] cursor-pointer transition-colors flex flex-col p-1.5 sm:p-2 gap-1 border-l-2 ${borderColor} ${md.isToday ? 'bg-zinc-900/60 ring-2 ring-inset ring-amber-500/40' : ''}`}
                    >
                      <div className="flex justify-between items-start w-full">
