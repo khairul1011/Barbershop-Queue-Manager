@@ -55,8 +55,8 @@ export default function Sidebar({
   const sidebarContent = (
     <div className="flex flex-col h-full bg-sidebar-bg border-r border-border-subtle text-gray-200">
       {/* Brand Header */}
-      <div className={`py-4 flex items-center justify-between border-b border-border-subtle h-[72px] ${isCollapsed ? 'px-3 gap-1.5' : 'px-6'}`}>
-        <div className={`flex items-center ${isCollapsed ? 'gap-1' : 'gap-3'}`}>
+      <div className={`py-4 flex items-center justify-between border-b border-border-subtle h-[72px] ${isCollapsed ? 'px-2 gap-1' : 'px-6'}`}>
+        <div className={`flex items-center ${isCollapsed ? 'gap-0' : 'gap-3'}`}>
           <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-600 to-amber-400 flex items-center justify-center shadow-lg shadow-amber-500/10 shrink-0">
             <span className="font-display font-bold text-black text-lg">G</span>
           </div>
@@ -77,7 +77,7 @@ export default function Sidebar({
           variant="ghost"
           size="icon"
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="hidden md:flex border border-border-subtle hover:bg-[#151515] text-gray-400 hover:text-amber-500 rounded-lg shrink-0"
+          className={`hidden md:flex border border-border-subtle hover:bg-[#151515] text-gray-400 hover:text-amber-500 shrink-0 ${isCollapsed ? 'w-8 h-8 min-w-[32px] min-h-[32px] rounded-md' : 'rounded-lg'}`}
           id="desktop-collapse-btn"
         >
           {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
