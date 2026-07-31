@@ -214,6 +214,31 @@ client.on('message', async msg => {
     console.log('[GEMINI PARSED]', JSON.stringify(parsedData, null, 2));
 
     const hasActiveState = conversationState.has(msg.from);
+
+    // [BUG FIX]: Intercept natural replies from Gemini even when in active state
+    // so questions like "jam berapa bukanya?" get answered naturally instead of repeating the missing field prompt.
+    if (!parsedData.isBookingIntent && parsedData.naturalReply && hasActiveState) {
+      const oldState = conversationState.get(msg.from) || { nama: null, hari: null, jam: null, servis: null, kapster: null };
+      
+      const merged = {
+        nama: parsedData.nama ?? oldState.nama,
+        hari: parsedData.hari ?? oldState.hari,
+        jam: parsedData.jam ?? oldState.jam,
+        servis: parsedData.servis ?? oldState.servis,
+        kapster: parsedData.kapster ?? oldState.kapster
+      };
+      
+      conversationState.set(msg.from, { ...merged, awaitingConfirmation: false, lastUpdated: Date.now() });
+
+      try {
+        console.log('[REPLY ATTEMPT] mencoba membalas natural reply (interupsi) ke', msg.from);
+        await replyAndSaveHistory(msg, parsedData.naturalReply);
+      } catch (err) {
+        console.error('[REPLY ERROR]', err.message, '| target:', msg.from);
+      }
+      return; // Stop here so it doesn't fall through to the booking form loop
+    }
+
     const effectiveBookingIntent = parsedData.isBookingIntent || hasActiveState;
 
     if (effectiveBookingIntent === true) {
