@@ -281,7 +281,7 @@ export default function Overview({
           className="shadow-lg shadow-amber-500/10 hover:shadow-amber-500/25 active:scale-95 px-4"
           id="add-walk-in-btn"
         >
-          <PlusCircle size={18} className="mr-2" />
+          <PlusCircle size={18} className="sm:mr-2" />
           <span className="hidden sm:inline">{t('overview.newWalkIn')}</span>
         </Button>
       </div>
