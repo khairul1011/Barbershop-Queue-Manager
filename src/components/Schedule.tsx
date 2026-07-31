@@ -334,10 +334,9 @@ export default function Schedule({
     });
 
     return (
-      <div className="flex-1 h-full min-w-[200px] border-r border-zinc-900/50 relative">
-
+      <>
         {/* Grid Background Lines */}
-        <div className="relative" style={{ height: (businessHours.closeHour - businessHours.openHour + 1) * 60 * PIXELS_PER_MINUTE }}>
+        <div className="relative w-full" style={{ height: (businessHours.closeHour - businessHours.openHour + 1) * 60 * PIXELS_PER_MINUTE }}>
           {hours.map(hour => (
             <div 
               key={hour} 
@@ -368,22 +367,25 @@ export default function Schedule({
                     {isSmall && <span className="font-normal opacity-70 ml-1">· {entry.service}</span>}
                   </div>
                   {entry.startedAt && !entry.completedAt && (
-                    <div className="text-[8px] font-black bg-violet-500 text-white px-1 py-0.5 rounded animate-pulse shrink-0">LIVE</div>
+                    <div className="w-1.5 h-1.5 rounded-full bg-violet-400 shrink-0 mt-1 animate-pulse" />
                   )}
                 </div>
-                <div className={`text-[9px] font-mono opacity-80 ${isSmall ? 'mt-0' : 'mt-0.5'} truncate`}>
-                  {entry.timeRange}
-                </div>
                 {!isSmall && (
-                  <div className="text-[10px] opacity-90 mt-auto truncate flex items-center gap-1">
-                    <Scissors size={8}/> {entry.service}
+                  <div className="text-[9px] font-mono opacity-60 flex items-center mt-0.5">
+                    ~{entry.timeRange.replace('~', '').trim()}
+                  </div>
+                )}
+                {!isSmall && (
+                  <div className="text-[9px] font-medium opacity-80 mt-1.5 flex items-center gap-1 truncate">
+                    <Scissors size={8} className="shrink-0" />
+                    <span className="truncate">{entry.service}</span>
                   </div>
                 )}
               </div>
             );
           })}
         </div>
-      </div>
+      </>
     );
   };
 
