@@ -74,15 +74,15 @@ Proyek ini adalah **experiment pribadi** (bukan produk komersial saat ini), diba
 - UI dashboard lengkap (Overview, Queue, Requests, Schedule, Settings) — React + Tailwind, sudah interaktif dengan state management asli (bukan cuma statis).
 - Logika status Confirmed/Estimated/Pending Reply sudah diimplementasi di level data, bukan cuma visual.
 - Perhitungan durasi servis dinamis berdasarkan jenis layanan.
-- **Schedule Daily View berfungsi normal di Safari iOS** — grid merentang penuh tanpa kolaps menggunakan pola Hybrid Page-Scroll (commit `ca5713e`).
-- Header kapster *sticky* relatif terhadap scroll halaman — nama kapster selalu terlihat saat scroll jadwal.
+- **Schedule Daily View berfungsi sangat presisi** — layout telah dirombak penuh. Grid merentang tanpa kolaps menggunakan pola Hybrid Page-Scroll (commit `ca5713e`), dan header kapster kini dibungkus dalam satu kolom yang sama dengan grid jadwal sehingga keselarasan (alignment) kolom dijamin 100% presisi secara struktural, termasuk padding top/bottom dan whitespace yang optimal.
+- Navigasi kalender (*Monthly* ke *Daily*) secara presisi langsung pindah ke minggu yang relevan.
 
 ❌ Belum ada / masih dummy:
 - Tidak ada backend (`server.js` tidak ada meski `express`/`dotenv` tercantum di `package.json` sebagai dependency nganggur).
 - Tidak ada koneksi WhatsApp nyata — data request masih hardcoded di `mockData.ts`.
 - Tidak ada pemanggilan Gemini API nyata untuk parsing pesan.
-- Tidak ada persistensi data — refresh browser = data kembali ke mock awal.
-- Bug: hari "hari ini" di-hardcode sebagai `'Wed'` di beberapa fungsi (`handleCompleteServing`, `handleAddWalkIn`, `handleAddBooking`), bukan dihitung dari tanggal aktual.
+- Tidak ada persistensi data server, masih localStorage — refresh di browser/device berbeda tidak akan sinkron.
+- Perbaikan bug hardcode `'Wed'` sudah selesai, sistem kini dinamis mengikuti `todayKey`.
 
 Lihat `KNOWN_ISSUES.md` untuk detail teknis dan prioritas perbaikan.
 
@@ -100,3 +100,13 @@ Lihat `KNOWN_ISSUES.md` untuk detail teknis dan prioritas perbaikan.
 - Kapster benar-benar memakainya setiap hari kerja tanpa merasa "ribet", diukur dari observasi/tanya langsung, bukan asumsi.
 - Berkurangnya kejadian kapster lupa/bingung siapa yang sudah janji.
 - Waktu yang dihabiskan kapster untuk cek WA manual berkurang secara nyata.
+
+## 11. Batasan Desain & Relasi Data (By Design)
+
+### Barber Duty Status Edge Case
+- **Kapster Berubah Status ke 'Off' Saat Sedang Melayani**: Saat ini, jika kapster memiliki sesi pelanggan yang sedang berjalan (di kursi aktif) dan statusnya diubah dari 'Active' menjadi 'Off' via menu Settings, sistem tidak akan secara otomatis menghentikan atau menghapus sesi tersebut. 
+- **Perilaku (Behavior)**: Sesi akan dibiarkan tetap berjalan hingga selesai secara natural (hingga ditekan tombol 'Complete Session'). Ini adalah **keputusan desain yang sadar (by design)** untuk mencegah hilangnya data pelanggan yang terlanjur duduk di kursi secara tidak sengaja (misalnya karena salah klik), dan bukan merupakan bug yang terlewat.
+
+### Relasi Data & Penghapusan Kapster (Soft Delete)
+- **Foreign Key Constraint**: Mengingat tabel kapster saling berelasi dengan tabel `queue_entries`, penghapusan profil kapster secara permanen (hard delete) dari database tidak diizinkan jika kapster tersebut telah memiliki riwayat layanan pelanggan. 
+- **Solusi**: Diterapkan mekanisme **Soft Delete** (mengubah status menjadi 'off' atau 'hidden' di sisi UI) untuk menjaga integritas data riwayat transaksi lama kapster tersebut dan menghindari *error foreign key violation* (seperti `Code 23503`). Kapster yang berstatus 'off' tidak akan muncul lagi di kalender antrian maupun pilihan dropdown form.

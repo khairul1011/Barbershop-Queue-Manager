@@ -18,6 +18,20 @@ Grid time-axis di tab **Schedule → Daily View** menampilkan area yang sangat k
 - Header kapster diberi `sticky top-[64px] md:top-[72px] z-30` agar tetap terlihat saat halaman di-scroll, menempel tepat di bawah top bar aplikasi.
 - Sel pojok kiri atas (perpotongan header kapster & sumbu waktu) diberi `sticky left-0 z-40` sebagai jangkar dua-arah.
 
+### [UI/UX] Grid Daily View — Alignment Header & Kolom
+**Commit:** `(terbaru)`
+Grid pada **Schedule → Daily View** sebelumnya mengalami mis-alignment antara barisan nama kapster (Header) dan kotak jadwal (Grid) ketika layar digeser secara horizontal. Garis batas kolom juga tidak simetris dan kotak jadwal "mepet" dengan batas atas.
+
+**Solusi yang diterapkan:**
+- Mengubah struktur layout secara fundamental: menghapus *row* Header yang terpisah. 
+- Sekarang, setiap kapster memiliki **satu kolom vertikal utuh** (berisi Header di atas dan Grid di bawah), menjamin 100% keselarasan (*alignment*) presisi.
+- Menambahkan padding top/bottom pada grid untuk ruang bernapas (UI/UX whitespace balance), serta memperbaiki margin kiri/kanan antar kotak jadwal menjadi simetris (8px).
+
+### [Fungsionalitas] Monthly View — Navigasi ke Daily View yang salah minggu
+**Status:** FIXED.
+- Sebelumnya, jika mengklik sebuah tanggal di tampilan *Monthly View*, kalender berpindah ke *Daily View* tetapi mempertahankan *weekOffset* (minggu saat ini), sehingga menavigasi ke hari yang salah.
+- **Solusi:** Menambahkan fungsi `jumpToDate` yang secara akurat menghitung selisih minggu dan menyesuaikan state `weekOffset` sebelum mengubah mode ke *Daily View*.
+
 ### [TERTINGGI] Reset harian untuk completedCount dan revenueToday
 **Status:** FIXED.
 - Menambahkan `lastResetDate` ke `localStorage` dan melakukan reset ke 0 untuk `completedCount` dan `revenueToday` jika tanggal saat ini berbeda dengan tanggal reset terakhir, memastikan statistik tidak menumpuk lintas hari.
@@ -42,6 +56,11 @@ Grid time-axis di tab **Schedule → Daily View** menampilkan area yang sangat k
 **Status:** FIXED (Fase 1).
 - Seluruh inti data `queue`, `requests`, `barbers`, dan `services` kini tersimpan di localStorage lewat *custom hook* `useLocalStorageState`.
 
+### Kesalahan logika balasan WhatsApp (Natural Reply AI)
+**Status:** FIXED.
+- Sebelumnya, AI membalas *chat* dengan struktur yang salah atau teks berantakan (tidak sesuai dengan format di server vs di layar).
+- Logika ekstraksi dan *prompt* diperbaiki sehingga balasan lebih rapi dan terbaca alami (*natural reply*).
+
 ---
 
 ## 🔴 Kritis (blocker fungsional)
@@ -54,6 +73,11 @@ Tidak ada `server.js` atau file backend apa pun di struktur repo. `express` dan 
 **Dampak:** Tidak ada jalur untuk memanggil Gemini API dengan aman (server-side), dan tidak ada jalur integrasi WhatsApp sama sekali.
 
 **Perbaikan:** Bangun `server.js` terpisah yang menjalankan `whatsapp-web.js` + endpoint untuk memanggil Gemini API, dijalankan di mesin/server milik pemilik sistem (tidak bisa jalan di AI Studio/hosting statis).
+
+### 2. Gagal Menghapus Kapster (Foreign Key Constraint `queue_entries`)
+**Error Code:** `23503` (update or delete on table "barbers" violates foreign key constraint "queue_entries_barber_id_fkey" on table "queue_entries")
+**Dampak:** Pengguna tidak bisa menghapus kapster dari *database* (Supabase/Postgres) jika kapster tersebut masih terkait/dijadikan referensi oleh data antrian (`queue_entries`).
+**Solusi (Opsi Terpilih):** Menerapkan mekanisme **Soft Delete** (opsi 3 pada pembahasan sebelumnya) dengan mengubah status kapster menjadi `off` atau disembunyikan di UI, alih-alih menghapus baris dari *database*, untuk menjaga integritas riwayat antrian dan mencegah error.
 
 ---
 
