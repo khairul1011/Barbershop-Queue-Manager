@@ -567,7 +567,7 @@ export default function Schedule({
         )}
 
         {viewMode === 'Weekly' && (
-          <div className="flex-1 overflow-y-auto bg-[#050505] rounded-2xl border border-zinc-900 p-4 space-y-4">
+          <div className="bg-[#050505] rounded-2xl border border-zinc-900 p-4 space-y-4">
              <div className="flex items-center gap-3 mb-4">
                 <Button variant="secondary" size="icon" onClick={() => setWeekOffset(o => o - 1)}>
                   <ChevronLeft size={18}/>
