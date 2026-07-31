@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon, X } from 'lucide-react';
+import { Calendar as CalendarIcon, X, LayoutGrid, List } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface HistoryProps {
@@ -29,6 +29,7 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBarberFilter, setSelectedBarberFilter] = useState(t('history.allBarbers'));
   const [selectedDateFilter, setSelectedDateFilter] = useState<Date | undefined>(undefined);
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
   // Sort completed entries by completedAt descending (newest first)
   const sortedEntries = [...completedEntries].sort((a, b) => {
@@ -129,6 +130,27 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
 
       {/* History List */}
       <div className="space-y-4">
+        {filteredEntries.length > 0 && (
+          <div className="flex items-center justify-end">
+            <div className="flex bg-[#0A0A0A] p-1 rounded-xl border border-border-subtle h-[36px]">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-1.5 rounded-lg transition-colors flex items-center justify-center ${viewMode === 'grid' ? 'bg-[#222222] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+                title="Mode Kartu"
+              >
+                <LayoutGrid size={14} />
+              </button>
+              <button
+                onClick={() => setViewMode('table')}
+                className={`p-1.5 rounded-lg transition-colors flex items-center justify-center ${viewMode === 'table' ? 'bg-[#222222] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+                title="Mode Tabel"
+              >
+                <List size={14} />
+              </button>
+            </div>
+          </div>
+        )}
+        
         <AnimatePresence>
           {filteredEntries.length === 0 ? (
             <motion.div
@@ -147,7 +169,7 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
                   : t('history.appearHere')}
               </p>
             </motion.div>
-          ) : (
+          ) : viewMode === 'grid' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredEntries.map((item, index) => (
                 <motion.div
@@ -205,6 +227,62 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
                 </motion.div>
               ))}
             </div>
+          ) : (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="bg-card-bg border border-border-subtle rounded-2xl overflow-hidden"
+            >
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-border-subtle text-gray-500 text-xs font-mono uppercase tracking-wider bg-[#070707]">
+                      <th className="py-4 px-5">Nama Pelanggan</th>
+                      <th className="py-4 px-4">Waktu Selesai</th>
+                      <th className="py-4 px-4">Layanan</th>
+                      <th className="py-4 px-4">Kapster</th>
+                      <th className="py-4 px-5 text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-subtle text-sm">
+                    {filteredEntries.map((item, index) => (
+                      <motion.tr
+                        key={item.id}
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="hover:bg-[#121212]/50 transition-colors"
+                      >
+                        <td className="py-4 px-5">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 border border-blue-500/20">
+                              <span className="font-bold text-blue-500 font-display text-[10px]">
+                                {item.customerName.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                            <span className="font-bold text-gray-100 font-sans block">{item.customerName}</span>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 font-mono text-xs text-gray-300">
+                          {item.day} {formatTime(item.completedAt)}
+                        </td>
+                        <td className="py-4 px-4 text-gray-300 font-sans">
+                          {item.service}
+                        </td>
+                        <td className="py-4 px-4 font-sans font-medium text-amber-500">
+                          {item.barber}
+                        </td>
+                        <td className="py-4 px-5 text-right">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono uppercase">
+                            Selesai
+                          </span>
+                        </td>
+                      </motion.tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </motion.div>
           )}
         </AnimatePresence>
       </div>
