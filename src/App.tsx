@@ -683,7 +683,7 @@ export default function App() {
       />
       
       {/* SIDEBAR NAVIGATION */}
-      <div className="z-10 flex">
+      <div className="z-10 flex md:sticky md:top-0 md:h-screen">
         <Sidebar
           activeTab={activeTab}
           setActiveTab={setActiveTab}
