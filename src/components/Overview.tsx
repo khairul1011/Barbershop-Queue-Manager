@@ -27,9 +27,10 @@ import { NeonButton } from '@/components/ui/neon-button';
 interface OverviewProps {
   queue: QueueEntry[];
   servingSessions: Record<string, QueueEntry | null>;
-  onCompleteSession: (barberId: string, actualDuration: number) => void;
+  onCompleteSession: (barberId: string, actualDuration: number, serviceId?: string, customerName?: string) => void;
   onCallNextForBarber: (barberId: string) => void;
   onServeNow: (entry: QueueEntry, barberId: string) => void;
+  onQuickStart: (barberId: string) => void;
   onAddWalkIn: (name: string, service: string, barber: string) => void;
   barbers: Barber[];
   services: Service[];
@@ -42,18 +43,26 @@ interface BarberSeatCardProps {
   barber: Barber;
   session: QueueEntry | null;
   todayQueue: QueueEntry[];
-  onCompleteSession: (barberId: string, duration: number) => void;
+  services: Service[];
+  onCompleteSession: (barberId: string, duration: number, serviceId?: string, customerName?: string) => void;
   onCallNext: (barberId: string) => void;
+  onQuickStart: (barberId: string) => void;
 }
 
 const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
   barber,
   session,
   todayQueue,
+  services,
   onCompleteSession,
-  onCallNext
+  onCallNext,
+  onQuickStart
 }) => {
   const { t } = useTranslation();
+
+  const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const [completeServiceId, setCompleteServiceId] = useState('');
+  const [completeCustomerName, setCompleteCustomerName] = useState('');
 
   // Hitung detik yang sudah berlalu sejak sesi dimulai (bertahan setelah refresh)
   const getElapsedFromSession = (sess: typeof session) => {
@@ -97,9 +106,25 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
 
   const handleDoneClick = () => {
     if (!session) return;
-    onCompleteSession(barber.id, elapsedSeconds / 60);
+    
+    // Set default values before opening dialog
+    const potongRambut = services.find(s => s.name.toLowerCase().includes('potong rambut'));
+    setCompleteServiceId(session.service && session.service !== 'TBD' ? 
+      (services.find(s => s.name === session.service)?.id || (potongRambut ? potongRambut.id : services[0]?.id || '')) : 
+      (potongRambut ? potongRambut.id : services[0]?.id || '')
+    );
+    setCompleteCustomerName(session.customerName && session.customerName !== 'TBD' ? session.customerName : '');
+    
+    setShowCompleteDialog(true);
+  };
+
+  const submitComplete = () => {
+    if (!session) return;
+    const finalName = completeCustomerName.trim() || 'Anonymous';
+    onCompleteSession(barber.id, elapsedSeconds / 60, completeServiceId, finalName);
     setElapsedSeconds(0);
     setIsTimerRunning(false);
+    setShowCompleteDialog(false);
   };
 
   const nextInLine = todayQueue.find(q => q.barber === barber.name);
@@ -209,15 +234,71 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
                 variant="secondary"
                 size="sm"
                 onClick={() => onCallNext(barber.id)}
-                className="text-amber-500 hover:text-amber-400 font-semibold border-border-subtle hover:border-amber-500/20"
+                className="text-amber-500 hover:text-amber-400 font-semibold border-border-subtle hover:border-amber-500/20 w-full mb-2"
               >
                 <span>{t('overview.callNextFor') as string || 'Call'} {nextInLine.customerName}</span>
                 <ArrowRight size={14} className="ml-1.5" />
               </Button>
             )}
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onQuickStart(barber.id)}
+              className="text-gray-300 hover:text-white border-[#222222] hover:bg-[#1A1A1A] w-full"
+            >
+              <PlusCircle size={14} className="mr-1.5" />
+              Mulai Cepat
+            </Button>
           </motion.div>
         )}
       </AnimatePresence>
+
+      <Dialog open={showCompleteDialog} onOpenChange={setShowCompleteDialog}>
+        <DialogContent className="sm:max-w-[400px] border border-border-subtle bg-sidebar-bg p-0 overflow-hidden shadow-2xl">
+          <div className="bg-gradient-to-b from-[#151515] to-sidebar-bg p-6 pb-4 border-b border-border-subtle">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-bold font-display text-white tracking-tight">Selesaikan Sesi</DialogTitle>
+              <p className="text-sm text-gray-400 mt-1">Konfirmasi layanan dan nama pelanggan.</p>
+            </DialogHeader>
+          </div>
+          
+          <div className="p-6 space-y-5">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-300">Layanan <span className="text-red-500">*</span></label>
+              <Select value={completeServiceId} onValueChange={setCompleteServiceId}>
+                <SelectTrigger className="w-full bg-[#050505] border-border-subtle text-white h-11 rounded-xl">
+                  <SelectValue placeholder="Pilih layanan" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#121212] border-border-subtle text-white rounded-xl">
+                  {services.map((svc) => (
+                    <SelectItem key={svc.id} value={svc.id} className="focus:bg-[#222222] focus:text-white">
+                      <div className="flex items-center justify-between w-full">
+                        <span>{svc.name}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-300">Nama Pelanggan</label>
+              <input 
+                type="text" 
+                value={completeCustomerName}
+                onChange={(e) => setCompleteCustomerName(e.target.value)}
+                placeholder="Biarkan kosong untuk Anonymous" 
+                className="w-full bg-[#050505] border border-border-subtle rounded-xl px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-amber-500 transition-colors h-11"
+              />
+            </div>
+
+            <Button onClick={submitComplete} className="w-full h-11 mt-2 text-black font-semibold rounded-xl" disabled={!completeServiceId}>
+              <CheckCircle2 size={16} className="mr-2" /> Simpan & Selesai
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </BentoCard>
   );
 }
@@ -227,7 +308,9 @@ export default function Overview({
   servingSessions,
   onCompleteSession,
   onCallNextForBarber,
+  onServeNow,
   onAddWalkIn,
+  onQuickStart,
   barbers,
   services,
   completedCount,
@@ -362,15 +445,17 @@ export default function Overview({
           <div className="flex items-center gap-2 mb-4">
             <h2 className="text-lg font-bold text-white font-display tracking-tight">{t('overview.allSeats') as string || 'Active Barber Seats'}</h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {barbers.map(barber => (
               <BarberSeatCard
                 key={barber.id}
                 barber={barber}
                 session={servingSessions[barber.id] || null}
-                todayQueue={todayQueue}
+                todayQueue={queue.filter(q => q.day === todayKey)}
+                services={services}
                 onCompleteSession={onCompleteSession}
                 onCallNext={onCallNextForBarber}
+                onQuickStart={onQuickStart}
               />
             ))}
           </div>

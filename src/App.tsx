@@ -49,7 +49,7 @@ export default function App() {
   const { requests, setRequests, loading: requestsLoading, error: requestsError, approveRequest, rejectRequest, refreshRequests } = useSupabaseRequests();
   const { barbers, loading: barbersLoading, error: barbersError, addBarber, editBarber, removeBarber, updateBarberStatus } = useSupabaseBarbers();
   const { services, loading: servicesLoading, error: servicesError, addService, removeService } = useSupabaseServices();
-  const { queue, servingSessions, completedEntries, loading: queueLoading, error: queueError, addQueueEntry, updateQueueEntryStatus, serveQueueEntry, completeServingSession, removeQueueEntry } = useSupabaseQueue(barbers, services);
+  const { queue, servingSessions, completedEntries, loading: queueLoading, error: queueError, addQueueEntry, updateQueueEntryStatus, serveQueueEntry, completeServingSession, removeQueueEntry, startQuickWalkIn } = useSupabaseQueue(barbers, services);
   const { businessHours, updateBusinessHours } = useSupabaseBusinessHours();
 
   // Stats Counters (derived from Supabase data)
@@ -133,14 +133,14 @@ export default function App() {
   };
 
   // Callback: Complete session
-  const handleCompleteSession = async (barberId: string, actualDurationMinutes: number) => {
+  const handleCompleteSession = async (barberId: string, actualDurationMinutes: number, serviceId?: string, customerName?: string) => {
     const session = servingSessions[barberId];
     if (!session) return;
 
     try {
-      await completeServingSession(barberId);
+      await completeServingSession(barberId, serviceId, customerName);
       
-      const priceOfService = services.find(s => s.name === session.service)?.price || 120000;
+      const priceOfService = services.find(s => s.id === serviceId || s.name === session.service)?.price || 120000;
 
       // Toast
       triggerToast(
@@ -590,6 +590,7 @@ export default function App() {
             queue={queue}
             servingSessions={servingSessions}
             onCompleteSession={handleCompleteSession}
+            onQuickStart={startQuickWalkIn}
             onServeNow={handleServeNow}
             onCallNextForBarber={handleCallNextForBarber}
             onAddWalkIn={handleAddWalkIn}

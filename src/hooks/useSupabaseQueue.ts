@@ -286,18 +286,57 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[]) {
     }
   };
 
+  // QUICK WALK-IN
+  const startQuickWalkIn = async (barberId: string) => {
+    try {
+      const defaultService = services.find(s => s.name.toLowerCase().includes('potong rambut')) || services[0];
+      const serviceId = defaultService ? defaultService.id : '';
+      
+      const today = new Date();
+      const scheduled_date = getLocalDateString(today);
+
+      const payload = {
+        customer_name: 'TBD', // Placeholder
+        phone: '',
+        status: 'serving',
+        scheduled_date,
+        scheduled_time: null,
+        barber_id: barberId,
+        service_id: serviceId,
+        started_at: new Date().toISOString()
+      };
+
+      const { error: supabaseError } = await supabase
+        .from('queue_entries')
+        .insert([payload])
+        .select();
+
+      if (supabaseError) throw supabaseError;
+      
+      await fetchQueueEntries();
+    } catch (err) {
+      console.error('Error starting quick walk-in:', err);
+      throw err;
+    }
+  };
+
   // COMPLETE SESSION
-  const completeServingSession = async (barberId: string) => {
+  const completeServingSession = async (barberId: string, serviceId?: string, customerName?: string) => {
     try {
       const session = servingSessions[barberId];
       if (!session) return; // tidak ada yg dikerjakan
 
+      const updatePayload: any = {
+        completed_at: new Date().toISOString(),
+        status: 'completed'
+      };
+
+      if (serviceId) updatePayload.service_id = serviceId;
+      if (customerName) updatePayload.customer_name = customerName;
+
       const { error: supabaseError } = await supabase
         .from('queue_entries')
-        .update({ 
-          completed_at: new Date().toISOString(),
-          status: 'completed'
-        })
+        .update(updatePayload)
         .eq('id', session.id);
 
       if (supabaseError) throw supabaseError;
@@ -335,6 +374,7 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[]) {
     serveQueueEntry,
     completeServingSession,
     removeQueueEntry,
-    refreshQueue: fetchQueueEntries
+    refreshQueue: fetchQueueEntries,
+    startQuickWalkIn
   };
 }
