@@ -671,7 +671,7 @@ export default function App() {
   const pendingRequestsCount = requests.filter(r => r.status === 'pending').length;
 
   return (
-    <div className="relative h-screen bg-[#070707] text-gray-100 flex flex-row font-sans selection:bg-amber-500/20 selection:text-amber-400 overflow-hidden z-0">
+    <div className="relative h-dvh bg-[#070707] text-gray-100 flex flex-col md:flex-row font-sans selection:bg-amber-500/20 selection:text-amber-400 overflow-hidden z-0">
       
       {/* Ambient Depth Background */}
       <div className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-500/5 via-[#070707]/80 to-[#070707]" />
@@ -682,8 +682,8 @@ export default function App() {
         cx={1} cy={1} cr={1}
       />
       
-      {/* SIDEBAR NAVIGATION — always full height, never scrolls */}
-      <div className="z-20 flex-shrink-0 h-screen">
+      {/* SIDEBAR — desktop: fixed column; mobile: hidden (rendered as top bar inside Sidebar component) */}
+      <div className="z-20 flex-shrink-0 md:h-screen">
         <Sidebar
           activeTab={activeTab}
           setActiveTab={setActiveTab}
@@ -695,11 +695,11 @@ export default function App() {
         />
       </div>
 
-      {/* MAIN VIEW AREA — this is the only thing that scrolls */}
-      <div className="flex-1 flex flex-col min-w-0 z-10 relative h-screen overflow-y-auto">
+      {/* MAIN VIEW AREA — scrolls independently on desktop; on mobile fills remaining height */}
+      <div className="flex-1 flex flex-col min-w-0 z-10 relative overflow-y-auto">
 
-        {/* TOP INTEGRATION BAR (Sticky) */}
-        <header className="bg-[#0A0A0A]/95 backdrop-blur border-b border-[#1A1A1A] min-h-[72px] px-6 flex items-center justify-between sticky top-0 z-50 flex-shrink-0">
+        {/* TOP INTEGRATION BAR (Desktop only - Sidebar renders its own mobile top bar) */}
+        <header className="hidden md:flex bg-[#0A0A0A]/95 backdrop-blur border-b border-[#1A1A1A] min-h-[72px] px-6 items-center justify-between sticky top-0 z-50 flex-shrink-0">
 
           {/* Left: Quick search mockup */}
           <div className="hidden lg:flex items-center gap-2.5 bg-[#0F0F0F] border border-[#1A1A1A] rounded-xl px-3.5 py-2 w-72">
