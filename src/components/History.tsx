@@ -114,20 +114,18 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
                   transition={{ delay: index * 0.05 }}
                   layout
                 >
-                  <BentoCard
-                    variant="default"
-                    badge={{ label: t('status.Completed'), color: 'blue' }}
-                  >
+                  <BentoCard variant="default">
                     <div className="flex flex-col gap-4">
                       {/* Customer Info */}
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 border border-blue-500/20">
-                          <span className="font-bold text-blue-500 font-display">
-                            {item.customerName.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                        <div className="overflow-hidden">
-                          <h3 className="font-bold text-white font-display text-lg truncate">{item.customerName}</h3>
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 border border-blue-500/20">
+                            <span className="font-bold text-blue-500 font-display">
+                              {item.customerName.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="overflow-hidden">
+                            <h3 className="font-bold text-white font-display text-lg truncate">{item.customerName}</h3>
                           <div className="flex items-center gap-3 text-xs text-gray-400 font-sans mt-0.5">
                             <span className="flex items-center gap-1 shrink-0">
                               <CalendarCheck size={12} className="text-blue-500" />
@@ -138,6 +136,13 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
                               {formatTime(item.completedAt)}
                             </span>
                           </div>
+                        </div>
+                        </div>
+                        
+                        <div className="shrink-0 pt-0.5">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 font-sans">
+                            {t('status.Completed')}
+                          </span>
                         </div>
                       </div>
 
