@@ -674,7 +674,7 @@ export default function App() {
     <div className="relative min-h-dvh bg-[#070707] text-gray-100 flex flex-col md:flex-row font-sans selection:bg-amber-500/20 selection:text-amber-400 overflow-hidden">
       {/* Subtle Dot Pattern Background */}
       <DotPattern
-        className="[mask-image:radial-gradient(ellipse_at_center,black,transparent_80%)] opacity-30"
+        className="[mask-image:radial-gradient(1000px_circle_at_center,white,transparent)] opacity-60"
         cx={1} cy={1} cr={1}
       />
       
