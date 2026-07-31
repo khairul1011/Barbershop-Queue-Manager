@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { QueueEntry, Barber, QueueStatus } from '../types';
+import { useTranslation } from '../i18n';
 import { 
   Users, 
   Clock, 
@@ -39,6 +40,7 @@ export default function QueueList({
 }: QueueListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBarberFilter, setSelectedBarberFilter] = useState('All Barbers');
+  const { t } = useTranslation();
 
   // Filter today's queue using todayKey from App.tsx (single source of truth)
   const todayQueue = queue.filter(q => q.day === todayKey);
@@ -68,9 +70,9 @@ export default function QueueList({
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl md:text-3xl font-display font-bold text-white tracking-tight">Today's Live Queue</h1>
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-white tracking-tight">{t('queue.title')}</h1>
         <p className="text-sm text-gray-400 font-sans mt-0.5">
-          Real-time customer list for Wednesday. Serve or dispatch next slots.
+          {t('queue.subtitle')}
         </p>
       </div>
 
@@ -83,7 +85,7 @@ export default function QueueList({
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search customer, service..."
+            placeholder={t('queue.searchPlaceholder')}
             className="w-full bg-[#070707] border border-border-subtle rounded-xl pl-10 pr-4 py-3 text-white text-sm focus:outline-none focus:border-amber-500 font-sans placeholder-gray-600"
             id="queue-search-input"
           />
@@ -94,10 +96,10 @@ export default function QueueList({
           <Filter size={16} className="text-amber-500" />
           <Select value={selectedBarberFilter} onValueChange={setSelectedBarberFilter}>
             <SelectTrigger id="queue-barber-filter" className="w-[140px] border-none bg-transparent shadow-none px-0 focus:ring-0 text-sm text-gray-300">
-              <SelectValue placeholder="All Barbers" />
+              <SelectValue placeholder={t('queue.allBarbers')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="All Barbers">All Barbers</SelectItem>
+              <SelectItem value="All Barbers">{t('queue.allBarbers')}</SelectItem>
               {barbers.map((b) => (
                 <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
               ))}
@@ -160,17 +162,17 @@ export default function QueueList({
                       ? ''
                       : 'border-amber-500/20 text-amber-500 hover:bg-amber-500 hover:text-black'
                   }`}
-                  title={(barbers.find(b => b.name === item.barber) && servingSessions[barbers.find(b => b.name === item.barber)!.id]) ? "Seat is currently occupied" : "Call to chair"}
+                  title={(barbers.find(b => b.name === item.barber) && servingSessions[barbers.find(b => b.name === item.barber)!.id]) ? "Seat is currently occupied" : t('queue.callToChair')}
                 >
                   <Play size={13} fill="currentColor" className="mr-1.5 stroke-none" />
-                  Serve
+                  {t('queue.serve')}
                 </Button>
                 <Button
                   variant="secondary"
                   size="icon"
                   onClick={() => handleWhatsAppNudge(item)}
                   className="text-teal-400 hover:text-teal-300"
-                  title="WhatsApp Nudge"
+                  title={t('queue.whatsappNudge')}
                 >
                   <MessageCircle size={16} />
                 </Button>
@@ -178,7 +180,7 @@ export default function QueueList({
                   variant="destructive"
                   size="icon"
                   onClick={() => onRemove(item.id)}
-                  title="Remove from queue"
+                  title={t('queue.removeFromQueue')}
                 >
                   <Trash2 size={16} />
                 </Button>
@@ -188,7 +190,7 @@ export default function QueueList({
             <div className="py-12 text-center text-gray-500 font-sans bg-card-bg border border-border-subtle rounded-2xl">
               <div className="flex flex-col items-center gap-2">
                 <Users size={24} className="text-gray-700" />
-                <span>No queue entries match your search filters today.</span>
+                <span>{t('queue.noMatches')}</span>
               </div>
             </div>
           )}
@@ -200,12 +202,12 @@ export default function QueueList({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-border-subtle text-gray-500 text-xs font-mono uppercase tracking-wider bg-[#070707]">
-                <th className="py-4 px-5">Order / Name</th>
-                <th className="py-4 px-4">Est. Time Range</th>
-                <th className="py-4 px-4">Service Details</th>
-                <th className="py-4 px-4">Barber Seat</th>
-                <th className="py-4 px-4">Status Tag</th>
-                <th className="py-4 px-5 text-right">Quick Actions</th>
+                <th className="py-4 px-5">{t('queue.orderName')}</th>
+                <th className="py-4 px-4">{t('queue.estTimeRange')}</th>
+                <th className="py-4 px-4">{t('queue.serviceDetails')}</th>
+                <th className="py-4 px-4">{t('queue.barberSeat')}</th>
+                <th className="py-4 px-4">{t('queue.statusTag')}</th>
+                <th className="py-4 px-5 text-right">{t('queue.quickActions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle text-sm">
@@ -269,11 +271,11 @@ export default function QueueList({
                               ? ''
                               : 'border-amber-500/20 text-amber-500 hover:bg-amber-500 hover:text-black'
                           }`}
-                          title={(barbers.find(b => b.name === item.barber) && servingSessions[barbers.find(b => b.name === item.barber)!.id]) ? "Seat is currently occupied" : "Call to chair"}
+                          title={(barbers.find(b => b.name === item.barber) && servingSessions[barbers.find(b => b.name === item.barber)!.id]) ? "Seat is currently occupied" : t('queue.callToChair')}
                           id={`serve-btn-${item.id}`}
                         >
                           <Play size={12} fill="currentColor" className="mr-1.5 stroke-none" />
-                          <span>Serve</span>
+                          <span>{t('queue.serve')}</span>
                         </Button>
 
                         {/* WhatsApp nudge */}
@@ -282,7 +284,7 @@ export default function QueueList({
                           size="icon"
                           onClick={() => handleWhatsAppNudge(item)}
                           className="text-teal-400 hover:text-teal-300"
-                          title="WhatsApp Nudge"
+                          title={t('queue.whatsappNudge')}
                           id={`nudge-btn-${item.id}`}
                         >
                           <MessageCircle size={16} />
@@ -293,7 +295,7 @@ export default function QueueList({
                           variant="destructive"
                           size="icon"
                           onClick={() => onRemove(item.id)}
-                          title="Remove from queue"
+                          title={t('queue.removeFromQueue')}
                           id={`delete-btn-${item.id}`}
                         >
                           <Trash2 size={16} />
