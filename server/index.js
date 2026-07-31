@@ -330,10 +330,13 @@ client.on('message', async msg => {
             await replyAndSaveHistory(msg, `Sip kak! Booking sudah lengkap:\n\nHari: ${merged.hari}\nJam: ${merged.jam}\nServis: ${merged.servis}\nKapster: ${finalKapster}\nNama: ${merged.nama}\n\nTerima kasih, ditunggu kedatangannya!`);
 
             try {
+              const contact = await msg.getContact();
+              const realPhone = contact.number || msg.from.replace('@c.us', '').replace('@lid', '');
+              
               const finalService = `${merged.servis}|BARBER:${finalKapster}`;
               const { error } = await supabase.from('whatsapp_requests').insert({
                 sender_name: merged.nama,
-                sender_phone: msg.from,
+                sender_phone: realPhone,
                 raw_message: msg.body,
                 extracted_day: merged.hari,
                 extracted_time: merged.jam,
