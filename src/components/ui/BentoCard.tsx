@@ -59,23 +59,41 @@ export function BentoCard({
         <div className="absolute inset-0 bg-amber-500/[0.03] pointer-events-none" />
       )}
 
-      {/* Header section (Title, Icon, Badge) */}
-      {(title || icon || badge) && (
-        <div className="flex items-start justify-between mb-4 relative z-10">
-          <div className="flex items-center gap-2.5">
+      {/* Header section (Title, Icon, Tags, Badge) */}
+      {(title || icon || badge || (tags && tags.length > 0)) && (
+        <div className="flex items-start justify-between gap-3 mb-4 relative z-10">
+          <div className="flex items-center flex-wrap gap-2.5">
             {icon && (
               <div className="p-2 rounded-xl bg-white/5 text-white/70">
                 {icon}
               </div>
             )}
-            <div>
-              {title && <h3 className="font-display font-bold text-white tracking-tight text-base md:text-lg">{title}</h3>}
-              {subtitle && <p className="text-xs text-gray-400 font-sans mt-0.5">{subtitle}</p>}
-            </div>
+            
+            {(title || subtitle) && (
+              <div>
+                {title && <h3 className="font-display font-bold text-white tracking-tight text-base md:text-lg">{title}</h3>}
+                {subtitle && <p className="text-xs text-gray-400 font-sans mt-0.5">{subtitle}</p>}
+              </div>
+            )}
+
+            {/* Tags section inline with title */}
+            {tags && tags.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 mt-0.5 sm:mt-0">
+                {tags.map((tag, idx) => (
+                  <Badge 
+                    key={idx} 
+                    variant="secondary"
+                    className="bg-white/5 border-white/5 text-[11px] text-gray-400 font-sans font-normal truncate max-w-[150px] rounded-md px-2 py-0.5"
+                  >
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
           
           {badge && (
-            <Badge variant={badge.color as any} className="gap-1.5 font-sans">
+            <Badge variant={badge.color as any} className="gap-1.5 font-sans whitespace-nowrap shrink-0">
               {badge.dot && (
                 <span className="relative flex h-2 w-2">
                   <span className={cn(
@@ -91,21 +109,6 @@ export function BentoCard({
               {badge.label}
             </Badge>
           )}
-        </div>
-      )}
-
-      {/* Tags section */}
-      {tags && tags.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-4 relative z-10">
-          {tags.map((tag, idx) => (
-            <Badge 
-              key={idx} 
-              variant="secondary"
-              className="bg-white/5 border-white/5 text-[11px] text-gray-400 font-sans font-normal truncate max-w-[150px] rounded-md px-2 py-0.5"
-            >
-              {tag}
-            </Badge>
-          ))}
         </div>
       )}
 
