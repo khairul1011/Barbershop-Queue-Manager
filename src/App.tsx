@@ -571,8 +571,12 @@ export default function App() {
     try {
       await removeBarber(id);
       triggerToast(`Barber has been removed.`, 'info', 'Barber Deleted');
-    } catch (err) {
-      triggerToast(`Gagal menghapus kapster.`, 'error', 'Delete Failed');
+    } catch (err: any) {
+      if (err.code === '23503') {
+        triggerToast('Kapster terkait dengan Riwayat Antrean. Ubah statusnya menjadi "Off" untuk menyembunyikannya.', 'error', 'Tidak Bisa Dihapus');
+      } else {
+        triggerToast(err.message || `Gagal menghapus kapster.`, 'error', 'Delete Failed');
+      }
     }
   };
 
