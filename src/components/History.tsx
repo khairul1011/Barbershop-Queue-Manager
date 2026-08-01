@@ -92,7 +92,7 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
         </div>
 
         {/* Date Filter */}
-        <div className="relative flex items-center bg-[#0A0A0A] border border-border-subtle rounded-xl w-full sm:w-auto overflow-hidden">
+        <div className="relative flex items-center bg-[#0A0A0A] border border-border-subtle rounded-xl w-full sm:w-auto overflow-hidden shrink-0">
           <Popover>
             <PopoverTrigger asChild>
               <button
@@ -126,31 +126,28 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
             </button>
           )}
         </div>
+
+        {/* View Mode Toggle */}
+        <div className="flex items-center bg-[#0A0A0A] p-1 rounded-xl border border-border-subtle shrink-0 h-[46px] w-full sm:w-auto justify-center sm:justify-start mt-2 sm:mt-0">
+          <button
+            onClick={() => setViewMode('grid')}
+            className={`w-[44px] sm:w-[38px] h-[38px] rounded-lg transition-colors flex items-center justify-center ${viewMode === 'grid' ? 'bg-[#222222] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+            title="Mode Kartu"
+          >
+            <LayoutGrid size={18} />
+          </button>
+          <button
+            onClick={() => setViewMode('table')}
+            className={`w-[44px] sm:w-[38px] h-[38px] rounded-lg transition-colors flex items-center justify-center ${viewMode === 'table' ? 'bg-[#222222] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+            title="Mode Tabel"
+          >
+            <List size={18} />
+          </button>
+        </div>
       </div>
 
       {/* History List */}
       <div className="space-y-4">
-        {filteredEntries.length > 0 && (
-          <div className="flex items-center justify-end">
-            <div className="flex bg-[#0A0A0A] p-1 rounded-xl border border-border-subtle h-[36px]">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-1.5 rounded-lg transition-colors flex items-center justify-center ${viewMode === 'grid' ? 'bg-[#222222] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
-                title="Mode Kartu"
-              >
-                <LayoutGrid size={14} />
-              </button>
-              <button
-                onClick={() => setViewMode('table')}
-                className={`p-1.5 rounded-lg transition-colors flex items-center justify-center ${viewMode === 'table' ? 'bg-[#222222] text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
-                title="Mode Tabel"
-              >
-                <List size={14} />
-              </button>
-            </div>
-          </div>
-        )}
-        
         <AnimatePresence>
           {filteredEntries.length === 0 ? (
             <motion.div
