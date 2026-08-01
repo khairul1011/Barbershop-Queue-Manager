@@ -862,8 +862,8 @@ export default function Schedule({
               </div>
               <div className="flex flex-col text-left">
                 <span className="font-bold text-white text-base leading-none mb-1">{t('schedule.appointmentDetails')}</span>
-                <span className="text-xs text-gray-500 font-sans normal-case">
-                  {activeSlotDetails?.day} — {activeSlotDetails?.timeRange}
+                <span className="text-xs text-gray-400 font-sans normal-case">
+                  {activeSlotDetails?.day} <span className="mx-1">•</span> {activeSlotDetails?.timeRange.replace('~', '').trim()}
                 </span>
               </div>
             </DialogTitle>
@@ -872,7 +872,7 @@ export default function Schedule({
           {activeSlotDetails && (
             <div className="p-5 space-y-4">
               <div className="bg-[#121212] border border-zinc-850 p-4 rounded-xl space-y-1">
-                <div className="text-[9px] text-gray-500 uppercase font-mono font-bold">{t('schedule.customerName')}</div>
+                <div className="text-[10px] sm:text-xs text-gray-500 uppercase font-mono font-bold">{t('schedule.customerName')}</div>
                 <div className="text-base font-bold text-white flex items-center gap-2">
                   {activeSlotDetails.entry.customerName}
                   {activeSlotDetails.entry.queueNumber && <span className="text-[10px] bg-amber-500/10 text-amber-500 font-mono px-1.5 py-0.5 rounded">No. {activeSlotDetails.entry.queueNumber}</span>}
@@ -881,12 +881,12 @@ export default function Schedule({
               </div>
               <div className="grid grid-cols-2 gap-3.5">
                 <div className="bg-[#121212] border border-zinc-850 p-3 rounded-xl">
-                  <div className="text-[9px] text-gray-500 uppercase font-mono font-bold mb-1 flex items-center gap-1"><Scissors size={10} className="text-amber-500"/> {t('requests.service')}</div>
-                  <div className="text-xs font-semibold text-gray-200 truncate">{activeSlotDetails.entry.service}</div>
+                  <div className="text-[10px] sm:text-xs text-gray-500 uppercase font-mono font-bold mb-1 flex items-center gap-1.5"><Scissors size={12} className="text-amber-500"/> {t('requests.service')}</div>
+                  <div className="text-sm font-semibold text-gray-200 truncate">{activeSlotDetails.entry.service}</div>
                 </div>
                 <div className="bg-[#121212] border border-zinc-850 p-3 rounded-xl">
-                  <div className="text-[9px] text-gray-500 uppercase font-mono font-bold mb-1 flex items-center gap-1"><User size={10} className="text-teal-400"/> {t('schedule.assignedBarber')}</div>
-                  <div className="text-xs font-semibold text-gray-200 truncate">{activeSlotDetails.entry.barber}</div>
+                  <div className="text-[10px] sm:text-xs text-gray-500 uppercase font-mono font-bold mb-1 flex items-center gap-1.5"><User size={12} className="text-teal-400"/> {t('schedule.assignedBarber')}</div>
+                  <div className="text-sm font-semibold text-gray-200 truncate">{activeSlotDetails.entry.barber}</div>
                 </div>
               </div>
               
@@ -895,54 +895,70 @@ export default function Schedule({
                    <Button 
                      variant="default"
                      onClick={() => handleWhatsAppAction(activeSlotDetails.entry)} 
-                     className="w-full bg-emerald-500 hover:bg-emerald-600 text-black"
+                     className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-semibold"
                    >
-                     <MessageSquarePlus size={14} className="mr-1.5" /> {t('schedule.sendWhatsAppNudge')}
+                     <MessageSquarePlus size={16} className="mr-2" /> {t('schedule.sendWhatsAppNudge')}
                    </Button>
                  )}
                  <div className="flex flex-col gap-2">
                    {activeSlotDetails.entry.status === 'Estimated' && (
                      <div className="bg-[#121212] border border-zinc-850 p-3 rounded-xl flex items-center justify-between">
-                        <div className="text-[10px] text-gray-400 font-mono font-bold uppercase">{t('schedule.scheduledTime', 'Set Time')}</div>
+                        <div className="text-xs text-gray-400 font-mono font-bold uppercase">{t('schedule.scheduledTime', 'Set Time')}</div>
                         <input 
                           type="time" 
                           value={confirmTime}
                           onChange={(e) => setConfirmTime(e.target.value)}
-                          className="bg-[#1A1A1A] text-white text-sm font-bold p-1.5 rounded-lg border border-zinc-800 outline-none"
+                          className="bg-[#1A1A1A] text-white text-sm font-bold p-1.5 rounded-lg border border-zinc-800 outline-none focus:border-amber-500 transition-colors"
                         />
                      </div>
                    )}
                    <div className="flex gap-2 mt-2">
-                     <Button 
-                       variant="secondary"
-                       className="flex-1 text-emerald-400"
-                       onClick={() => { 
-                         if (activeSlotDetails.entry.status === 'Estimated') {
-                           if (!confirmTime) {
-                             alert('Silakan isi jam terlebih dahulu!');
-                             return;
+                     {(!activeSlotDetails.entry.completedAt && !activeSlotDetails.entry.startedAt) && (
+                       <Button 
+                         variant="secondary"
+                         className="flex-1 text-emerald-400 font-semibold h-11"
+                         onClick={() => { 
+                           if (activeSlotDetails.entry.status === 'Estimated') {
+                             if (!confirmTime) {
+                               alert('Silakan isi jam terlebih dahulu!');
+                               return;
+                             }
+                             onUpdateStatus(activeSlotDetails.entry.id, 'Confirmed', confirmTime);
+                           } else {
+                             onUpdateStatus(activeSlotDetails.entry.id, 'Confirmed');
                            }
-                           onUpdateStatus(activeSlotDetails.entry.id, 'Confirmed', confirmTime);
-                         } else {
-                           onUpdateStatus(activeSlotDetails.entry.id, 'Confirmed');
-                         }
-                         setActiveSlotDetails(null); 
-                         setConfirmTime('');
-                       }} 
-                     >
-                       <Check size={14} className="mr-1.5" /> {t('schedule.confirm')}
-                     </Button>
-                     <Button 
-                       variant="destructive"
-                       size="icon"
-                       onClick={() => { 
-                         onRemoveBooking && onRemoveBooking(activeSlotDetails.entry.id); 
-                         setActiveSlotDetails(null); 
-                         setConfirmTime('');
-                       }} 
-                     >
-                       <Trash2 size={14}/>
-                     </Button>
+                           setActiveSlotDetails(null); 
+                           setConfirmTime('');
+                         }} 
+                       >
+                         <Check size={16} className="mr-2" /> {activeSlotDetails.entry.status === 'Confirmed' ? 'Tutup & Simpan' : t('schedule.confirm')}
+                       </Button>
+                     )}
+                     {activeSlotDetails.entry.completedAt || activeSlotDetails.entry.startedAt ? (
+                       <Button 
+                         variant="secondary"
+                         className="flex-1 font-semibold h-11 text-gray-300"
+                         onClick={() => { 
+                           setActiveSlotDetails(null); 
+                           setConfirmTime('');
+                         }} 
+                       >
+                         Tutup
+                       </Button>
+                     ) : (
+                       <Button 
+                         variant="destructive"
+                         size="icon"
+                         className="h-11 w-11 shrink-0"
+                         onClick={() => { 
+                           onRemoveBooking && onRemoveBooking(activeSlotDetails.entry.id); 
+                           setActiveSlotDetails(null); 
+                           setConfirmTime('');
+                         }} 
+                       >
+                         <Trash2 size={16}/>
+                       </Button>
+                     )}
                    </div>
                  </div>
               </div>
