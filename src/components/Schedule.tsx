@@ -731,7 +731,7 @@ export default function Schedule({
                    <div 
                      key={idx} 
                      onClick={() => jumpToDate(md.fullDate)} 
-                     className={`bg-[#0A0A0A] hover:bg-zinc-900 min-h-[80px] sm:min-h-[100px] cursor-pointer transition-colors flex flex-col p-1.5 sm:p-2 gap-1 border-l-2 ${borderColor} ${md.isToday ? 'bg-zinc-900/60 ring-2 ring-inset ring-amber-500/40' : ''}`}
+                     className={`bg-[#0A0A0A] hover:bg-zinc-900 min-h-[80px] sm:min-h-[100px] cursor-pointer transition-colors flex flex-col p-1.5 sm:p-2 gap-1 border-l-2 ${borderColor} ${md.isToday ? 'bg-amber-500/5' : ''}`}
                    >
                      <div className="flex justify-between items-start w-full">
                        <div className="flex gap-0.5 flex-wrap flex-1 max-w-[60%] pt-1">
