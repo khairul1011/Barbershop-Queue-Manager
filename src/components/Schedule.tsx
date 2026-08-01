@@ -597,7 +597,7 @@ export default function Schedule({
                        <div className={`mt-1 flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full ${date.isToday ? 'bg-amber-500/10 text-amber-500 font-extrabold text-lg sm:text-xl' : 'text-white font-bold text-lg sm:text-xl'}`}>
                          {date.dayNum}
                        </div>
-                       <Button variant="ghost" size="sm" onClick={() => { setSelectedDay(date.day); setViewMode('Daily'); }} className="mt-2 sm:mt-3 text-[9px] uppercase tracking-wider text-gray-500 hover:text-amber-500 font-bold transition-colors">
+                       <Button variant="ghost" size="sm" onClick={() => { setSelectedDay(date.day); setViewMode('Daily'); }} className="mt-2 sm:mt-3 text-[10px] uppercase tracking-wider text-gray-500 hover:text-amber-500 font-bold transition-colors">
                          View
                        </Button>
                      </div>
@@ -606,7 +606,7 @@ export default function Schedule({
                      <div className="flex-1 p-3 sm:p-4 flex flex-col gap-2 relative min-w-0">
                        {dayEntries.length === 0 ? (
                          <div className="h-full flex items-center justify-center min-h-[60px]">
-                           <span className="text-xs text-zinc-500 italic">{t('schedule.noEntriesForDay')}</span>
+                           <span className="text-sm text-zinc-400 italic">{t('schedule.noEntriesForDay')}</span>
                          </div>
                        ) : (
                          <div className="flex flex-col gap-2">
@@ -630,20 +630,20 @@ export default function Schedule({
                                    <div className="flex items-center gap-2">
                                      <span className="font-bold text-sm text-white truncate">{e.customerName}</span>
                                      {isServing && (
-                                       <span className="text-[8px] font-black bg-violet-500/20 text-violet-400 border border-violet-500/30 px-1.5 py-0.5 rounded animate-pulse shrink-0">LIVE</span>
+                                       <span className="text-[10px] font-black bg-violet-500/20 text-violet-400 border border-violet-500/30 px-1.5 py-0.5 rounded animate-pulse shrink-0">LIVE</span>
                                      )}
                                      {isCompleted && (
-                                       <span className="text-[8px] font-bold bg-zinc-800 text-gray-400 px-1.5 py-0.5 rounded">DONE</span>
+                                       <span className="text-[10px] font-bold bg-zinc-800 text-gray-400 px-1.5 py-0.5 rounded">DONE</span>
                                      )}
                                    </div>
-                                   <div className="text-[10px] text-gray-400 flex items-center gap-2 truncate">
-                                     <span className="flex items-center gap-1 shrink-0"><User size={10}/> <span className="truncate max-w-[60px] sm:max-w-none">{e.barber}</span></span>
-                                     <span className="flex items-center gap-1 shrink-0"><Scissors size={10}/> <span className="truncate">{e.service}</span></span>
+                                   <div className="text-[11px] text-gray-400 flex items-center gap-2 truncate">
+                                     <span className="flex items-center gap-1 shrink-0"><User size={12}/> <span className="truncate max-w-[60px] sm:max-w-none">{e.barber}</span></span>
+                                     <span className="flex items-center gap-1 shrink-0"><Scissors size={12}/> <span className="truncate">{e.service}</span></span>
                                    </div>
                                  </div>
                                  <div className="flex flex-col items-end shrink-0 pl-2 sm:pl-4 border-l border-zinc-800">
-                                   <span className="font-mono text-[11px] font-bold text-gray-300">{e.timeRange.replace('~','').split('-')[0].trim()}</span>
-                                   <span className="font-mono text-[9px] text-gray-600">{e.timeRange.replace('~','').split('-')[1]?.trim() || ''}</span>
+                                   <span className="font-mono text-xs font-bold text-gray-300">{e.timeRange.replace('~','').split('-')[0].trim()}</span>
+                                   <span className="font-mono text-[10px] text-gray-500">{e.timeRange.replace('~','').split('-')[1]?.trim() || ''}</span>
                                  </div>
                                </div>
                              );
@@ -737,10 +737,10 @@ export default function Schedule({
                      
                      {firstEntry && (
                        <div className={`mt-auto flex flex-col gap-0.5 overflow-hidden ${isCompleted ? 'opacity-40 grayscale' : ''}`}>
-                         <span className="text-[9px] sm:text-[10px] font-semibold text-white truncate w-full leading-tight">
+                         <span className="text-[10px] sm:text-xs font-semibold text-white truncate w-full leading-tight">
                            {firstEntry.customerName}
                          </span>
-                         <span className="text-[8px] sm:text-[9px] font-mono text-gray-500">
+                         <span className="text-[9px] sm:text-[10px] font-mono text-gray-400">
                            {firstEntry.timeRange.replace('~','').split('-')[0].trim()}
                          </span>
                        </div>
