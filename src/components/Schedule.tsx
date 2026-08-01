@@ -201,8 +201,8 @@ export default function Schedule({
   });
 
   const getStatusBadgeStyles = (entry: QueueEntry) => {
-    if (entry.completedAt) {
-      return 'bg-zinc-800/80 text-gray-500 border border-zinc-700/50 opacity-60';
+    if (entry.completedAt || entry.status === 'Completed') {
+      return 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
     }
     if (entry.startedAt && !entry.completedAt) {
       return 'bg-violet-500/20 text-violet-300 border border-violet-500/50 shadow-[0_0_15px_rgba(139,92,246,0.15)] ring-1 ring-violet-500/50';
@@ -211,7 +211,6 @@ export default function Schedule({
       case 'Confirmed': return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
       case 'Estimated': return 'bg-amber-500/10 text-amber-500 border border-amber-500/20';
       case 'Pending Reply': return 'bg-sky-500/10 text-sky-400 border border-sky-500/20';
-      case 'Completed': return 'bg-zinc-800/80 text-gray-500 border border-zinc-700/50 opacity-60';
       default: return 'bg-gray-500/10 text-gray-400 border border-gray-500/20';
     }
   };
@@ -616,7 +615,8 @@ export default function Schedule({
                              const isServing = e.startedAt && !e.completedAt;
                              
                              let borderLeftColor = 'border-l-zinc-700';
-                             if (isServing) borderLeftColor = 'border-l-violet-500';
+                             if (isCompleted) borderLeftColor = 'border-l-blue-500';
+                             else if (isServing) borderLeftColor = 'border-l-violet-500';
                              else if (isConfirmed) borderLeftColor = 'border-l-emerald-500';
                              else if (e.status === 'Pending Reply') borderLeftColor = 'border-l-sky-500';
                              
@@ -624,7 +624,7 @@ export default function Schedule({
                                <div 
                                  key={e.id} 
                                  onClick={() => { setSelectedDay(date.day); setViewMode('Daily'); }} 
-                                 className={`p-2.5 sm:p-3 rounded-xl border border-zinc-800 bg-[#121212] border-l-[3px] ${borderLeftColor} text-xs flex justify-between items-center cursor-pointer hover:bg-zinc-800/50 transition-colors ${isCompleted ? 'opacity-50 grayscale' : ''}`}
+                                 className={`p-2.5 sm:p-3 rounded-xl border border-zinc-800 bg-[#121212] border-l-[3px] ${borderLeftColor} text-xs flex justify-between items-center cursor-pointer hover:bg-zinc-800/50 transition-colors ${isCompleted ? 'opacity-80' : ''}`}
                                >
                                  <div className="flex flex-col gap-1 min-w-0 flex-1 pr-2 sm:pr-4">
                                    <div className="flex items-center gap-2">
@@ -633,7 +633,7 @@ export default function Schedule({
                                        <span className="text-[10px] font-black bg-violet-500/20 text-violet-400 border border-violet-500/30 px-1.5 py-0.5 rounded animate-pulse shrink-0">LIVE</span>
                                      )}
                                      {isCompleted && (
-                                       <span className="text-[10px] font-bold bg-zinc-800 text-gray-400 px-1.5 py-0.5 rounded">DONE</span>
+                                       <span className="text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded">DONE</span>
                                      )}
                                    </div>
                                    <div className="text-[11px] text-gray-400 flex items-center gap-2 truncate">
@@ -706,7 +706,8 @@ export default function Schedule({
                  
                  let borderColor = 'border-l-transparent';
                  if (firstEntry) {
-                   if (isServing) borderColor = 'border-l-violet-500';
+                   if (isCompleted) borderColor = 'border-l-blue-500';
+                   else if (isServing) borderColor = 'border-l-violet-500';
                    else if (isConfirmed) borderColor = 'border-l-emerald-500';
                    else if (firstEntry.status === 'Pending Reply') borderColor = 'border-l-sky-500';
                    else borderColor = 'border-l-zinc-700';
@@ -722,7 +723,8 @@ export default function Schedule({
                        <div className="flex gap-0.5 flex-wrap flex-1 max-w-[60%] pt-1">
                          {dayEntries.slice(0, 3).map((e, i) => {
                            let dotColor = 'bg-zinc-600';
-                           if (e.startedAt && !e.completedAt) dotColor = 'bg-violet-400';
+                           if (e.completedAt || e.status === 'Completed') dotColor = 'bg-blue-400';
+                           else if (e.startedAt && !e.completedAt) dotColor = 'bg-violet-400';
                            else if (e.status === 'Confirmed') dotColor = 'bg-emerald-400';
                            else if (e.status === 'Pending Reply') dotColor = 'bg-sky-400';
                            else if (e.status === 'Estimated') dotColor = 'bg-amber-400';
@@ -736,7 +738,7 @@ export default function Schedule({
                      </div>
                      
                      {firstEntry && (
-                       <div className={`mt-auto flex flex-col gap-0.5 overflow-hidden ${isCompleted ? 'opacity-40 grayscale' : ''}`}>
+                       <div className={`mt-auto flex flex-col gap-0.5 overflow-hidden ${isCompleted ? 'opacity-80' : ''}`}>
                          <span className="text-[10px] sm:text-xs font-semibold text-white truncate w-full leading-tight">
                            {firstEntry.customerName}
                          </span>
