@@ -340,7 +340,7 @@ export default function Schedule({
           {hours.map(hour => (
             <div 
               key={hour} 
-              className="absolute w-full border-t border-zinc-900/40"
+              className="absolute w-full border-t border-zinc-800"
               style={{ top: (hour - businessHours.openHour) * 60 * PIXELS_PER_MINUTE }}
               onClick={() => {
                 setBookingSlot({ day, hour: `${hour.toString().padStart(2, '0')}:00`, barberName: barber.name });
@@ -470,8 +470,8 @@ export default function Schedule({
       {/* VIEWS */}
       <div className="flex flex-col">
         {viewMode === 'Daily' && (
-          <div className="flex flex-col bg-[#050505] border border-zinc-900 rounded-2xl overflow-hidden relative">
-            <div className="flex items-center justify-between p-3 border-b border-zinc-900 bg-[#0A0A0A]">
+          <div className="flex flex-col bg-[#050505] border border-zinc-800 rounded-2xl overflow-hidden relative">
+            <div className="flex items-center justify-between p-3 border-b border-zinc-800 bg-[#0A0A0A]">
               <div className="flex items-center gap-3">
                 <Button
                   variant="ghost"
@@ -510,7 +510,7 @@ export default function Schedule({
             </div>
 
             {/* Mobile Barber Tabs */}
-            <div className="flex lg:hidden border-b border-zinc-900 overflow-x-auto scrollbar-none bg-[#0A0A0A] sticky top-[64px] md:top-[72px] z-30">
+            <div className="flex lg:hidden border-b border-zinc-800 overflow-x-auto scrollbar-none bg-[#0A0A0A] sticky top-[64px] md:top-[72px] z-30">
               {activeBarbers.map((b, idx) => (
                 <Button
                   variant="ghost"
@@ -531,7 +531,7 @@ export default function Schedule({
             <div className="relative flex overflow-x-auto bg-[#0A0A0A]">
 
               {/* Time Axis */}
-              <div className="w-[60px] flex-none shrink-0 border-r border-zinc-900 bg-[#050505] sticky left-0 z-20 pt-[56px]"
+              <div className="w-[60px] flex-none shrink-0 border-r border-zinc-800 bg-[#050505] sticky left-0 z-20 pt-[56px]"
                    style={{ height: `calc(${(businessHours.closeHour - businessHours.openHour + 1) * 60 * PIXELS_PER_MINUTE}px + 56px)` }}>
                 {Array.from({ length: businessHours.closeHour - businessHours.openHour + 1 }, (_, i) => i + businessHours.openHour).map(hour => (
                   <div key={hour}
@@ -545,10 +545,10 @@ export default function Schedule({
               {/* Barber Columns — each owns its own header + grid */}
               {activeBarbers.map((b, idx) => (
                 <div key={b.id}
-                     className={`flex-1 min-w-[200px] flex flex-col border-r border-zinc-900/50 ${activeMobileBarberIndex === idx ? 'flex' : 'hidden lg:flex'}`}>
+                     className={`flex-1 min-w-[200px] flex flex-col border-r border-zinc-800 ${activeMobileBarberIndex === idx ? 'flex' : 'hidden lg:flex'}`}>
 
                   {/* Column Header */}
-                  <div className="h-[56px] flex flex-col items-center justify-center border-b border-zinc-900 bg-[#0A0A0A] shrink-0">
+                  <div className="h-[56px] flex flex-col items-center justify-center border-b border-zinc-800 bg-[#0A0A0A] shrink-0">
                     <div className="font-bold text-sm text-white">{b.name}</div>
                     <div className="text-[10px] text-gray-500 uppercase font-mono tracking-wider mt-0.5 flex justify-center gap-1">
                       {b.status === 'break' && <span className="text-amber-500">{t('overview.statusBreak')}</span>}
@@ -567,7 +567,7 @@ export default function Schedule({
         )}
 
         {viewMode === 'Weekly' && (
-          <div className="bg-[#050505] rounded-2xl border border-zinc-900 p-4 space-y-4">
+          <div className="bg-[#050505] rounded-2xl border border-zinc-800 p-4 space-y-4">
              <div className="flex items-center gap-3 mb-4">
                 <Button variant="secondary" size="icon" onClick={() => setWeekOffset(o => o - 1)}>
                   <ChevronLeft size={18}/>
@@ -589,10 +589,10 @@ export default function Schedule({
                  });
                  
                  return (
-                   <div key={date.day} className={`bg-[#0A0A0A] border rounded-2xl flex overflow-hidden ${date.isToday ? 'border-amber-500/50 shadow-lg shadow-amber-500/5 ring-1 ring-inset ring-amber-500/20' : 'border-zinc-800/80'}`}>
+                   <div key={date.day} className={`bg-[#0A0A0A] border rounded-2xl flex overflow-hidden ${date.isToday ? 'border-amber-500/50 shadow-lg shadow-amber-500/5 ring-1 ring-inset ring-amber-500/20' : 'border-zinc-800'}`}>
                      
                      {/* Left: Date Header */}
-                     <div className="w-[72px] sm:w-[80px] p-3 sm:p-4 flex flex-col items-center justify-center border-r border-zinc-900/80 bg-[#050505] shrink-0">
+                     <div className="w-[72px] sm:w-[80px] p-3 sm:p-4 flex flex-col items-center justify-center border-r border-zinc-800 bg-[#050505] shrink-0">
                        <div className="text-[10px] font-mono uppercase text-gray-500">{date.day}</div>
                        <div className={`mt-1 flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full ${date.isToday ? 'bg-amber-500/10 text-amber-500 font-extrabold text-lg sm:text-xl' : 'text-white font-bold text-lg sm:text-xl'}`}>
                          {date.dayNum}
