@@ -62,6 +62,7 @@ export default function Schedule({
   const [filterBarberId, setFilterBarberId] = useState<string>('all');
   const [filterServiceId, setFilterServiceId] = useState<string>('all');
   const [activeMobileBarberIndex, setActiveMobileBarberIndex] = useState<number>(0);
+  const [expandedWeeklyDays, setExpandedWeeklyDays] = useState<string[]>([]);
 
   // Modals state
   const [activeSlotDetails, setActiveSlotDetails] = useState<{ day: DayType; timeRange: string; entry: QueueEntry } | null>(null);
@@ -609,7 +610,7 @@ export default function Schedule({
                          </div>
                        ) : (
                          <div className="flex flex-col gap-2">
-                           {dayEntries.slice(0, 4).map(e => {
+                           {dayEntries.slice(0, expandedWeeklyDays.includes(date.fullDateString) ? undefined : 4).map(e => {
                              const isConfirmed = e.status === 'Confirmed';
                              const isCompleted = !!e.completedAt;
                              const isServing = e.startedAt && !e.completedAt;
@@ -649,18 +650,31 @@ export default function Schedule({
                              );
                            })}
                            
-                           {dayEntries.length > 4 && (
-                             <div className="flex items-center justify-center pt-1">
-                               <Button
-                                 variant="secondary"
-                                 size="sm"
-                                 onClick={() => { setSelectedDay(date.day); setViewMode('Daily'); }} 
-                                 className="rounded-full text-[10px]"
-                               >
-                                 + {dayEntries.length - 4} {t('schedule.moreEntries').replace('{n}', '').trim()}
-                               </Button>
-                             </div>
-                           )}
+                           {dayEntries.length > 4 && !expandedWeeklyDays.includes(date.fullDateString) && (
+                              <div className="flex items-center justify-center pt-1">
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={(e) => { e.stopPropagation(); setExpandedWeeklyDays(prev => [...prev, date.fullDateString]); }} 
+                                  className="rounded-full text-[10px]"
+                                >
+                                  + {dayEntries.length - 4} {t('schedule.moreEntries').replace('{n}', '').trim()}
+                                </Button>
+                              </div>
+                            )}
+
+                            {dayEntries.length > 4 && expandedWeeklyDays.includes(date.fullDateString) && (
+                              <div className="flex items-center justify-center pt-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => { e.stopPropagation(); setExpandedWeeklyDays(prev => prev.filter(d => d !== date.fullDateString)); }} 
+                                  className="rounded-full text-[10px] text-gray-500 hover:text-white"
+                                >
+                                  Sembunyikan
+                                </Button>
+                              </div>
+                            )}
                          </div>
                        )}
                      </div>
