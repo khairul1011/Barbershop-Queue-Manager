@@ -589,7 +589,7 @@ export default function Schedule({
                  });
                  
                  return (
-                   <div key={date.day} className={`bg-[#0A0A0A] border rounded-2xl flex overflow-hidden ${date.isToday ? 'border-amber-500/50 shadow-lg shadow-amber-500/5 ring-1 ring-inset ring-amber-500/20' : 'border-zinc-900'}`}>
+                   <div key={date.day} className={`bg-[#0A0A0A] border rounded-2xl flex overflow-hidden ${date.isToday ? 'border-amber-500/50 shadow-lg shadow-amber-500/5 ring-1 ring-inset ring-amber-500/20' : 'border-zinc-800/80'}`}>
                      
                      {/* Left: Date Header */}
                      <div className="w-[72px] sm:w-[80px] p-3 sm:p-4 flex flex-col items-center justify-center border-r border-zinc-900/80 bg-[#050505] shrink-0">
@@ -703,9 +703,9 @@ export default function Schedule({
                {DAYS_OF_WEEK.map(d => <div key={d} className="text-center text-xs font-mono font-bold text-gray-500 uppercase">{d}</div>)}
              </div>
              
-             <div className="grid grid-cols-7 gap-[1px] bg-zinc-900/50 rounded-xl overflow-hidden">
+             <div className="grid grid-cols-7 gap-[1px] bg-zinc-800 border border-zinc-800 rounded-xl overflow-hidden">
                {monthDays.map((md, idx) => {
-                 if (!md) return <div key={`empty-${idx}`} className="bg-[#050505] min-h-[80px] sm:min-h-[100px] opacity-30" />;
+                 if (!md) return <div key={`empty-${idx}`} className="bg-[#0A0A0A] min-h-[80px] sm:min-h-[100px] opacity-40" />;
                  const dayEntries = filteredEntries.filter(e => e.scheduledDate === md.fullDateString);
                  dayEntries.sort((a, b) => {
                    const startA = parseStartMinutes(a.timeRange) || 0;
@@ -731,7 +731,7 @@ export default function Schedule({
                    <div 
                      key={idx} 
                      onClick={() => jumpToDate(md.fullDate)} 
-                     className={`bg-[#0A0A0A] hover:bg-zinc-900 min-h-[80px] sm:min-h-[100px] cursor-pointer transition-colors flex flex-col p-1.5 sm:p-2 gap-1 border-l-2 ${borderColor} ${md.isToday ? 'bg-amber-500/5' : ''}`}
+                     className={`bg-[#121212] hover:bg-zinc-900/80 min-h-[80px] sm:min-h-[100px] cursor-pointer transition-colors flex flex-col p-1.5 sm:p-2 gap-1 border-l-2 ${borderColor} ${md.isToday ? 'bg-amber-500/10' : ''}`}
                    >
                      <div className="flex justify-between items-start w-full">
                        <div className="flex gap-0.5 flex-wrap flex-1 max-w-[60%] pt-1">
