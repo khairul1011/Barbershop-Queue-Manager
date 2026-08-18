@@ -15,6 +15,7 @@ export function useSupabaseBarbers() {
       const { data, error: supabaseError } = await supabase
         .from('barbers')
         .select('*')
+        .eq('archived', false)
         .order('name');
         
       if (supabaseError) throw supabaseError;
@@ -105,16 +106,21 @@ export function useSupabaseBarbers() {
     }
   };
 
+  // Soft delete: kapster diarsipkan (archived = true), bukan dihapus permanen
+  // dari database. Kapster yang sudah punya riwayat di queue_entries nggak
+  // bisa di-hard-delete (foreign key constraint) tanpa merusak riwayat
+  // antrean lama — soft delete ini konsisten menghindari itu tanpa perlu
+  // cek dulu apakah kapsternya punya riwayat atau nggak.
   const removeBarber = async (id: string) => {
     try {
       setError(null);
       const { error: supabaseError } = await supabase
         .from('barbers')
-        .delete()
+        .update({ archived: true })
         .eq('id', id);
-        
+
       if (supabaseError) throw supabaseError;
-      
+
       setBarbers(prev => prev.filter(b => b.id !== id));
     } catch (err) {
       console.error('Error removing barber:', err);

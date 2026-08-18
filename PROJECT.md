@@ -144,7 +144,7 @@ Lihat [Bagian 2 — Known Issues](#bagian-2--known-issues) untuk detail teknis d
 
 ### Relasi Data & Penghapusan Kapster (Soft Delete)
 - **Foreign Key Constraint**: Mengingat tabel kapster saling berelasi dengan tabel `queue_entries`, penghapusan profil kapster secara permanen (hard delete) dari database tidak diizinkan jika kapster tersebut telah memiliki riwayat layanan pelanggan.
-- **Solusi**: Diterapkan mekanisme **Soft Delete** (mengubah status menjadi 'off' atau 'hidden' di sisi UI) untuk menjaga integritas data riwayat transaksi lama kapster tersebut dan menghindari *error foreign key violation* (seperti `Code 23503`). Kapster yang berstatus 'off' tidak akan muncul lagi di kalender antrian maupun pilihan dropdown form.
+- **Solusi**: Diterapkan mekanisme **Soft Delete** lewat kolom `archived boolean` (bukan reuse kolom `status` yang dipakai buat toggle harian Active/Break/Off) — tombol hapus kapster di Settings sekarang selalu `UPDATE archived = true`, nggak pernah hard-delete lagi, jadi riwayat transaksi lama tetap utuh dan nggak ada lagi *error foreign key violation* (`Code 23503`). Kapster yang `archived = true` difilter di level query (`fetchBarbers`), jadi otomatis nggak muncul di Settings, kalender antrian, maupun dropdown form manapun.
 
 ---
 
@@ -256,14 +256,18 @@ Grid pada **Schedule → Daily View** sebelumnya mengalami mis-alignment antara 
 - Sudah dites langsung end-to-end: approve & reject dari dashboard, keduanya berhasil kirim WhatsApp ke nomor asli dalam hitungan detik.
 - **Update:** ditemukan 1 kasus gagal kirim di log produksi — `[NOTIFY ERROR] No LID for user`, walau `sender_phone`-nya valid. Root cause: rekonstruksi `${sender_phone}@c.us` nggak selalu bisa dipakai buat kirim pesan BARU (beda dari `msg.reply()` yang jalan di dalam thread chat yang sudah ada) — sebagian kontak cuma bisa dikirimi lewat ID chat yang PERSIS sama dengan yang dipakai pas percakapan pertama kali. **Solusi:** tambah kolom `sender_wa_id` yang menyimpan `msg.from` mentah pas booking pertama disimpan ke DB, lalu `notifyStatusChange()` prioritaskan kolom ini sebagai target kirim (fallback ke rekonstruksi `@c.us` buat baris lama dari sebelum kolom ini ada).
 
+### Gagal Menghapus Kapster (Foreign Key Constraint `queue_entries`)
+**File:** `src/hooks/useSupabaseBarbers.ts`, `src/App.tsx`
+**Status:** FIXED.
+- `removeBarber()` sebelumnya `.delete()` langsung ke tabel `barbers`. Kapster yang udah pernah dijadwalkan (punya baris di `queue_entries`) bikin Postgres nolak dengan error `23503` (foreign key violation), dan yang dilakuin cuma nangkep error itu terus nyuruh user manual ubah status kapster ke "Off" lewat toast — bukan fix beneran, cuma workaround yang harus diinget manual tiap kali.
+- **Solusi:** soft delete permanen (bukan hard-delete-lalu-fallback). Tambah kolom `archived boolean default false` di tabel `barbers`; `removeBarber()` sekarang selalu `UPDATE barbers SET archived = true` (nggak pernah `.delete()` lagi), dan `fetchBarbers()` filter `.eq('archived', false)` biar kapster yang udah "dihapus" nggak nongol lagi di mana pun (Settings, Schedule, dropdown). Riwayat lama di `queue_entries` tetap utuh karena baris kapsternya nggak pernah beneran ilang dari database.
+- **Catatan:** field ini beda dari `status` ('active'/'break'/'off') yang udah ada — itu toggle harian (kapster libur hari ini), `archived` khusus buat "kapster udah nggak dipakai lagi / dihapus permanen". Jangan disatuin, biar nggak ketuker kapster yang cuma libur sehari dengan yang beneran keluar.
+
 ---
 
 ## 🔴 Kritis (blocker fungsional)
 
-### 1. Gagal Menghapus Kapster (Foreign Key Constraint `queue_entries`)
-**Error Code:** `23503` (update or delete on table "barbers" violates foreign key constraint "queue_entries_barber_id_fkey" on table "queue_entries")
-**Dampak:** Pengguna tidak bisa menghapus kapster dari *database* (Supabase/Postgres) jika kapster tersebut masih terkait/dijadikan referensi oleh data antrian (`queue_entries`).
-**Solusi (Opsi Terpilih):** Menerapkan mekanisme **Soft Delete** (opsi 3 pada pembahasan sebelumnya) dengan mengubah status kapster menjadi `off` atau disembunyikan di UI, alih-alih menghapus baris dari *database*, untuk menjaga integritas riwayat antrian dan mencegah error.
+Tidak ada saat ini.
 
 ---
 
@@ -286,6 +290,7 @@ Logika `startMinutes = ... + 15` antar walk-in mengasumsikan gap tetap 15 menit 
 - [x] Perbaiki bot spam balasan dobel saat restart + tambah jeda balasan natural
 - [x] Notifikasi WhatsApp otomatis ke customer saat kapster approve/reject booking
 - [x] Perbaiki `sender_phone` yang kadang tersimpan sebagai `@lid`
+- [x] Perbaiki gagal hapus kapster (foreign key constraint) lewat soft delete
 - [ ] Demo ke kapster asli, kumpulkan feedback alur UX (lihat [§10 Bagian 1](#10-metrik-keberhasilan-definisi-berhasil-untuk-experiment-ini) — belum divalidasi di lapangan)
 
 ---
