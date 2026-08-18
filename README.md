@@ -61,8 +61,8 @@ npm start
 Scan QR code yang muncul di terminal dengan WhatsApp di HP Anda (Linked Devices). Sesi login tersimpan lokal di `.wwebjs_auth/`, jadi tidak perlu scan ulang setiap kali dijalankan.
 
 ## 📜 Dokumentasi Proyek
-- [PRD.md](PRD.md): Dokumen Kebutuhan Produk (_Product Requirements Document_) lengkap.
-- [KNOWN_ISSUES.md](KNOWN_ISSUES.md): Daftar kendala teknis, bug yang sudah diselesaikan, dan item _backlog_ yang direncanakan.
+- [PROJECT.md](PROJECT.md): Dokumen Kebutuhan Produk (_PRD_) + daftar kendala teknis (_known issues_) — digabung jadi satu biar nggak berserakan.
+- [CLAUDE.md](CLAUDE.md): Panduan teknis untuk AI coding agent yang kerja di repo ini — arsitektur, gotcha kode, cara deploy.
 
 ---
-_Proyek ini adalah eksperimen pribadi. UI dashboard dan backend (WhatsApp + Gemini + Supabase) sudah berjalan; tahap sekarang adalah validasi pemakaian harian oleh kapster asli — lihat KNOWN_ISSUES.md._
+_Proyek ini adalah eksperimen pribadi. UI dashboard dan backend (WhatsApp + Gemini + Supabase) sudah berjalan; tahap sekarang adalah validasi pemakaian harian oleh kapster asli — lihat [PROJECT.md](PROJECT.md)._
