@@ -254,6 +254,7 @@ Grid pada **Schedule → Daily View** sebelumnya mengalami mis-alignment antara 
 - Idempotency-nya sengaja disimpan di **kolom database baru** (`status_notified boolean`), bukan state in-memory — pelajaran langsung dari insiden spam balasan dobel sebelumnya, di mana state in-memory nggak tahan restart. Ada juga **catch-up scan** saat bot baru nyala (`client.on('ready')`) buat nyusulin notifikasi kalau kebetulan bot lagi mati pas kapster approve/reject.
 - Migrasi tambah kolom `status_notified` dijalankan manual lewat Supabase SQL Editor (anon key nggak bisa DDL), termasuk backfill `status_notified = true` untuk semua riwayat approved/rejected lama biar nggak ke-notifikasi ulang secara nggak sengaja.
 - Sudah dites langsung end-to-end: approve & reject dari dashboard, keduanya berhasil kirim WhatsApp ke nomor asli dalam hitungan detik.
+- **Update:** ditemukan 1 kasus gagal kirim di log produksi — `[NOTIFY ERROR] No LID for user`, walau `sender_phone`-nya valid. Root cause: rekonstruksi `${sender_phone}@c.us` nggak selalu bisa dipakai buat kirim pesan BARU (beda dari `msg.reply()` yang jalan di dalam thread chat yang sudah ada) — sebagian kontak cuma bisa dikirimi lewat ID chat yang PERSIS sama dengan yang dipakai pas percakapan pertama kali. **Solusi:** tambah kolom `sender_wa_id` yang menyimpan `msg.from` mentah pas booking pertama disimpan ke DB, lalu `notifyStatusChange()` prioritaskan kolom ini sebagai target kirim (fallback ke rekonstruksi `@c.us` buat baris lama dari sebelum kolom ini ada).
 
 ---
 

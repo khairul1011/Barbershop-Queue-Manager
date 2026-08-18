@@ -247,12 +247,16 @@ async function resolveRealPhone(waId) {
 }
 
 // Kirim notifikasi WhatsApp ke customer saat kapster approve/reject booking
-// dari dashboard. `sender_phone` sekarang reliable bersih (berkat
-// resolveRealPhone di atas), jadi tinggal disambung `@c.us` buat jadi chat ID
-// tujuan — nggak perlu simpan kolom chat-ID terpisah.
+// dari dashboard. Prioritaskan `sender_wa_id` (ID chat mentah persis yang
+// dipakai pas percakapan awal, mis. "628xxx@c.us" ATAU "628xxx@lid") sebagai
+// target kirim — beberapa kontak WhatsApp cuma bisa dikirimi lewat ID yang
+// sama persis dengan yang dipakai chat pertama kali, rekonstruksi ulang
+// "{sender_phone}@c.us" dari nomor bersih bisa gagal dengan error
+// "No LID for user" walau nomornya valid. Fallback ke rekonstruksi @c.us
+// tetap dipertahankan buat baris lama (sebelum kolom ini ada).
 async function notifyStatusChange(row) {
-  if (!row.sender_phone) {
-    console.error('[NOTIFY SKIP] sender_phone kosong, tidak bisa kirim notifikasi | id:', row.id);
+  if (!row.sender_wa_id && !row.sender_phone) {
+    console.error('[NOTIFY SKIP] sender_wa_id & sender_phone kosong, tidak bisa kirim notifikasi | id:', row.id);
     return;
   }
 
@@ -269,7 +273,7 @@ async function notifyStatusChange(row) {
     return; // status lain (mis. 'pending') — bukan urusan fungsi ini
   }
 
-  const chatId = `${row.sender_phone}@c.us`;
+  const chatId = row.sender_wa_id || `${row.sender_phone}@c.us`;
 
   try {
     await sendMessageWithDelay(chatId, text);
@@ -525,6 +529,7 @@ client.on('message', async msg => {
               const { error } = await supabase.from('whatsapp_requests').insert({
                 sender_name: merged.nama,
                 sender_phone: realPhone,
+                sender_wa_id: msg.from,
                 raw_message: msg.body,
                 extracted_day: merged.hari,
                 extracted_time: merged.jam,
