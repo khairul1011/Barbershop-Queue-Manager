@@ -358,6 +358,7 @@ export default function App() {
   const handleRejectRequest = async (id: string) => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
+    if (!window.confirm('Yakin mau tolak request booking ini? Customer akan langsung dapat notifikasi WhatsApp penolakan.')) return;
 
     try {
       await rejectRequest(id);
@@ -519,6 +520,7 @@ export default function App() {
 
   // Callback: Remove custom service
   const handleRemoveService = async (id: string) => {
+    if (!window.confirm('Yakin mau hapus layanan ini?')) return;
     try {
       await removeService(id);
       triggerToast(`Layanan dihapus dari daftar pilihan.`, 'info', 'Service Deleted');
