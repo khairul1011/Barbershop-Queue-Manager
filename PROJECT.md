@@ -20,7 +20,6 @@
 **[Bagian 2 — Known Issues](#bagian-2--known-issues)**
 - [✅ Sudah Diselesaikan](#-sudah-diselesaikan)
 - [🔴 Kritis](#-kritis-blocker-fungsional)
-- [🟡 Penting](#-penting-belum-blocker-tapi-sebaiknya-dibereskan-sebelum-pemakaian-harian)
 - [🟢 Rendah](#-rendah-nice-to-have-bukan-prioritas-sekarang)
 - [Checklist sebelum pemakaian harian](#checklist-sebelum-pemakaian-harian-oleh-kapster-asli-dimulai)
 - [🔵 Batasan Desain](#-batasan-desain-by-design)
@@ -240,6 +239,12 @@ Grid pada **Schedule → Daily View** sebelumnya mengalami mis-alignment antara 
 - **Solusi:** (1) pesan dengan timestamp lebih tua dari waktu proses mulai jalan (`BOT_START_TIME`) langsung diabaikan, (2) ID pesan yang sudah diproses dilacak sebagai jaring pengaman tambahan, (3) `replyAndSaveHistory` sekarang nunjukin indikator "mengetik" + jeda acak 1.5–7 detik (skala sesuai panjang teks) sebelum benar-benar kirim, biar nggak kelihatan kayak bot yang balas instan. Sudah dites langsung lewat chat WA nyata — cuma satu balasan per pesan, tidak spam lagi.
 - **Catatan:** indikator "mengetik" (`sendStateTyping()`) kadang nggak kelihatan di sisi customer meski nggak error — kemungkinan keterbatasan `whatsapp-web.js` (library nggak resmi) terhadap kontak berformat `@lid` (fitur privasi WhatsApp lebih baru). Jeda balasannya sendiri tetap jalan normal; ini cuma soal visual "mengetik"-nya, bukan fungsi utamanya.
 
+### `sender_phone` di `whatsapp_requests` kadang tersimpan sebagai ID `@lid`, bukan nomor asli
+**File:** `server/index.js`
+**Status:** FIXED.
+- `msg.getContact().number` cuma baca dari cache kontak lokal `whatsapp-web.js`, yang buat kontak yang belum "dikenal" sebelumnya (khususnya ber-`@lid`) sering belum terisi — diam-diam fallback ke ID `@lid` mentah yang tersimpan sebagai `sender_phone`, bikin booking itu nggak bisa ditelepon balik. Dikonfirmasi lewat query langsung ke Supabase: sekitar separuh entri `whatsapp_requests` terakhir kena masalah ini.
+- **Solusi:** ganti ke `client.getContactLidAndPhone()` (method yang ditambahin khusus untuk kasus ini di `whatsapp-web.js` 1.34.x) — dia maksa query ulang ke server WhatsApp (`window.Store.QueryExist`) kalau nomornya belum ke-cache, alih-alih langsung nyerah. Logika strip manual yang lama tetap dipertahankan sebagai fallback terakhir kalau method ini somehow gagal juga.
+
 ---
 
 ## 🔴 Kritis (blocker fungsional)
@@ -251,27 +256,9 @@ Grid pada **Schedule → Daily View** sebelumnya mengalami mis-alignment antara 
 
 ---
 
-## 🟡 Penting (belum blocker, tapi sebaiknya dibereskan sebelum pemakaian harian)
-
-### 2. `sender_phone` di `whatsapp_requests` kadang tersimpan sebagai ID `@lid`, bukan nomor asli
-**File:** `server/index.js` (bagian penyimpanan booking ke Supabase)
-
-Nomor pengirim WhatsApp sekarang bisa muncul dalam format `@lid` (Linked ID — fitur privasi WhatsApp yang menyembunyikan nomor asli). Kode sudah mencoba resolve nomor asli lewat `msg.getContact().number`, dengan fallback ke string `@lid` mentah kalau gagal:
-
-```js
-const contact = await msg.getContact();
-const realPhone = contact.number || msg.from.replace('@c.us', '').replace('@lid', '');
-```
-
-**Dampak:** dicek langsung ke tabel `whatsapp_requests` di Supabase, hasilnya *tidak konsisten* — sebagian entri tersimpan nomor asli (contoh: `62745210781845`), sebagian lagi cuma tersimpan `62745210781845@lid`. Kalau yang tersimpan itu ID `@lid`, kapster **tidak bisa menelepon balik** customer itu dari data yang ada.
-
-**Belum diperbaiki** — perlu diselidiki dulu kenapa `contact.number` kadang gagal resolve (mungkin terkait timing pemanggilan `getContact()`, versi `whatsapp-web.js`, atau memang keterbatasan dari sisi WhatsApp sendiri untuk kontak `@lid`).
-
----
-
 ## 🟢 Rendah (nice-to-have, bukan prioritas sekarang)
 
-### 3. `handleAddWalkIn` — estimasi waktu mulai antrian jalan sederhana (gap tetap 15 menit)
+### 2. `handleAddWalkIn` — estimasi waktu mulai antrian jalan sederhana (gap tetap 15 menit)
 Logika `startMinutes = ... + 15` antar walk-in mengasumsikan gap tetap 15 menit tanpa mempertimbangkan durasi servis sebelumnya secara akurat di semua kasus. Cukup untuk MVP, tapi perlu direview kalau kompleksitas antrian bertambah (multi-kapster paralel, dll).
 
 ---
@@ -286,13 +273,13 @@ Logika `startMinutes = ... + 15` antar walk-in mengasumsikan gap tetap 15 menit 
 - [x] Bersihkan kode mati (`server/api.js`+`db.js`+`server.js`, `mockData.ts`, boilerplate `.env.example`)
 - [x] Auto-deploy backend ke VPS lewat GitHub Actions — nggak perlu `git pull` manual lagi tiap ubah `server/`
 - [x] Perbaiki bot spam balasan dobel saat restart + tambah jeda balasan natural
-- [ ] Perbaiki `sender_phone` yang kadang tersimpan sebagai `@lid` (lihat item #2 di atas)
+- [x] Perbaiki `sender_phone` yang kadang tersimpan sebagai `@lid`
 - [ ] Demo ke kapster asli, kumpulkan feedback alur UX (lihat [§10 Bagian 1](#10-metrik-keberhasilan-definisi-berhasil-untuk-experiment-ini) — belum divalidasi di lapangan)
 
 ---
 
 ## 🔵 Batasan Desain (By Design)
 
-### 4. Barber Duty Status Edge Case
+### 3. Barber Duty Status Edge Case
 - **Kapster Berubah Status ke 'Off' Saat Sedang Melayani**: Saat ini, jika kapster memiliki sesi pelanggan yang sedang berjalan (di kursi aktif) dan statusnya diubah dari 'Active' menjadi 'Off' via menu Settings, sistem tidak akan secara otomatis menghentikan atau menghapus sesi tersebut.
 - **Perilaku (Behavior)**: Sesi akan dibiarkan tetap berjalan hingga selesai secara natural (hingga ditekan tombol 'Complete Session'). Ini adalah **keputusan desain yang sadar (by design)** untuk mencegah hilangnya data pelanggan yang terlanjur duduk di kursi secara tidak sengaja (misalnya karena salah klik), dan bukan merupakan bug yang terlewat.
