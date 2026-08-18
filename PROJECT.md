@@ -263,6 +263,21 @@ Grid pada **Schedule → Daily View** sebelumnya mengalami mis-alignment antara 
 - **Solusi:** soft delete permanen (bukan hard-delete-lalu-fallback). Tambah kolom `archived boolean default false` di tabel `barbers`; `removeBarber()` sekarang selalu `UPDATE barbers SET archived = true` (nggak pernah `.delete()` lagi), dan `fetchBarbers()` filter `.eq('archived', false)` biar kapster yang udah "dihapus" nggak nongol lagi di mana pun (Settings, Schedule, dropdown). Riwayat lama di `queue_entries` tetap utuh karena baris kapsternya nggak pernah beneran ilang dari database.
 - **Catatan:** field ini beda dari `status` ('active'/'break'/'off') yang udah ada — itu toggle harian (kapster libur hari ini), `archived` khusus buat "kapster udah nggak dipakai lagi / dihapus permanen". Jangan disatuin, biar nggak ketuker kapster yang cuma libur sehari dengan yang beneran keluar.
 
+### Row Level Security (RLS) mati di semua tabel Supabase
+**File:** Database Supabase (`public.*`), bukan kode aplikasi.
+**Status:** FIXED (sebagian).
+- Semua 6 tabel (`barbers`, `services`, `whatsapp_requests`, `queue_entries`, `business_hours`, `barber_time_off`) nggak punya RLS aktif — ketauan dari Supabase security advisor (level `ERROR`). Karena frontend ngobrol langsung ke Supabase pakai anon/publishable key yang emang secara desain nempel publik di JS bundle browser, RLS mati berarti siapa pun yang nemu URL dashboard-nya bisa baca DAN tulis/hapus SEMUA baris di SEMUA tabel lewat DevTools, termasuk data pribadi pelanggan (nama, nomor WA) di `whatsapp_requests`, tanpa perlu login (dashboard-nya emang belum ada sistem login).
+- **Solusi:** RLS diaktifkan di keenam tabel, dengan policy per role `anon` yang dipetain persis dari operasi yang beneran dipakai kode (dicek semua `.from()` call di `src/hooks/*.ts` dan `server/index.js`) — misal `whatsapp_requests` cuma dikasih SELECT/INSERT/UPDATE (nggak ada DELETE, karena nggak ada kode yang butuh itu), `services` cuma SELECT/INSERT/DELETE (nggak ada UPDATE, UI-nya emang nggak punya edit inline). Prinsipnya least-privilege di level operasi, bukan di level identitas pengguna (karena belum ada auth).
+- **Kenapa cuma "sebagian" fixed:** ini nutup celah "operasi yang nggak semestinya" (mis. hapus massal data pelanggan), tapi BELUM nutup celah "siapa aja bisa baca data pelanggan" — itu butuh sistem login/auth beneran di dashboard yang membedakan staff vs publik, yang belum ada sama sekali di aplikasi ini. Ini perbaikan pertama yang aman diterapkan tanpa bikin app/bot berhenti fungsi, bukan solusi privasi data yang final.
+- Migrasi `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` + `CREATE POLICY` dijalankan manual lewat Supabase SQL Editor (DDL security setting, di luar kewenangan otomatis Claude Code). Diverifikasi lewat Supabase advisor (`get_advisors` nol temuan security setelahnya) dan tes langsung di dashboard + cek log bot — keduanya tetap jalan normal.
+
+### Gagal Menghapus Layanan (Foreign Key Constraint `queue_entries`) — bug yang sama kayak kapster
+**File:** `src/hooks/useSupabaseServices.ts`
+**Status:** FIXED.
+- Ketauan pas audit struktur database: `removeService()` masih `.delete()` langsung ke tabel `services`, persis pola bug kapster sebelum diperbaiki. Dikonfirmasi 100% reproducible — ketiga layanan yang ada sekarang (Potong Rambut, Potong + Cuci, Cukur Jenggot) semuanya udah dipakai di riwayat `queue_entries` (55 baris), jadi coba hapus layanan apa pun dari Settings pasti kena error `23503`, dan nggak ada penanganan khusus buat itu (cuma toast generik "Gagal menghapus layanan" tanpa penjelasan).
+- **Solusi:** pola soft delete yang sama kayak kapster — kolom `archived boolean default false` di tabel `services`, `removeService()` sekarang `UPDATE archived = true` (bukan `.delete()`), `fetchServices()` filter `.eq('archived', false)`. RLS policy `services` juga disesuaikan (`DELETE` dicabut karena udah nggak kepake, ganti jadi `UPDATE`).
+- Dites langsung: soft-delete salah satu dari 3 layanan yang beneran dipakai 55 booking — berhasil, ilang dari listing, riwayat `queue_entries` lama tetap utuh tanpa error.
+
 ---
 
 ## 🔴 Kritis (blocker fungsional)
@@ -291,6 +306,8 @@ Logika `startMinutes = ... + 15` antar walk-in mengasumsikan gap tetap 15 menit 
 - [x] Notifikasi WhatsApp otomatis ke customer saat kapster approve/reject booking
 - [x] Perbaiki `sender_phone` yang kadang tersimpan sebagai `@lid`
 - [x] Perbaiki gagal hapus kapster (foreign key constraint) lewat soft delete
+- [x] Aktifkan Row Level Security di semua tabel Supabase (least-privilege, belum ada auth dashboard)
+- [x] Perbaiki gagal hapus layanan (foreign key constraint) lewat soft delete
 - [ ] Demo ke kapster asli, kumpulkan feedback alur UX (lihat [§10 Bagian 1](#10-metrik-keberhasilan-definisi-berhasil-untuk-experiment-ini) — belum divalidasi di lapangan)
 
 ---

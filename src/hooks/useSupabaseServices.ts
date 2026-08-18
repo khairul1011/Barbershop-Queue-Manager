@@ -15,6 +15,7 @@ export function useSupabaseServices() {
       const { data, error: supabaseError } = await supabase
         .from('services')
         .select('*')
+        .eq('archived', false)
         .order('name');
         
       if (supabaseError) throw supabaseError;
@@ -68,16 +69,19 @@ export function useSupabaseServices() {
     }
   };
 
+  // Soft delete: layanan diarsipkan (archived = true), bukan dihapus
+  // permanen — layanan yang udah pernah dipakai di queue_entries nggak bisa
+  // di-hard-delete (foreign key constraint) tanpa merusak riwayat antrean lama.
   const removeService = async (id: string) => {
     try {
       setError(null);
       const { error: supabaseError } = await supabase
         .from('services')
-        .delete()
+        .update({ archived: true })
         .eq('id', id);
-        
+
       if (supabaseError) throw supabaseError;
-      
+
       setServices(prev => prev.filter(s => s.id !== id));
     } catch (err) {
       console.error('Error removing service:', err);
