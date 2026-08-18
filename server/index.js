@@ -202,6 +202,25 @@ client.on('qr', qr => qrcode.generate(qr, { small: true }));
 client.on('ready', () => console.log('Client is ready!'));
 client.on('message', msg => console.log('[RAW EVENT]', msg.from, msg.type, msg.body));
 
+// Resolve nomor telepon asli dari sebuah WA ID (bisa berupa @c.us atau @lid).
+// contact.number/msg.getContact() cuma andalkan cache lokal, jadi untuk kontak
+// yang belum pernah "dikenal" sebelumnya (khususnya kontak ber-@lid), dia
+// sering gagal resolve dan balik ke @lid mentah. getContactLidAndPhone()
+// memaksa query ulang ke server WhatsApp kalau nomornya belum diketahui,
+// jadi hasilnya jauh lebih konsisten. Tetap ada fallback manual kalau
+// method ini somehow gagal juga (mis. WhatsApp belum sempat resolve LID-nya).
+async function resolveRealPhone(waId) {
+  try {
+    const [result] = await client.getContactLidAndPhone(waId);
+    if (result && result.pn) {
+      return result.pn.replace('@c.us', '').replace('@s.whatsapp.net', '');
+    }
+  } catch (err) {
+    console.error('[RESOLVE PHONE ERROR]', err.message, '| target:', waId);
+  }
+  return waId.replace('@c.us', '').replace('@lid', '');
+}
+
 client.on('message', async msg => {
   // Housekeeping: hapus state yang usianya lebih dari 30 menit
   const now = Date.now();
@@ -381,8 +400,7 @@ client.on('message', async msg => {
             await replyAndSaveHistory(msg, `Sip kak! Booking sudah lengkap:\n\nHari: ${merged.hari}\nJam: ${merged.jam}\nServis: ${merged.servis}\nKapster: ${finalKapster}\nNama: ${merged.nama}\n\nTerima kasih, ditunggu kedatangannya!`);
 
             try {
-              const contact = await msg.getContact();
-              const realPhone = contact.number || msg.from.replace('@c.us', '').replace('@lid', '');
+              const realPhone = await resolveRealPhone(msg.from);
               
               const finalService = `${merged.servis}|BARBER:${finalKapster}`;
               const { error } = await supabase.from('whatsapp_requests').insert({
