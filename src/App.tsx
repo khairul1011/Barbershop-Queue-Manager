@@ -14,6 +14,16 @@ import SettingsView from './components/Settings';
 import HistoryTab from './components/History.tsx';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import { DotPattern } from './components/ui/dot-pattern';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel
+} from './components/ui/alert-dialog';
 import { useTranslation } from './i18n';
 import { QueueEntry, WhatsAppRequest, Barber, Service, QueueStatus } from './types';
 import {
@@ -61,6 +71,19 @@ export default function App() {
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 4500);
+  };
+
+  // Confirmation Dialog System (pengganti window.confirm() bawaan browser,
+  // biar konsisten sama tema gelap aplikasi alih-alih dialog native OS)
+  interface ConfirmRequest {
+    message: string;
+    confirmLabel: string;
+    onConfirm: () => void;
+  }
+  const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(null);
+
+  const requestConfirm = (message: string, onConfirm: () => void, confirmLabel: string = 'Ya, Lanjutkan') => {
+    setConfirmRequest({ message, onConfirm, confirmLabel });
   };
 
   // Live clock state
@@ -358,14 +381,19 @@ export default function App() {
   const handleRejectRequest = async (id: string) => {
     const request = requests.find(r => r.id === id);
     if (!request) return;
-    if (!window.confirm('Yakin mau tolak request booking ini? Customer akan langsung dapat notifikasi WhatsApp penolakan.')) return;
 
-    try {
-      await rejectRequest(id);
-      triggerToast(`Request booking dari ${request.senderName} ditolak.`, 'info', 'Request Declined');
-    } catch (err: any) {
-      triggerToast('Gagal mengubah status di server.', 'error', 'Update Failed');
-    }
+    requestConfirm(
+      'Yakin mau tolak request booking ini? Customer akan langsung dapat notifikasi WhatsApp penolakan.',
+      async () => {
+        try {
+          await rejectRequest(id);
+          triggerToast(`Request booking dari ${request.senderName} ditolak.`, 'info', 'Request Declined');
+        } catch (err: any) {
+          triggerToast('Gagal mengubah status di server.', 'error', 'Update Failed');
+        }
+      },
+      'Ya, Tolak'
+    );
   };
 
   // Callback: Edit WhatsApp Request before approval
@@ -419,20 +447,21 @@ export default function App() {
   };
 
   const handleRemoveBooking = async (id: string) => {
-    if (!window.confirm('Yakin mau batalkan booking ini?')) return;
     const entry = queue.find(q => q.id === id);
     if (!entry) return;
-    
-    try {
-      await removeQueueEntry(id);
-      triggerToast(
-        `Janji temu ${entry.customerName} pada ${entry.day} telah dibatalkan.`,
-        'info',
-        'Booking Cancelled'
-      );
-    } catch (err) {
-      triggerToast('Gagal membatalkan booking.', 'error', 'Delete Failed');
-    }
+
+    requestConfirm('Yakin mau batalkan booking ini?', async () => {
+      try {
+        await removeQueueEntry(id);
+        triggerToast(
+          `Janji temu ${entry.customerName} pada ${entry.day} telah dibatalkan.`,
+          'info',
+          'Booking Cancelled'
+        );
+      } catch (err) {
+        triggerToast('Gagal membatalkan booking.', 'error', 'Delete Failed');
+      }
+    }, 'Ya, Batalkan');
   };
 
   // Callback: Serve customer now
@@ -476,17 +505,18 @@ export default function App() {
 
   // Callback: Remove Customer from Queue
   const handleRemoveQueueEntry = async (id: string) => {
-    if (!window.confirm('Yakin mau hapus pelanggan ini dari antrean?')) return;
     const item = queue.find(q => q.id === id);
-    
-    try {
-      await removeQueueEntry(id);
-      if (item) {
-        triggerToast(`${item.customerName} dihapus dari jadwal antrean.`, 'info', 'Queue Removed');
+
+    requestConfirm('Yakin mau hapus pelanggan ini dari antrean?', async () => {
+      try {
+        await removeQueueEntry(id);
+        if (item) {
+          triggerToast(`${item.customerName} dihapus dari jadwal antrean.`, 'info', 'Queue Removed');
+        }
+      } catch (err) {
+        triggerToast('Gagal menghapus antrean.', 'error', 'Delete Failed');
       }
-    } catch (err) {
-      triggerToast('Gagal menghapus antrean.', 'error', 'Delete Failed');
-    }
+    }, 'Ya, Hapus');
   };
 
   // Callback: Update status from Schedule
@@ -520,13 +550,14 @@ export default function App() {
 
   // Callback: Remove custom service
   const handleRemoveService = async (id: string) => {
-    if (!window.confirm('Yakin mau hapus layanan ini?')) return;
-    try {
-      await removeService(id);
-      triggerToast(`Layanan dihapus dari daftar pilihan.`, 'info', 'Service Deleted');
-    } catch (err) {
-      triggerToast(`Gagal menghapus layanan.`, 'error', 'Delete Failed');
-    }
+    requestConfirm('Yakin mau hapus layanan ini?', async () => {
+      try {
+        await removeService(id);
+        triggerToast(`Layanan dihapus dari daftar pilihan.`, 'info', 'Service Deleted');
+      } catch (err) {
+        triggerToast(`Gagal menghapus layanan.`, 'error', 'Delete Failed');
+      }
+    }, 'Ya, Hapus');
   };
 
   // Callback: Update barber status
@@ -563,13 +594,14 @@ export default function App() {
 
   // Callback: Remove custom barber
   const handleRemoveBarber = async (id: string) => {
-    if (!window.confirm('Yakin mau hapus kapster ini?')) return;
-    try {
-      await removeBarber(id);
-      triggerToast(`Kapster berhasil dihapus.`, 'info', 'Barber Deleted');
-    } catch (err: any) {
-      triggerToast(err.message || `Gagal menghapus kapster.`, 'error', 'Delete Failed');
-    }
+    requestConfirm('Yakin mau hapus kapster ini?', async () => {
+      try {
+        await removeBarber(id);
+        triggerToast(`Kapster berhasil dihapus.`, 'info', 'Barber Deleted');
+      } catch (err: any) {
+        triggerToast(err.message || `Gagal menghapus kapster.`, 'error', 'Delete Failed');
+      }
+    }, 'Ya, Hapus');
   };
 
   // Callback: Quick Walk-In (starts session immediately without filling customer data)
@@ -794,6 +826,28 @@ export default function App() {
         </main>
         </div>
       </SidebarInset>
+
+      {/* GLOBAL CONFIRMATION DIALOG (pengganti window.confirm bawaan browser) */}
+      <AlertDialog open={!!confirmRequest} onOpenChange={(open) => !open && setConfirmRequest(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Konfirmasi</AlertDialogTitle>
+            <AlertDialogDescription>{confirmRequest?.message}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive/10 text-destructive hover:bg-destructive/20"
+              onClick={() => {
+                confirmRequest?.onConfirm();
+                setConfirmRequest(null);
+              }}
+            >
+              {confirmRequest?.confirmLabel}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* GLOBAL TOAST BANNER CONTAINER (AnimatePresence) */}
       <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-3 w-full max-w-[380px] px-4 sm:px-0">
