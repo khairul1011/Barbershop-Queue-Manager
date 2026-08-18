@@ -76,24 +76,27 @@ Proyek ini adalah **experiment pribadi** (bukan produk komersial saat ini), diba
 - Perhitungan durasi servis dinamis berdasarkan jenis layanan.
 - **Schedule Daily View berfungsi sangat presisi** — layout telah dirombak penuh. Grid merentang tanpa kolaps menggunakan pola Hybrid Page-Scroll (commit `ca5713e`), dan header kapster kini dibungkus dalam satu kolom yang sama dengan grid jadwal sehingga keselarasan (alignment) kolom dijamin 100% presisi secara struktural, termasuk padding top/bottom dan whitespace yang optimal.
 - Navigasi kalender (*Monthly* ke *Daily*) secara presisi langsung pindah ke minggu yang relevan.
+- **Backend nyata sudah berjalan** (`server/index.js`): koneksi WhatsApp asli lewat `whatsapp-web.js` (scan QR sekali, sesi tersimpan lokal), pesan masuk diteruskan ke **Gemini API asli** (`server/gemini.js`, dengan fallback berjenjang antar model Gemini) untuk ekstraksi nama/hari/jam/servis, lalu ditulis langsung ke tabel Supabase `whatsapp_requests`.
+- **Auto-reply WA menanyakan jam** ketika tidak disebutkan sudah berjalan — bot menjalankan state machine tanya-jawab per nomor pengirim (tanya hari/jam/servis/nama yang belum lengkap, cek ketersediaan jadwal, minta konfirmasi eksplisit "ya") sebelum menyimpan sebagai request.
+- **Persistensi data sudah migrasi ke Supabase (Postgres)** — seluruh data inti (queue, requests, barbers, services, business hours) tersimpan di Supabase dengan realtime subscription dari frontend (`useSupabase*` hooks), bukan localStorage lagi. `localStorage` sekarang hanya dipakai untuk preferensi bahasa UI (`useLocalStorageState` di `src/i18n`).
+- Review & approval request WhatsApp di dashboard sudah tersambung ke Supabase asli (`approveRequest`/`rejectRequest` di `useSupabaseRequests.ts`), bukan simulasi.
+- Perbaikan bug hardcode `'Wed'` sudah selesai, sistem kini dinamis mengikuti `todayKey`.
 
 ❌ Belum ada / masih dummy:
-- Tidak ada backend (`server.js` tidak ada meski `express`/`dotenv` tercantum di `package.json` sebagai dependency nganggur).
-- Tidak ada koneksi WhatsApp nyata — data request masih hardcoded di `mockData.ts`.
-- Tidak ada pemanggilan Gemini API nyata untuk parsing pesan.
-- Tidak ada persistensi data server, masih localStorage — refresh di browser/device berbeda tidak akan sinkron.
-- Perbaikan bug hardcode `'Wed'` sudah selesai, sistem kini dinamis mengikuti `todayKey`.
+- Integrasi Instagram DM (memang sengaja belum dikerjakan — lihat §3 Non-Goals & Fase 4 di roadmap).
+- Belum ada validasi lapangan nyata dari kapster (lihat §10 Metrik Keberhasilan) — implementasi teknis backend sudah jalan, tapi belum terbukti dipakai harian oleh kapster sungguhan.
 
 Lihat `KNOWN_ISSUES.md` untuk detail teknis dan prioritas perbaikan.
 
 ## 9. Roadmap Bertahap
 
-| Fase | Cakupan |
-|---|---|
-| **Fase 1 (sekarang)** | Perbaiki bug hardcode hari, tambah persistensi data (minimal localStorage), demo ke kapster untuk validasi alur UX |
-| **Fase 2** | Bangun `server.js` nyata: `whatsapp-web.js` untuk baca pesan masuk + panggilan Gemini API untuk ekstraksi terstruktur |
-| **Fase 3** | Auto-reply WA untuk menanyakan jam ketika tidak disebutkan |
-| **Fase 4 (opsional)** | Integrasi Instagram DM, jika volume booking dari IG terbukti signifikan |
+| Fase | Cakupan | Status |
+|---|---|---|
+| **Fase 1** | Perbaiki bug hardcode hari, tambah persistensi data | ✅ Selesai (kini pakai Supabase, bukan sekadar localStorage) |
+| **Fase 2** | Bangun backend nyata: `whatsapp-web.js` untuk baca pesan masuk + panggilan Gemini API untuk ekstraksi terstruktur | ✅ Selesai (`server/index.js` + `server/gemini.js`) |
+| **Fase 3** | Auto-reply WA untuk menanyakan jam ketika tidak disebutkan | ✅ Selesai (state machine tanya-jawab di `server/index.js`) |
+| **Fase 4 (sekarang)** | Demo ke kapster asli, validasi alur UX & kumpulkan feedback pemakaian harian | ⏳ Belum dimulai |
+| **Fase 5 (opsional)** | Integrasi Instagram DM, jika volume booking dari IG terbukti signifikan | Belum dikerjakan (by design) |
 
 ## 10. Metrik Keberhasilan (Definisi "Berhasil" untuk Experiment Ini)
 

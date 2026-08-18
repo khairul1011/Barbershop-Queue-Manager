@@ -52,69 +52,66 @@ Grid pada **Schedule → Daily View** sebelumnya mengalami mis-alignment antara 
 **Status:** FIXED.
 - Semua string statis `'Wed'` telah dinamis mengikuti live clock `todayKey`.
 
-### Tidak ada persistensi data
-**Status:** FIXED (Fase 1).
-- Seluruh inti data `queue`, `requests`, `barbers`, dan `services` kini tersimpan di localStorage lewat *custom hook* `useLocalStorageState`.
-
 ### Kesalahan logika balasan WhatsApp (Natural Reply AI)
 **Status:** FIXED.
 - Sebelumnya, AI membalas *chat* dengan struktur yang salah atau teks berantakan (tidak sesuai dengan format di server vs di layar).
 - Logika ekstraksi dan *prompt* diperbaiki sehingga balasan lebih rapi dan terbaca alami (*natural reply*).
 
+### Tidak ada backend
+**Status:** FIXED.
+- `server/index.js` kini menjalankan bot WhatsApp asli lewat `whatsapp-web.js` (sesi login tersimpan via `LocalAuth`, QR code discan sekali), meneruskan pesan masuk ke **Gemini API asli** (`server/gemini.js`, `@google/genai`, dengan fallback berjenjang antar beberapa model Gemini) untuk ekstraksi terstruktur, lalu menulis hasilnya langsung ke tabel Supabase `whatsapp_requests` lewat `server/supabaseClient.js`.
+- Jalankan dengan `cd server && npm install && npm start`. Environment yang dibutuhkan: `GEMINI_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY` (lihat `server/.env.example`).
+
+### Data persistensi masih localStorage
+**Status:** FIXED — bahkan sudah dilangkahi (superseded).
+- Awalnya data inti (`queue`, `requests`, `barbers`, `services`) disimpan di localStorage lewat `useLocalStorageState`. Sejak itu seluruh data inti sudah **dimigrasi ke Supabase (Postgres)** dengan realtime subscription (`src/hooks/useSupabase*.ts`) — refresh di device/browser berbeda kini sinkron. `useLocalStorageState` masih ada di repo tapi sekarang hanya dipakai untuk preferensi bahasa UI (`src/i18n/index.tsx`), bukan data inti lagi.
+
+### Kode mati: REST API Express + SQLite lokal yang tidak pernah dipanggil
+**File (dihapus):** `server/api.js`, `server/db.js`, `server/server.js`
+**Status:** FIXED (dibersihkan).
+- Repo sempat punya API Express terpisah yang membuka `server/data.db` (SQLite lokal, skema `requests` berbeda dari tabel Supabase `whatsapp_requests`) lewat endpoint `GET/POST /requests` dan `PATCH /requests/:id`. Baik bot WhatsApp (`index.js`, yang menulis langsung ke Supabase) maupun frontend (yang membaca langsung dari Supabase) **tidak pernah memanggil API ini** — kemungkinan besar sisa scaffold awal sebelum bot ditulis ulang untuk langsung pakai Supabase.
+- **Perbaikan:** Ketiga file dihapus, dependency `express`/`cors`/`better-sqlite3` yang hanya dipakai di sana juga dibuang dari `server/package.json`, dan `server/package-lock.json` diregenerasi (66 package terkait ikut terpangkas dari `node_modules`).
+
+### Kode mati: `src/data/mockData.ts` diimpor tapi tidak pernah dipakai
+**Status:** FIXED (dibersihkan).
+- Data asli (termasuk `WhatsAppRequest`) sudah datang dari Supabase lewat backend nyata (`server/`), bukan dari `mockData.ts`. File itu ternyata hanya di-*import* di `App.tsx` tanpa pernah dipakai (*dead import*) — file dan import-nya sudah dihapus.
+
+### Boilerplate AI Studio basi di root `.env.example`
+**Status:** FIXED.
+- Baris `GEMINI_API_KEY`/`APP_URL` (sisa boilerplate template AI Studio, tidak pernah dibaca di frontend manapun) sudah dibuang dari root `.env.example`. Key Gemini yang asli tetap hanya hidup di `server/.env` (backend). Root `.env.example` sekarang cuma berisi `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` yang memang dipakai `src/lib/supabaseClient.ts`.
+
 ---
 
 ## 🔴 Kritis (blocker fungsional)
 
-### 1. Tidak ada backend — `express`/`dotenv` adalah dependency nganggur
-**File:** `package.json`
-
-Tidak ada `server.js` atau file backend apa pun di struktur repo. `express` dan `dotenv` tercantum sebagai dependency tapi tidak dipakai di mana pun.
-
-**Dampak:** Tidak ada jalur untuk memanggil Gemini API dengan aman (server-side), dan tidak ada jalur integrasi WhatsApp sama sekali.
-
-**Perbaikan:** Bangun `server.js` terpisah yang menjalankan `whatsapp-web.js` + endpoint untuk memanggil Gemini API, dijalankan di mesin/server milik pemilik sistem (tidak bisa jalan di AI Studio/hosting statis).
-
-### 2. Gagal Menghapus Kapster (Foreign Key Constraint `queue_entries`)
+### 1. Gagal Menghapus Kapster (Foreign Key Constraint `queue_entries`)
 **Error Code:** `23503` (update or delete on table "barbers" violates foreign key constraint "queue_entries_barber_id_fkey" on table "queue_entries")
 **Dampak:** Pengguna tidak bisa menghapus kapster dari *database* (Supabase/Postgres) jika kapster tersebut masih terkait/dijadikan referensi oleh data antrian (`queue_entries`).
 **Solusi (Opsi Terpilih):** Menerapkan mekanisme **Soft Delete** (opsi 3 pada pembahasan sebelumnya) dengan mengubah status kapster menjadi `off` atau disembunyikan di UI, alih-alih menghapus baris dari *database*, untuk menjaga integritas riwayat antrian dan mencegah error.
 
 ---
 
-## 🟡 Penting (belum blocker, tapi harus dikerjakan sebelum Fase 2)
-
-### 2. `WhatsAppRequest` di `mockData.ts` adalah data karangan, bukan hasil parsing AI
-Field `extractedDay`, `extractedTime`, `extractedService` di 4 entri mock sudah ditulis manual — tidak merepresentasikan bagaimana hasil ekstraksi Gemini API yang sebenarnya akan terlihat (termasuk kasus ambigu/gagal parsing).
-
-**Dampak:** Tidak ada test case untuk skenario pesan ambigu tanpa jam sama sekali, atau pesan yang gagal di-parse.
-
-**Rekomendasi:** Saat backend nyata dibangun, tambahkan mock/test case untuk pesan yang benar-benar ambigu (tanpa hari, tanpa jam, bahasa campur aduk) untuk memastikan fallback ke status "Pending Reply" atau folder review manual bekerja.
-
----
-
-### 3. `.env.example` ada tapi tidak dipakai di kode manapun
-Kemungkinan sisa boilerplate template AI Studio. Perlu dikonfirmasi ulang begitu `server.js` dibangun — pastikan API key Gemini **hanya** dibaca di server, tidak pernah masuk ke bundle client (`vite build` output).
-
----
-
 ## 🟢 Rendah (nice-to-have, bukan prioritas sekarang)
 
-### 4. `handleAddWalkIn` — estimasi waktu mulai antrian jalan sederhana (gap tetap 15 menit)
+### 2. `handleAddWalkIn` — estimasi waktu mulai antrian jalan sederhana (gap tetap 15 menit)
 Logika `startMinutes = ... + 15` antar walk-in mengasumsikan gap tetap 15 menit tanpa mempertimbangkan durasi servis sebelumnya secara akurat di semua kasus. Cukup untuk MVP, tapi perlu direview kalau kompleksitas antrian bertambah (multi-kapster paralel, dll).
 
 ---
 
-## Checklist sebelum Fase 2 (backend) dimulai
+## Checklist sebelum pemakaian harian oleh kapster asli dimulai
 
 - [x] Perbaiki bug hardcode `'Wed'`
-- [x] Tambahkan persistensi minimal (localStorage)
-- [ ] Demo ke kapster, kumpulkan feedback alur UX
-- [ ] Konfirmasi `.gitignore` mengabaikan `.env.local` — pastikan API key asli tidak pernah ter-commit ke repo publik
+- [x] Tambahkan persistensi data (kini Supabase, bukan sekadar localStorage)
+- [x] Bangun backend nyata: koneksi WhatsApp + ekstraksi Gemini API (`server/`)
+- [x] Auto-reply WA menanyakan jam yang belum disebutkan
+- [x] Konfirmasi `.gitignore` mengabaikan file `.env*` — API key asli (Gemini, Supabase) tidak pernah ter-commit ke repo publik
+- [x] Bersihkan kode mati (`server/api.js`+`db.js`+`server.js`, `mockData.ts`, boilerplate `.env.example`)
+- [ ] Demo ke kapster asli, kumpulkan feedback alur UX (lihat §10 PRD.md — belum divalidasi di lapangan)
 
 ---
 
 ## 🔵 Batasan Desain (By Design)
 
-### 5. Barber Duty Status Edge Case
+### 3. Barber Duty Status Edge Case
 - **Kapster Berubah Status ke 'Off' Saat Sedang Melayani**: Saat ini, jika kapster memiliki sesi pelanggan yang sedang berjalan (di kursi aktif) dan statusnya diubah dari 'Active' menjadi 'Off' via menu Settings, sistem tidak akan secara otomatis menghentikan atau menghapus sesi tersebut. 
 - **Perilaku (Behavior)**: Sesi akan dibiarkan tetap berjalan hingga selesai secara natural (hingga ditekan tombol 'Complete Session'). Ini adalah **keputusan desain yang sadar (by design)** untuk mencegah hilangnya data pelanggan yang terlanjur duduk di kursi secara tidak sengaja (misalnya karena salah klik), dan bukan merupakan bug yang terlewat.
