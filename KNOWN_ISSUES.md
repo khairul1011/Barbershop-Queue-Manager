@@ -91,9 +91,27 @@ Grid pada **Schedule → Daily View** sebelumnya mengalami mis-alignment antara 
 
 ---
 
+## 🟡 Penting (belum blocker, tapi sebaiknya dibereskan sebelum pemakaian harian)
+
+### 2. `sender_phone` di `whatsapp_requests` kadang tersimpan sebagai ID `@lid`, bukan nomor asli
+**File:** `server/index.js` (bagian penyimpanan booking ke Supabase)
+
+Nomor pengirim WhatsApp sekarang bisa muncul dalam format `@lid` (Linked ID — fitur privasi WhatsApp yang menyembunyikan nomor asli). Kode sudah mencoba resolve nomor asli lewat `msg.getContact().number`, dengan fallback ke string `@lid` mentah kalau gagal:
+
+```js
+const contact = await msg.getContact();
+const realPhone = contact.number || msg.from.replace('@c.us', '').replace('@lid', '');
+```
+
+**Dampak:** dicek langsung ke tabel `whatsapp_requests` di Supabase, hasilnya *tidak konsisten* — sebagian entri tersimpan nomor asli (contoh: `62745210781845`), sebagian lagi cuma tersimpan `62745210781845@lid`. Kalau yang tersimpan itu ID `@lid`, kapster **tidak bisa menelepon balik** customer itu dari data yang ada.
+
+**Belum diperbaiki** — perlu diselidiki dulu kenapa `contact.number` kadang gagal resolve (mungkin terkait timing pemanggilan `getContact()`, versi `whatsapp-web.js`, atau memang keterbatasan dari sisi WhatsApp sendiri untuk kontak `@lid`).
+
+---
+
 ## 🟢 Rendah (nice-to-have, bukan prioritas sekarang)
 
-### 2. `handleAddWalkIn` — estimasi waktu mulai antrian jalan sederhana (gap tetap 15 menit)
+### 3. `handleAddWalkIn` — estimasi waktu mulai antrian jalan sederhana (gap tetap 15 menit)
 Logika `startMinutes = ... + 15` antar walk-in mengasumsikan gap tetap 15 menit tanpa mempertimbangkan durasi servis sebelumnya secara akurat di semua kasus. Cukup untuk MVP, tapi perlu direview kalau kompleksitas antrian bertambah (multi-kapster paralel, dll).
 
 ---
@@ -106,6 +124,9 @@ Logika `startMinutes = ... + 15` antar walk-in mengasumsikan gap tetap 15 menit 
 - [x] Auto-reply WA menanyakan jam yang belum disebutkan
 - [x] Konfirmasi `.gitignore` mengabaikan file `.env*` — API key asli (Gemini, Supabase) tidak pernah ter-commit ke repo publik
 - [x] Bersihkan kode mati (`server/api.js`+`db.js`+`server.js`, `mockData.ts`, boilerplate `.env.example`)
+- [x] Auto-deploy backend ke VPS lewat GitHub Actions (`.github/workflows/deploy-backend.yml`) — nggak perlu `git pull` manual lagi tiap ubah `server/`
+- [x] Perbaiki bot spam balasan dobel saat restart + tambah jeda balasan natural (lihat commit `fix(bot): stop duplicate replies on restart...`)
+- [ ] Perbaiki `sender_phone` yang kadang tersimpan sebagai `@lid` (lihat item #2 di atas)
 - [ ] Demo ke kapster asli, kumpulkan feedback alur UX (lihat §10 PRD.md — belum divalidasi di lapangan)
 
 ---
