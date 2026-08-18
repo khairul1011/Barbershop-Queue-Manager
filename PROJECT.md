@@ -110,6 +110,7 @@ Proyek ini adalah **experiment pribadi** (bukan produk komersial saat ini), diba
 - Review & approval request WhatsApp di dashboard sudah tersambung ke Supabase asli (`approveRequest`/`rejectRequest` di `useSupabaseRequests.ts`), bukan simulasi.
 - **Backend di-deploy otomatis ke VPS** lewat GitHub Actions (`.github/workflows/deploy-backend.yml`) — push ke `main` yang nyentuh `server/**` langsung SSH-deploy + restart bot, nggak perlu `git pull` manual.
 - **Bot WhatsApp sudah kebal dari spam balasan dobel saat restart**, dan punya jeda balasan natural (bukan instan) — lihat [Bagian 2 §✅ Sudah Diselesaikan](#-sudah-diselesaikan).
+- **Customer otomatis dikasih tau via WhatsApp** saat kapster approve/reject booking-nya di dashboard — sebelumnya bot cuma bisa bales dalam percakapan aktif, sekarang bisa kirim pesan duluan lewat Supabase Realtime subscription.
 - Perbaikan bug hardcode `'Wed'` sudah selesai, sistem kini dinamis mengikuti `todayKey`.
 
 ❌ Belum ada / masih dummy:
@@ -245,6 +246,15 @@ Grid pada **Schedule → Daily View** sebelumnya mengalami mis-alignment antara 
 - `msg.getContact().number` cuma baca dari cache kontak lokal `whatsapp-web.js`, yang buat kontak yang belum "dikenal" sebelumnya (khususnya ber-`@lid`) sering belum terisi — diam-diam fallback ke ID `@lid` mentah yang tersimpan sebagai `sender_phone`, bikin booking itu nggak bisa ditelepon balik. Dikonfirmasi lewat query langsung ke Supabase: sekitar separuh entri `whatsapp_requests` terakhir kena masalah ini.
 - **Solusi:** ganti ke `client.getContactLidAndPhone()` (method yang ditambahin khusus untuk kasus ini di `whatsapp-web.js` 1.34.x) — dia maksa query ulang ke server WhatsApp (`window.Store.QueryExist`) kalau nomornya belum ke-cache, alih-alih langsung nyerah. Logika strip manual yang lama tetap dipertahankan sebagai fallback terakhir kalau method ini somehow gagal juga.
 
+### Customer nggak pernah dikasih tau saat kapster Approve/Reject booking
+**File:** `server/index.js`
+**Status:** FIXED (fitur baru).
+- Sebelumnya bot cuma bisa `msg.reply()` di dalam percakapan aktif — nggak pernah kirim pesan duluan. Kapster approve/reject request di dashboard cuma `UPDATE status` ke Supabase; customer nggak pernah dikasih tau, terutama parah buat reject (nunggu tanpa kepastian sampai nanya sendiri).
+- **Solusi:** bot subscribe ke perubahan tabel `whatsapp_requests` lewat **Supabase Realtime** (bukan bikin REST API baru — pola ini sengaja dihindari setelah insiden API mati yang bocor publik). Begitu status berubah jadi `approved`/`rejected`, bot kirim WhatsApp otomatis ke `sender_phone` (nomor bersih berkat fix di atas) lewat `sendMessageWithDelay()` (jeda natural + typing indicator, sama kayak balasan biasa).
+- Idempotency-nya sengaja disimpan di **kolom database baru** (`status_notified boolean`), bukan state in-memory — pelajaran langsung dari insiden spam balasan dobel sebelumnya, di mana state in-memory nggak tahan restart. Ada juga **catch-up scan** saat bot baru nyala (`client.on('ready')`) buat nyusulin notifikasi kalau kebetulan bot lagi mati pas kapster approve/reject.
+- Migrasi tambah kolom `status_notified` dijalankan manual lewat Supabase SQL Editor (anon key nggak bisa DDL), termasuk backfill `status_notified = true` untuk semua riwayat approved/rejected lama biar nggak ke-notifikasi ulang secara nggak sengaja.
+- Sudah dites langsung end-to-end: approve & reject dari dashboard, keduanya berhasil kirim WhatsApp ke nomor asli dalam hitungan detik.
+
 ---
 
 ## 🔴 Kritis (blocker fungsional)
@@ -273,6 +283,7 @@ Logika `startMinutes = ... + 15` antar walk-in mengasumsikan gap tetap 15 menit 
 - [x] Bersihkan kode mati (`server/api.js`+`db.js`+`server.js`, `mockData.ts`, boilerplate `.env.example`)
 - [x] Auto-deploy backend ke VPS lewat GitHub Actions — nggak perlu `git pull` manual lagi tiap ubah `server/`
 - [x] Perbaiki bot spam balasan dobel saat restart + tambah jeda balasan natural
+- [x] Notifikasi WhatsApp otomatis ke customer saat kapster approve/reject booking
 - [x] Perbaiki `sender_phone` yang kadang tersimpan sebagai `@lid`
 - [ ] Demo ke kapster asli, kumpulkan feedback alur UX (lihat [§10 Bagian 1](#10-metrik-keberhasilan-definisi-berhasil-untuk-experiment-ini) — belum divalidasi di lapangan)
 
