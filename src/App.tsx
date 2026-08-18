@@ -13,6 +13,9 @@ import QueueList from './components/QueueList';
 import SettingsView from './components/Settings';
 import HistoryTab from './components/History.tsx';
 import LanguageSwitcher from './components/LanguageSwitcher';
+import ThemeCustomizer from './components/ThemeCustomizer';
+import { useThemeSettings } from './theme-settings';
+import { cn } from './lib/utils';
 import { DotPattern } from './components/ui/dot-pattern';
 import {
   AlertDialog,
@@ -43,6 +46,7 @@ import { motion, AnimatePresence } from 'motion/react';
 
 export default function App() {
   const { t } = useTranslation();
+  const { contentLayout, sidebarVariant, sidebarMode } = useThemeSettings();
 
   // Navigation Tabs
   const [activeTab, setActiveTab] = useState('overview');
@@ -723,6 +727,8 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         pendingRequestsCount={pendingRequestsCount}
+        sidebarVariant={sidebarVariant}
+        sidebarMode={sidebarMode}
       />
 
       <SidebarInset className="z-10 min-w-0 bg-transparent">
@@ -795,6 +801,7 @@ export default function App() {
             </div>
 
             <LanguageSwitcher />
+            <ThemeCustomizer />
 
             {/* Quick Notification Ring Mock */}
             <button
@@ -821,7 +828,10 @@ export default function App() {
         </header>
 
         {/* CONTAINER CONTENT VIEW */}
-        <main className="flex-1 p-5 md:p-8 space-y-6 max-w-7xl w-full mx-auto">
+        <main className={cn(
+          'flex-1 p-5 md:p-8 space-y-6 w-full mx-auto',
+          contentLayout === 'compact' ? 'max-w-5xl' : 'max-w-7xl'
+        )}>
           {renderActiveTab()}
         </main>
         </div>

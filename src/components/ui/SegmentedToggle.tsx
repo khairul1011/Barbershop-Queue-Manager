@@ -7,6 +7,7 @@ export interface SegmentOption<T extends string> {
   activeColor?: 'teal' | 'amber' | 'gray' | 'blue';
   /** When at least one option in the group carries an icon, inactive tabs collapse to icon-only and the active tab expands to icon+label. */
   icon?: React.ReactNode;
+  disabled?: boolean;
 }
 
 export interface SegmentedToggleProps<T extends string> {
@@ -55,7 +56,8 @@ export function SegmentedToggle<T extends string>({
           <button
             key={option.value}
             onClick={() => onChange(option.value)}
-            className={`inline-flex items-center justify-center whitespace-nowrap ${sizeClass} font-mono font-bold rounded-md uppercase cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${activeClass}`}
+            disabled={option.disabled}
+            className={`inline-flex items-center justify-center whitespace-nowrap ${sizeClass} font-mono font-bold rounded-md uppercase cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40 disabled:pointer-events-none disabled:cursor-not-allowed ${activeClass}`}
             id={`${idPrefix}-${option.value}`}
           >
             {hasIcons ? (

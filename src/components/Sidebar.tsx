@@ -11,6 +11,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useTranslation } from '../i18n';
+import type { SidebarVariant, SidebarMode } from '../theme-settings';
 import { Button } from '@/components/ui/button';
 import {
   Sidebar,
@@ -30,12 +31,21 @@ interface AppSidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   pendingRequestsCount: number;
+  sidebarVariant: SidebarVariant;
+  sidebarMode: SidebarMode;
 }
 
-export default function AppSidebar({ activeTab, setActiveTab, pendingRequestsCount }: AppSidebarProps) {
+export default function AppSidebar({ activeTab, setActiveTab, pendingRequestsCount, sidebarVariant, sidebarMode }: AppSidebarProps) {
   const { t } = useTranslation();
   const { state, toggleSidebar, isMobile, setOpenMobile } = useSidebar();
   const isCollapsed = state === 'collapsed';
+
+  // Di mobile, sidebar SELALU harus lewat jalur Sheet drawer (offcanvas) --
+  // primitif <Sidebar> cek collapsible==='none' SEBELUM cek isMobile, jadi
+  // kalau setting "Mode Sidebar: Full" (collapsible='none') diteruskan mentah
+  // di mobile, drawer/hamburger-nya bakal hilang total. Paksa offcanvas di
+  // mobile, apa pun setting desktop-nya.
+  const effectiveCollapsible = isMobile ? 'offcanvas' : sidebarMode;
 
   const menuItems = [
     { id: 'overview', label: t('sidebar.overview') as string, icon: LayoutDashboard },
@@ -52,7 +62,7 @@ export default function AppSidebar({ activeTab, setActiveTab, pendingRequestsCou
   };
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible={effectiveCollapsible} variant={sidebarVariant}>
       <SidebarHeader className="border-b border-sidebar-border">
         <div className={`flex items-center py-2 ${isCollapsed ? 'justify-center' : 'justify-between px-1'}`}>
           <div className="flex items-center gap-3 min-w-0">
