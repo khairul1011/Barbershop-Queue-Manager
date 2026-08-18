@@ -136,7 +136,7 @@ export default function App() {
 
       // Toast
       triggerToast(
-        `Pangkas Selesai! ${session.customerName} completed ${session.service} session. Collected Rp ${priceOfService.toLocaleString()}.`,
+        `Pangkas selesai! ${session.customerName} - layanan ${session.service} selesai, Rp ${priceOfService.toLocaleString()} terkumpul.`,
         'success',
         'Session Completed'
       );
@@ -203,7 +203,7 @@ export default function App() {
 
     if (checkOverlap(todayKey, timeRange, barberName)) {
       triggerToast(
-        `Failed: Time slot overlaps with an existing booking for ${barberName}.`,
+        `Gagal: jadwal bentrok dengan booking lain untuk ${barberName}.`,
         'info',
         'Double Booking Prevented'
       );
@@ -225,7 +225,7 @@ export default function App() {
       });
       
       triggerToast(
-        `Walk-In added: ${name} (No. ${queueNumber}) has been appended to Seat of ${barberName}.`,
+        `Walk-in ditambahkan: ${name} (No. ${queueNumber}) masuk ke antrean kursi ${barberName}.`,
         'success',
         'Walk-In Added'
       );
@@ -345,7 +345,7 @@ export default function App() {
       });
 
       triggerToast(
-        `WhatsApp booking for ${request.senderName} confirmed for ${daySelected} at ${timeSelected}. Welcome msg triggered!`,
+        `Booking WhatsApp dari ${request.senderName} dikonfirmasi untuk ${daySelected} jam ${timeSelected}. Pesan konfirmasi terkirim!`,
         'success',
         'Booking Approved'
       );
@@ -361,7 +361,7 @@ export default function App() {
 
     try {
       await rejectRequest(id);
-      triggerToast(`Booking request from ${request.senderName} rejected.`, 'info', 'Request Declined');
+      triggerToast(`Request booking dari ${request.senderName} ditolak.`, 'info', 'Request Declined');
     } catch (err: any) {
       triggerToast('Gagal mengubah status di server.', 'error', 'Update Failed');
     }
@@ -370,7 +370,7 @@ export default function App() {
   // Callback: Edit WhatsApp Request before approval
   const handleEditRequest = (id: string, updated: Partial<WhatsAppRequest>) => {
     setRequests(prev => prev.map(r => r.id === id ? { ...r, ...updated } : r));
-    triggerToast(`Booking parameters adjusted successfully.`, 'info', 'Metadata Extracted');
+    triggerToast(`Parameter booking berhasil disesuaikan.`, 'info', 'Metadata Extracted');
   };
 
   const handleAddBooking = async (
@@ -383,7 +383,7 @@ export default function App() {
 
     if (checkOverlap(day, timeRange, barberName)) {
       triggerToast(
-        `Failed: Time slot overlaps with an existing booking for ${barberName}.`,
+        `Gagal: jadwal bentrok dengan booking lain untuk ${barberName}.`,
         'info',
         'Double Booking Prevented'
       );
@@ -408,7 +408,7 @@ export default function App() {
       });
       
       triggerToast(
-        `Slot booked successfully: ${customerName} on ${day} at ${timeRange.replace('~', '')}`,
+        `Slot berhasil dibooking: ${customerName} pada ${day} jam ${timeRange.replace('~', '')}`,
         'success',
         'Slot Booked'
       );
@@ -418,14 +418,14 @@ export default function App() {
   };
 
   const handleRemoveBooking = async (id: string) => {
-    if (!window.confirm('Are you sure you want to cancel this booking?')) return;
+    if (!window.confirm('Yakin mau batalkan booking ini?')) return;
     const entry = queue.find(q => q.id === id);
     if (!entry) return;
     
     try {
       await removeQueueEntry(id);
       triggerToast(
-        `Appointment for ${entry.customerName} on ${entry.day} has been cancelled.`,
+        `Janji temu ${entry.customerName} pada ${entry.day} telah dibatalkan.`,
         'info',
         'Booking Cancelled'
       );
@@ -439,7 +439,7 @@ export default function App() {
     try {
       await serveQueueEntry(entry.id, barberId);
       triggerToast(
-        `Called ${entry.customerName} to the chair immediately. Timer initiated.`,
+        `${entry.customerName} dipanggil ke kursi. Timer dimulai.`,
         'info',
         'Active Seat Swapped'
       );
@@ -475,13 +475,13 @@ export default function App() {
 
   // Callback: Remove Customer from Queue
   const handleRemoveQueueEntry = async (id: string) => {
-    if (!window.confirm('Are you sure you want to remove this customer from the queue?')) return;
+    if (!window.confirm('Yakin mau hapus pelanggan ini dari antrean?')) return;
     const item = queue.find(q => q.id === id);
     
     try {
       await removeQueueEntry(id);
       if (item) {
-        triggerToast(`Removed ${item.customerName} from queue schedule.`, 'info', 'Queue Removed');
+        triggerToast(`${item.customerName} dihapus dari jadwal antrean.`, 'info', 'Queue Removed');
       }
     } catch (err) {
       triggerToast('Gagal menghapus antrean.', 'error', 'Delete Failed');
@@ -492,7 +492,7 @@ export default function App() {
   const handleUpdateQueueStatus = async (id: string, newStatus: QueueStatus, scheduledTime?: string) => {
     try {
       await updateQueueEntryStatus(id, newStatus, scheduledTime);
-      triggerToast(`Queue entry status shifted to ${newStatus}.`, 'info');
+      triggerToast(`Status antrean diubah jadi ${newStatus}.`, 'info');
     } catch (err) {
       triggerToast('Gagal memperbarui status.', 'error', 'Update Failed');
     }
@@ -511,7 +511,7 @@ export default function App() {
   const handleAddService = async (newSvc: Omit<Service, 'id'>) => {
     try {
       await addService(newSvc);
-      triggerToast(`New service "${newSvc.name}" added to pricing menu.`, 'success', 'Service Saved');
+      triggerToast(`Layanan baru "${newSvc.name}" ditambahkan ke daftar harga.`, 'success', 'Service Saved');
     } catch (err) {
       triggerToast(`Gagal menyimpan layanan baru.`, 'error', 'Save Failed');
     }
@@ -521,7 +521,7 @@ export default function App() {
   const handleRemoveService = async (id: string) => {
     try {
       await removeService(id);
-      triggerToast(`Service item removed from options.`, 'info', 'Service Deleted');
+      triggerToast(`Layanan dihapus dari daftar pilihan.`, 'info', 'Service Deleted');
     } catch (err) {
       triggerToast(`Gagal menghapus layanan.`, 'error', 'Delete Failed');
     }
@@ -531,8 +531,9 @@ export default function App() {
   const handleUpdateBarberStatus = async (id: string, status: 'active' | 'break' | 'off') => {
     try {
       await updateBarberStatus(id, status);
-      const name = barbers.find(b => b.id === id)?.name || 'Barber';
-      triggerToast(`${name} is now marked [${status.toUpperCase()}].`, 'info', 'Duty Swapped');
+      const name = barbers.find(b => b.id === id)?.name || 'Kapster';
+      const statusLabel = status === 'active' ? 'AKTIF' : status === 'break' ? 'ISTIRAHAT' : 'OFF';
+      triggerToast(`${name} sekarang ditandai [${statusLabel}].`, status === 'active' ? 'success' : 'info', 'Duty Swapped');
     } catch (err) {
       triggerToast(`Gagal memperbarui status kapster.`, 'error', 'Update Failed');
     }
@@ -542,7 +543,7 @@ export default function App() {
   const handleAddBarber = async (newBarber: Omit<Barber, 'id'>) => {
     try {
       await addBarber(newBarber);
-      triggerToast(`Barber "${newBarber.name}" has been added.`, 'success', 'Barber Added');
+      triggerToast(`Kapster "${newBarber.name}" berhasil ditambahkan.`, 'success', 'Barber Added');
     } catch (err) {
       triggerToast(`Gagal menyimpan kapster baru.`, 'error', 'Save Failed');
     }
@@ -552,7 +553,7 @@ export default function App() {
   const handleEditBarber = async (id: string, updatedBarber: Partial<Barber>) => {
     try {
       await editBarber(id, updatedBarber);
-      triggerToast(`Barber details updated.`, 'success', 'Barber Edited');
+      triggerToast(`Data kapster berhasil diperbarui.`, 'success', 'Barber Edited');
     } catch (err) {
       triggerToast(`Gagal memperbarui data kapster.`, 'error', 'Update Failed');
     }
@@ -560,10 +561,10 @@ export default function App() {
 
   // Callback: Remove custom barber
   const handleRemoveBarber = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this barber?')) return;
+    if (!window.confirm('Yakin mau hapus kapster ini?')) return;
     try {
       await removeBarber(id);
-      triggerToast(`Barber has been removed.`, 'info', 'Barber Deleted');
+      triggerToast(`Kapster berhasil dihapus.`, 'info', 'Barber Deleted');
     } catch (err: any) {
       triggerToast(err.message || `Gagal menghapus kapster.`, 'error', 'Delete Failed');
     }
@@ -763,7 +764,7 @@ export default function App() {
 
             {/* Quick Notification Ring Mock */}
             <button
-              onClick={() => triggerToast("All active seats are operating optimally.", "info", "System Scan")}
+              onClick={() => triggerToast("Semua kursi aktif beroperasi optimal.", "info", "System Scan")}
               className="relative p-2 bg-card border border-border hover:bg-accent hover:text-foreground rounded-lg transition-all cursor-pointer"
               title="System Notifications"
               id="topbar-notif-btn"
