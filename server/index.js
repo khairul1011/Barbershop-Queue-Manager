@@ -21,10 +21,18 @@ function randomBetween(min, max) {
   return min + Math.random() * (max - min);
 }
 
+// Jeda "natural" sebelum kirim pesan — dasar 1.5-3 detik + tambahan mengikuti
+// panjang teks (mirip kecepatan ngetik manusia), dibatasi maksimal ~7 detik.
+function computeNaturalDelay(text) {
+  const baseDelay = randomBetween(1500, 3000);
+  const typingDelay = text.length * 30;
+  return Math.min(baseDelay + typingDelay, 7000);
+}
+
 async function replyAndSaveHistory(msg, text) {
   // Balasan "natural": tunjukin indikator sedang mengetik dan tunggu jeda
-  // acak (skala dengan panjang teks) sebelum benar-benar mengirim, supaya
-  // nggak kelihatan seperti bot yang balas instan.
+  // acak sebelum benar-benar mengirim, supaya nggak kelihatan seperti bot
+  // yang balas instan.
   try {
     const chat = await msg.getChat();
     await chat.sendStateTyping();
@@ -32,16 +40,30 @@ async function replyAndSaveHistory(msg, text) {
     // Non-fatal — lanjut tanpa indikator typing kalau gagal ambil chat.
   }
 
-  const baseDelay = randomBetween(1500, 3000);
-  const typingDelay = text.length * 30; // ~30ms per karakter, mirip kecepatan ngetik manusia
-  const delay = Math.min(baseDelay + typingDelay, 7000);
-  await new Promise(resolve => setTimeout(resolve, delay));
+  await new Promise(resolve => setTimeout(resolve, computeNaturalDelay(text)));
 
   await msg.reply(text);
   if (!chatHistory.has(msg.from)) chatHistory.set(msg.from, []);
   const history = chatHistory.get(msg.from);
   history.push(`Bot: ${text}`);
   if (history.length > 6) history.shift();
+}
+
+// Sama seperti replyAndSaveHistory, tapi buat pesan yang DIINISIASI bot
+// sendiri (bukan balasan dalam percakapan aktif) — misalnya notifikasi
+// approve/reject. Butuh chatId eksplisit karena nggak ada objek `msg` untuk
+// dibalas.
+async function sendMessageWithDelay(chatId, text) {
+  try {
+    const chat = await client.getChatById(chatId);
+    await chat.sendStateTyping();
+  } catch (err) {
+    // Non-fatal — lanjut tanpa indikator typing kalau gagal ambil chat.
+  }
+
+  await new Promise(resolve => setTimeout(resolve, computeNaturalDelay(text)));
+
+  await client.sendMessage(chatId, text);
 }
 
 const API_URL = process.env.API_URL || 'http://localhost:3001';
@@ -199,7 +221,10 @@ const client = new Client({
 });
 
 client.on('qr', qr => qrcode.generate(qr, { small: true }));
-client.on('ready', () => console.log('Client is ready!'));
+client.on('ready', () => {
+  console.log('Client is ready!');
+  catchUpNotifications();
+});
 client.on('message', msg => console.log('[RAW EVENT]', msg.from, msg.type, msg.body));
 
 // Resolve nomor telepon asli dari sebuah WA ID (bisa berupa @c.us atau @lid).
@@ -220,6 +245,100 @@ async function resolveRealPhone(waId) {
   }
   return waId.replace('@c.us', '').replace('@lid', '');
 }
+
+// Kirim notifikasi WhatsApp ke customer saat kapster approve/reject booking
+// dari dashboard. `sender_phone` sekarang reliable bersih (berkat
+// resolveRealPhone di atas), jadi tinggal disambung `@c.us` buat jadi chat ID
+// tujuan — nggak perlu simpan kolom chat-ID terpisah.
+async function notifyStatusChange(row) {
+  if (!row.sender_phone) {
+    console.error('[NOTIFY SKIP] sender_phone kosong, tidak bisa kirim notifikasi | id:', row.id);
+    return;
+  }
+
+  const [servis, barber] = (row.extracted_service || '').split('|BARBER:');
+  const nama = row.sender_name || 'kak';
+
+  let text;
+  if (row.status === 'approved') {
+    const barberText = barber ? `, kapster ${barber}` : '';
+    text = `Halo kak ${nama}! Booking kamu buat ${row.extracted_day} jam ${row.extracted_time} (${servis}${barberText}) udah dikonfirmasi ya. Ditunggu kedatangannya di Golden Shears!`;
+  } else if (row.status === 'rejected') {
+    text = `Mohon maaf kak ${nama}, slot ${row.extracted_day} jam ${row.extracted_time} ternyata nggak bisa. Boleh chat lagi kalau mau cari jadwal lain ya.`;
+  } else {
+    return; // status lain (mis. 'pending') — bukan urusan fungsi ini
+  }
+
+  const chatId = `${row.sender_phone}@c.us`;
+
+  try {
+    await sendMessageWithDelay(chatId, text);
+    console.log('[NOTIFY SENT]', row.status, '->', row.sender_phone, '| id:', row.id);
+  } catch (err) {
+    console.error('[NOTIFY ERROR]', err.message, '| id:', row.id, '| target:', chatId);
+    return; // jangan tandai terkirim kalau gagal — biar bisa disusul lain waktu
+  }
+
+  const { error } = await supabase
+    .from('whatsapp_requests')
+    .update({ status_notified: true })
+    .eq('id', row.id);
+  if (error) {
+    console.error('[NOTIFY DB UPDATE ERROR]', error.message, '| id:', row.id);
+  }
+}
+
+// Cari & kirim ulang notifikasi untuk booking yang statusnya sudah
+// approved/rejected tapi belum sempat dinotifikasi (mis. karena bot lagi
+// mati pas kapster approve/reject-nya).
+async function catchUpNotifications() {
+  const { data, error } = await supabase
+    .from('whatsapp_requests')
+    .select('*')
+    .in('status', ['approved', 'rejected'])
+    .eq('status_notified', false);
+
+  if (error) {
+    console.error('[CATCH-UP ERROR]', error.message);
+    return;
+  }
+  if (!data || data.length === 0) return;
+
+  console.log(`[CATCH-UP] ${data.length} notifikasi tertunda ditemukan, mengirim...`);
+  for (const row of data) {
+    await notifyStatusChange(row);
+  }
+}
+
+// Dengerin perubahan status booking (approve/reject dari dashboard) lewat
+// Supabase Realtime, lalu kirim notifikasi WhatsApp ke customer terkait.
+// Idempotent lewat kolom status_notified di DB (bukan state in-memory),
+// supaya aman dari duplikat notifikasi walau bot restart atau event
+// ke-replay — beda kasus dari dedup pesan masuk yang cukup in-memory.
+supabase
+  .channel('whatsapp_requests_status')
+  .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'whatsapp_requests' }, async payload => {
+    const id = payload.new && payload.new.id;
+    if (!id) return;
+
+    // Re-fetch row lengkap by ID, jangan percaya isi payload realtime mentah
+    // (bisa beda tergantung REPLICA IDENTITY config tabel).
+    const { data: row, error } = await supabase
+      .from('whatsapp_requests')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error('[REALTIME FETCH ERROR]', error.message, '| id:', id);
+      return;
+    }
+    if (!row || row.status_notified) return;
+    if (row.status !== 'approved' && row.status !== 'rejected') return;
+
+    await notifyStatusChange(row);
+  })
+  .subscribe();
 
 client.on('message', async msg => {
   // Housekeeping: hapus state yang usianya lebih dari 30 menit
