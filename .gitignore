@@ -21,3 +21,6 @@ server/*.log
 *.pem
 *.key
 .antigravity/
+
+# Local git worktrees created by Claude Code background tasks
+.claude/worktrees/
