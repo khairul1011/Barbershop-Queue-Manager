@@ -7,7 +7,36 @@ const supabase = require('./supabaseClient');
 const conversationState = new Map();
 const chatHistory = new Map();
 
+// Waktu proses ini mulai jalan (detik, sama seperti format msg.timestamp).
+// Dipakai buat menyaring pesan "lama" yang di-replay ulang oleh whatsapp-web.js
+// saat sesi reconnect setelah restart, supaya tidak diproses & dibalas ulang.
+const BOT_START_TIME = Math.floor(Date.now() / 1000);
+
+// Safety net tambahan: cegah 1 pesan diproses dua kali kalau event 'message'
+// somehow fire lebih dari sekali untuk ID yang sama (di luar skenario restart).
+const processedMessageIds = new Set();
+const MAX_TRACKED_MESSAGE_IDS = 500;
+
+function randomBetween(min, max) {
+  return min + Math.random() * (max - min);
+}
+
 async function replyAndSaveHistory(msg, text) {
+  // Balasan "natural": tunjukin indikator sedang mengetik dan tunggu jeda
+  // acak (skala dengan panjang teks) sebelum benar-benar mengirim, supaya
+  // nggak kelihatan seperti bot yang balas instan.
+  try {
+    const chat = await msg.getChat();
+    await chat.sendStateTyping();
+  } catch (err) {
+    // Non-fatal — lanjut tanpa indikator typing kalau gagal ambil chat.
+  }
+
+  const baseDelay = randomBetween(1500, 3000);
+  const typingDelay = text.length * 30; // ~30ms per karakter, mirip kecepatan ngetik manusia
+  const delay = Math.min(baseDelay + typingDelay, 7000);
+  await new Promise(resolve => setTimeout(resolve, delay));
+
   await msg.reply(text);
   if (!chatHistory.has(msg.from)) chatHistory.set(msg.from, []);
   const history = chatHistory.get(msg.from);
@@ -190,6 +219,28 @@ client.on('message', async msg => {
 
   // Skip update status WhatsApp
   if (msg.from === 'status@broadcast') return;
+
+  // Skip pesan yang timestamp-nya sebelum proses ini mulai jalan — ini
+  // mencegah pesan lama diproses & dibalas ulang saat whatsapp-web.js
+  // "membaca ulang" pesan terakhir pas sesi reconnect setelah restart.
+  if (msg.timestamp && msg.timestamp < BOT_START_TIME) {
+    console.log('[SKIP STALE MESSAGE] pesan dari sebelum bot ini nyala, diabaikan:', msg.from);
+    return;
+  }
+
+  // Skip pesan yang ID-nya sudah pernah diproses (safety net tambahan).
+  const msgId = msg.id && msg.id._serialized;
+  if (msgId) {
+    if (processedMessageIds.has(msgId)) {
+      console.log('[SKIP DUPLICATE MESSAGE] pesan ini sudah pernah diproses:', msgId);
+      return;
+    }
+    processedMessageIds.add(msgId);
+    if (processedMessageIds.size > MAX_TRACKED_MESSAGE_IDS) {
+      const oldest = processedMessageIds.values().next().value;
+      processedMessageIds.delete(oldest);
+    }
+  }
 
   // 3. Skip pesan yang terlalu pendek HANYA jika pengguna belum ada di state percakapan
   const GREETING_WORDS = ['halo', 'hallo', 'hai', 'hi', 'hey', 'min', 'bang', 'bg', 'kak', 'permisi', 'pagi', 'siang', 'sore', 'malam'];
