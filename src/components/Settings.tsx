@@ -140,24 +140,24 @@ export default function SettingsView({
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl md:text-3xl font-display font-bold text-white tracking-tight">{t('settings.title')}</h1>
-        <p className="text-sm text-gray-400 font-sans mt-0.5">
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground tracking-tight">{t('settings.title')}</h1>
+        <p className="text-sm text-muted-foreground font-sans mt-0.5">
           {t('settings.subtitle')}
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
+
         {/* Services List Management */}
-        <div className="bg-card-bg border border-border-subtle rounded-2xl p-5 md:p-6 space-y-5">
-          <div className="flex items-center gap-2 border-b border-border-subtle pb-3">
-            <Scissors size={18} className="text-amber-500" />
-            <h2 className="text-lg font-display font-bold text-white tracking-tight">{t('settings.servicesPricing')}</h2>
+        <div className="bg-card border border-border rounded-xl p-5 md:p-6 space-y-5">
+          <div className="flex items-center gap-2 border-b border-border pb-3">
+            <Scissors size={18} className="text-muted-foreground" />
+            <h2 className="text-lg font-display font-bold text-foreground tracking-tight">{t('settings.servicesPricing')}</h2>
           </div>
 
           {/* Service Adder Form */}
-          <form onSubmit={handleAddServiceSubmit} className="space-y-3 bg-[#070707] border border-border-subtle p-4 rounded-xl">
-            <span className="text-[10px] text-amber-500 font-mono font-bold uppercase block">{t('settings.addCustomService')}</span>
+          <form onSubmit={handleAddServiceSubmit} className="space-y-3 bg-background border border-border p-4 rounded-lg">
+            <span className="text-[10px] text-muted-foreground font-mono font-bold uppercase block">{t('settings.addCustomService')}</span>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <input
                 type="text"
@@ -165,7 +165,7 @@ export default function SettingsView({
                 value={newServiceName}
                 onChange={(e) => setNewServiceName(e.target.value)}
                 placeholder={t('settings.serviceName')}
-                className="col-span-1 sm:col-span-1 bg-[#121212] border border-border-subtle text-white text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500 font-sans placeholder-gray-600"
+                className="col-span-1 sm:col-span-1 bg-card border border-border text-foreground text-xs rounded-lg px-3 py-2.5 focus:outline-none focus:border-ring font-sans placeholder-muted-foreground"
                 id="setting-service-name"
               />
               <input
@@ -174,7 +174,7 @@ export default function SettingsView({
                 value={newServicePrice}
                 onChange={(e) => setNewServicePrice(Number(e.target.value))}
                 placeholder={t('settings.priceIdr')}
-                className="bg-[#121212] border border-border-subtle text-white text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500 font-mono"
+                className="bg-card border border-border text-foreground text-xs rounded-lg px-3 py-2.5 focus:outline-none focus:border-ring font-mono"
                 id="setting-service-price"
               />
               <input
@@ -183,7 +183,7 @@ export default function SettingsView({
                 value={newServiceDuration}
                 onChange={(e) => setNewServiceDuration(Number(e.target.value))}
                 placeholder={t('settings.durationMin')}
-                className="bg-[#121212] border border-border-subtle text-white text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-amber-500 font-mono"
+                className="bg-card border border-border text-foreground text-xs rounded-lg px-3 py-2.5 focus:outline-none focus:border-ring font-mono"
                 id="setting-service-duration"
               />
             </div>
@@ -202,20 +202,20 @@ export default function SettingsView({
           <div className="space-y-2.5 max-h-[250px] overflow-y-auto pr-1">
             {servicesLoading ? (
               <div className="p-4 text-center">
-                <span className="text-sm font-sans text-gray-400">Memuat layanan...</span>
+                <span className="text-sm font-sans text-muted-foreground">Memuat layanan...</span>
               </div>
             ) : services.length === 0 ? (
               <div className="p-4 text-center">
-                <span className="text-sm font-sans text-gray-400">Belum ada layanan — tambahkan via form di atas</span>
+                <span className="text-sm font-sans text-muted-foreground">Belum ada layanan — tambahkan via form di atas</span>
               </div>
             ) : (
               services.map((svc) => (
-                <div key={svc.id} className="flex items-center justify-between p-3 rounded-xl bg-[#070707] border border-border-subtle">
+                <div key={svc.id} className="flex items-center justify-between p-3 rounded-lg bg-background border border-border">
                   <div className="space-y-0.5">
-                    <h4 className="text-sm font-bold text-gray-200 font-sans">{svc.name}</h4>
-                    <p className="text-xs text-gray-400 font-mono flex items-center gap-2">
+                    <h4 className="text-sm font-bold text-foreground font-sans">{svc.name}</h4>
+                    <p className="text-xs text-muted-foreground font-mono flex items-center gap-2">
                       <span>Rp {svc.price.toLocaleString()}</span>
-                      <span className="text-gray-600">•</span>
+                      <span className="text-muted-foreground/50">•</span>
                       <span className="flex items-center gap-0.5"><Clock size={10} /> {svc.duration} {t('settings.mins')}</span>
                     </p>
                   </div>
@@ -235,16 +235,17 @@ export default function SettingsView({
         </div>
 
         {/* Barber Duty / Status Panel */}
-        <div className="bg-card-bg border border-border-subtle rounded-2xl p-5 md:p-6 space-y-5">
-          <div className="flex items-center justify-between border-b border-border-subtle pb-3">
+        <div className="bg-card border border-border rounded-xl p-5 md:p-6 space-y-5">
+          <div className="flex items-center justify-between border-b border-border pb-3">
             <div className="flex items-center gap-2">
-              <UserCheck size={18} className="text-teal-400" />
-              <h2 className="text-lg font-display font-bold text-white tracking-tight">{t('settings.barberDutyStatus')}</h2>
+              <UserCheck size={18} className="text-muted-foreground" />
+              <h2 className="text-lg font-display font-bold text-foreground tracking-tight">{t('settings.barberDutyStatus')}</h2>
             </div>
             {!isBarberFormOpen && (
               <Button
+                variant="default"
                 onClick={() => setIsBarberFormOpen(true)}
-                className="bg-teal-500 hover:bg-teal-600 text-black px-4"
+                className="px-4"
               >
                 <Plus size={14} className="mr-1.5" /> Add Barber
               </Button>
@@ -258,10 +259,10 @@ export default function SettingsView({
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
                 onSubmit={handleBarberSubmit}
-                className="space-y-3 bg-[#070707] border border-border-subtle p-4 rounded-xl overflow-hidden"
+                className="space-y-3 bg-background border border-border p-4 rounded-lg overflow-hidden"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-teal-400 font-mono font-bold uppercase block">
+                  <span className="text-[10px] text-muted-foreground font-mono font-bold uppercase block">
                     {editingBarberId ? 'Edit Barber' : 'Add New Barber'}
                   </span>
                   <Button variant="ghost" size="icon" type="button" onClick={resetBarberForm}>
@@ -275,7 +276,7 @@ export default function SettingsView({
                     value={barberName}
                     onChange={(e) => setBarberName(e.target.value)}
                     placeholder="Barber Name"
-                    className="bg-[#121212] border border-border-subtle text-white text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-teal-400 font-sans"
+                    className="bg-card border border-border text-foreground text-xs rounded-lg px-3 py-2.5 focus:outline-none focus:border-ring font-sans"
                   />
                   <input
                     type="text"
@@ -283,21 +284,21 @@ export default function SettingsView({
                     value={barberSpecialty}
                     onChange={(e) => setBarberSpecialty(e.target.value)}
                     placeholder="Specialty (e.g. Master Fade)"
-                    className="bg-[#121212] border border-border-subtle text-white text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-teal-400 font-sans"
+                    className="bg-card border border-border text-foreground text-xs rounded-lg px-3 py-2.5 focus:outline-none focus:border-ring font-sans"
                   />
                   <div className="sm:col-span-2">
-                    <label className="text-[10px] text-gray-400 uppercase tracking-wider font-mono block mb-1">
+                    <label className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono block mb-1">
                       Upload Photo (Max 500KB)
                     </label>
                     <input
                       type="file"
                       accept="image/*"
                       onChange={handleFileChange}
-                      className="w-full text-xs text-gray-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-teal-500/10 file:text-teal-400 hover:file:bg-teal-500/20 cursor-pointer"
+                      className="w-full text-xs text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-accent file:text-accent-foreground hover:file:bg-accent/80 cursor-pointer"
                     />
                     {barberAvatar && (
                       <div className="mt-2">
-                        <img src={barberAvatar} alt="Preview" className="w-10 h-10 rounded-lg object-cover border border-border-subtle" />
+                        <img src={barberAvatar} alt="Preview" className="w-10 h-10 rounded-lg object-cover border border-border" />
                       </div>
                     )}
                   </div>
@@ -305,7 +306,7 @@ export default function SettingsView({
                 <Button
                   variant="default"
                   type="submit"
-                  className="w-full bg-teal-500 hover:bg-teal-600 text-black"
+                  className="w-full"
                 >
                   <Save size={14} className="mr-1.5" />
                   {editingBarberId ? 'Save Changes' : 'Save Barber'}
@@ -317,25 +318,25 @@ export default function SettingsView({
           <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
             {barbersLoading ? (
               <div className="p-4 text-center">
-                <span className="text-sm font-sans text-gray-400">Memuat kapster...</span>
+                <span className="text-sm font-sans text-muted-foreground">Memuat kapster...</span>
               </div>
             ) : barbers.length === 0 ? (
               <div className="p-4 text-center">
-                <span className="text-sm font-sans text-gray-400">Belum ada kapster — tambahkan via form di atas</span>
+                <span className="text-sm font-sans text-muted-foreground">Belum ada kapster — tambahkan via form di atas</span>
               </div>
             ) : (
               barbers.map((barber) => (
-                <div key={barber.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3.5 rounded-xl bg-[#070707] border border-border-subtle gap-3">
+                <div key={barber.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3.5 rounded-lg bg-background border border-border gap-3">
                   <div className="flex items-center gap-3 w-full sm:w-auto overflow-hidden">
                     <img
                       src={barber.avatar}
                       alt={barber.name}
-                      className="w-10 h-10 shrink-0 rounded-xl object-cover border border-border-subtle"
+                      className="w-10 h-10 shrink-0 rounded-lg object-cover border border-border"
                       referrerPolicy="no-referrer"
                     />
                     <div className="min-w-0">
-                      <h4 className="text-sm font-bold text-white font-sans truncate">{barber.name}</h4>
-                      <p className="text-xs text-gray-400 font-sans truncate">{barber.specialty}</p>
+                      <h4 className="text-sm font-bold text-foreground font-sans truncate">{barber.name}</h4>
+                      <p className="text-xs text-muted-foreground font-sans truncate">{barber.specialty}</p>
                     </div>
                   </div>
 
@@ -356,7 +357,6 @@ export default function SettingsView({
                         variant="outline"
                         size="icon"
                         onClick={() => startEditBarber(barber)}
-                        className="text-amber-500 hover:text-amber-400"
                         title="Edit"
                       >
                         <Edit3 size={14} />
@@ -378,11 +378,11 @@ export default function SettingsView({
         </div>
 
         {/* WhatsApp Smart templates (Full width bottom on big screens) */}
-        <div className="lg:col-span-2 bg-card-bg border border-border-subtle rounded-2xl p-5 md:p-6 space-y-5">
-          <div className="flex items-center justify-between border-b border-border-subtle pb-3">
+        <div className="lg:col-span-2 bg-card border border-border rounded-xl p-5 md:p-6 space-y-5">
+          <div className="flex items-center justify-between border-b border-border pb-3">
             <div className="flex items-center gap-2">
-              <MessageSquare size={18} className="text-amber-500" />
-              <h2 className="text-lg font-display font-bold text-white tracking-tight">{t('settings.whatsappTemplatesTitle')}</h2>
+              <MessageSquare size={18} className="text-muted-foreground" />
+              <h2 className="text-lg font-display font-bold text-foreground tracking-tight">{t('settings.whatsappTemplatesTitle')}</h2>
             </div>
             <Button
               variant="default"
@@ -397,45 +397,45 @@ export default function SettingsView({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Template 1 */}
             <div className="space-y-2">
-              <label className="text-xs text-gray-400 uppercase tracking-wider font-mono block">{t('settings.welcomeTemplateLabel')}</label>
+              <label className="text-xs text-muted-foreground uppercase tracking-wider font-mono block">{t('settings.welcomeTemplateLabel')}</label>
               <textarea
                 value={welcomeTemplate}
                 onChange={(e) => setWelcomeTemplate(e.target.value)}
                 rows={4}
-                className="w-full bg-[#070707] border border-border-subtle focus:border-amber-500 rounded-xl p-3 text-xs text-gray-300 font-sans focus:outline-none resize-none leading-relaxed"
+                className="w-full bg-background border border-border focus:border-ring rounded-lg p-3 text-xs text-muted-foreground font-sans focus:outline-none resize-none leading-relaxed"
                 id="template-welcome"
               />
-              <span className="text-[10px] text-gray-500 block">{t('settings.welcomeTemplateHint')}</span>
+              <span className="text-[10px] text-muted-foreground/70 block">{t('settings.welcomeTemplateHint')}</span>
             </div>
 
             {/* Template 2 */}
             <div className="space-y-2">
-              <label className="text-xs text-gray-400 uppercase tracking-wider font-mono block">{t('settings.nudgeTemplateLabel')}</label>
+              <label className="text-xs text-muted-foreground uppercase tracking-wider font-mono block">{t('settings.nudgeTemplateLabel')}</label>
               <textarea
                 value={nudgeTemplate}
                 onChange={(e) => setNudgeTemplate(e.target.value)}
                 rows={4}
-                className="w-full bg-[#070707] border border-border-subtle focus:border-amber-500 rounded-xl p-3 text-xs text-gray-300 font-sans focus:outline-none resize-none leading-relaxed"
+                className="w-full bg-background border border-border focus:border-ring rounded-lg p-3 text-xs text-muted-foreground font-sans focus:outline-none resize-none leading-relaxed"
                 id="template-nudge"
               />
-              <span className="text-[10px] text-gray-500 block">{t('settings.nudgeTemplateHint')}</span>
+              <span className="text-[10px] text-muted-foreground/70 block">{t('settings.nudgeTemplateHint')}</span>
             </div>
           </div>
         </div>
 
         {/* BUSINESS HOURS */}
-        <div className="bg-[#0A0A0A] border border-zinc-900 rounded-2xl p-6">
+        <div className="bg-card border border-border rounded-xl p-6">
            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-sky-500/10 flex items-center justify-center text-sky-400">
+              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
                 <Clock size={20} />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-white font-display">Jam Operasional (Global)</h2>
-                <p className="text-sm text-gray-500 font-sans">Mengatur jam kerja untuk seluruh kapster</p>
+                <h2 className="text-xl font-bold text-foreground font-display">Jam Operasional (Global)</h2>
+                <p className="text-sm text-muted-foreground font-sans">Mengatur jam kerja untuk seluruh kapster</p>
               </div>
            </div>
-           
-           <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 mb-6 flex gap-3">
+
+           <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4 mb-6 flex gap-3">
              <AlertCircle size={20} className="text-amber-500 flex-shrink-0 mt-0.5" />
              <p className="text-xs text-amber-500/90 leading-relaxed font-sans">
                Catatan: Mengubah jam operasional tidak membatalkan booking yang sudah masuk sebelumnya di luar jam baru ini.
@@ -444,7 +444,7 @@ export default function SettingsView({
 
            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
              <div className="space-y-2">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider font-mono">Jam Buka</label>
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider font-mono">Jam Buka</label>
                 <Select
                   value={businessHours.openHour.toString()}
                   onValueChange={(v) => {
@@ -454,7 +454,7 @@ export default function SettingsView({
                     }
                   }}
                 >
-                  <SelectTrigger className="w-full bg-[#050505] border border-zinc-900 text-white text-sm rounded-xl px-4 py-3 h-auto">
+                  <SelectTrigger className="w-full bg-background border border-border text-foreground text-sm rounded-lg px-4 py-3 h-auto">
                     <SelectValue placeholder="Pilih Jam Buka" />
                   </SelectTrigger>
                   <SelectContent>
@@ -468,7 +468,7 @@ export default function SettingsView({
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider font-mono">Jam Tutup</label>
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider font-mono">Jam Tutup</label>
                 <Select
                   value={businessHours.closeHour.toString()}
                   onValueChange={(v) => {
@@ -478,7 +478,7 @@ export default function SettingsView({
                     }
                   }}
                 >
-                  <SelectTrigger className="w-full bg-[#050505] border border-zinc-900 text-white text-sm rounded-xl px-4 py-3 h-auto">
+                  <SelectTrigger className="w-full bg-background border border-border text-foreground text-sm rounded-lg px-4 py-3 h-auto">
                     <SelectValue placeholder="Pilih Jam Tutup" />
                   </SelectTrigger>
                   <SelectContent>

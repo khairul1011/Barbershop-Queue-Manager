@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { QueueEntry, QueueStatus, Barber, Service } from '../types';
-import { 
-  Calendar, Clock, MapPin, User, ChevronRight, ChevronLeft, ChevronDown, 
-  Phone, MessageSquarePlus, Info, X, Plus, Trash2, Check, Sparkles, 
-  Scissors, Bell, Filter, Edit2
+import {
+  Calendar, Clock, MapPin, User, ChevronRight, ChevronLeft, ChevronDown,
+  Phone, MessageSquarePlus, Info, X, Plus, Trash2, Check, Sparkles,
+  Scissors, Bell, Filter, Edit2, CalendarDays, CalendarRange, LayoutGrid
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useTranslation } from '../i18n';
@@ -11,6 +11,7 @@ import { SegmentedToggle } from './ui/SegmentedToggle';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { TimePicker } from '@/components/ui/TimePicker';
 
 interface ScheduleProps {
   queue: QueueEntry[];
@@ -203,16 +204,16 @@ export default function Schedule({
 
   const getStatusBadgeStyles = (entry: QueueEntry) => {
     if (entry.completedAt || entry.status === 'Completed') {
-      return 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
+      return 'bg-blue-200 text-blue-950';
     }
     if (entry.startedAt && !entry.completedAt) {
-      return 'bg-violet-500/20 text-violet-300 border border-violet-500/50 shadow-[0_0_15px_rgba(139,92,246,0.15)] ring-1 ring-violet-500/50';
+      return 'bg-violet-200 text-violet-950 ring-2 ring-violet-500';
     }
     switch (entry.status) {
-      case 'Confirmed': return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
-      case 'Estimated': return 'bg-amber-500/10 text-amber-500 border border-amber-500/20';
-      case 'Pending Reply': return 'bg-sky-500/10 text-sky-400 border border-sky-500/20';
-      default: return 'bg-gray-500/10 text-gray-400 border border-gray-500/20';
+      case 'Confirmed': return 'bg-emerald-200 text-emerald-950';
+      case 'Estimated': return 'bg-amber-200 text-amber-950';
+      case 'Pending Reply': return 'bg-sky-200 text-sky-950';
+      default: return 'bg-muted text-muted-foreground border border-border';
     }
   };
 
@@ -338,16 +339,16 @@ export default function Schedule({
         {/* Grid Background Lines */}
         <div className="relative w-full" style={{ height: (businessHours.closeHour - businessHours.openHour + 1) * 60 * PIXELS_PER_MINUTE }}>
           {hours.map(hour => (
-            <div 
-              key={hour} 
-              className="absolute w-full border-t border-zinc-800"
+            <div
+              key={hour}
+              className="absolute w-full border-t border-border"
               style={{ top: (hour - businessHours.openHour) * 60 * PIXELS_PER_MINUTE }}
               onClick={() => {
                 setBookingSlot({ day, hour: `${hour.toString().padStart(2, '0')}:00`, barberName: barber.name });
                 setSelectedBarberId(barber.id);
               }}
             >
-              <div className="absolute inset-0 active:bg-amber-500/10 hover:bg-zinc-900/20 transition-colors cursor-pointer" style={{ height: 60 * PIXELS_PER_MINUTE }} />
+              <div className="absolute inset-0 active:bg-accent hover:bg-accent/40 transition-colors cursor-pointer" style={{ height: 60 * PIXELS_PER_MINUTE }} />
             </div>
           ))}
 
@@ -358,16 +359,16 @@ export default function Schedule({
               <div
                 key={entry.id}
                 onClick={() => setActiveSlotDetails({ day, timeRange: entry.timeRange, entry })}
-                className={`absolute rounded-xl ${isSmall ? 'py-1 px-2 justify-center' : 'p-2'} cursor-pointer transition-all hover:z-20 ${getStatusBadgeStyles(entry)} shadow-black/40 backdrop-blur-sm bg-opacity-80 overflow-hidden flex flex-col`}
+                className={`absolute rounded-lg ${isSmall ? 'py-1 px-2 justify-center' : 'p-2'} cursor-pointer transition-all hover:scale-[1.02] hover:z-20 ${getStatusBadgeStyles(entry)} shadow-sm overflow-hidden flex flex-col`}
                 style={{ top: topPx, height: heightPx, left, width }}
               >
                 <div className="flex justify-between items-start gap-1">
-                  <div className="font-bold text-[11px] text-white truncate leading-tight">
+                  <div className="font-bold text-[11px] truncate leading-tight">
                     {entry.customerName}
                     {isSmall && <span className="font-normal opacity-70 ml-1">· {entry.service}</span>}
                   </div>
                   {entry.startedAt && !entry.completedAt && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-violet-400 shrink-0 mt-1 animate-pulse" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-violet-700 shrink-0 mt-1 animate-pulse" />
                   )}
                 </div>
                 {!isSmall && (
@@ -399,25 +400,25 @@ export default function Schedule({
       <div className="flex-none space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl md:text-4xl font-display font-extrabold text-white tracking-tight">
+            <h1 className="text-3xl md:text-4xl font-display font-extrabold text-foreground tracking-tight">
               {t('schedule.hqTitle')}
             </h1>
-            <p className="text-sm text-gray-400 font-sans mt-0.5">
+            <p className="text-sm text-muted-foreground font-sans mt-0.5">
               {t('schedule.hqSubtitle')}
             </p>
-            <p className="text-[10px] sm:hidden text-amber-500/70 font-mono mt-2">
+            <p className="text-[10px] sm:hidden text-muted-foreground font-mono mt-2">
               (Ketuk area grid kosong untuk menjadwalkan)
             </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 bg-[#0A0A0A] p-2 rounded-2xl border border-zinc-900 justify-between">
+        <div className="flex flex-wrap items-center gap-3 bg-card p-2 rounded-xl border border-border justify-between">
           <div className="flex items-center gap-2">
             <SegmentedToggle
               options={[
-                { value: 'Daily', label: t('schedule.daily') as string },
-                { value: 'Weekly', label: t('schedule.weekly') as string },
-                { value: 'Monthly', label: t('schedule.monthly') as string },
+                { value: 'Daily', label: t('schedule.daily') as string, icon: <CalendarDays size={14} /> },
+                { value: 'Weekly', label: t('schedule.weekly') as string, icon: <CalendarRange size={14} /> },
+                { value: 'Monthly', label: t('schedule.monthly') as string, icon: <LayoutGrid size={14} /> },
               ]}
               value={viewMode}
               onChange={(v: string) => setViewMode(v as 'Daily' | 'Weekly' | 'Monthly')}
@@ -440,10 +441,10 @@ export default function Schedule({
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 px-3 h-[42px] bg-zinc-950 border border-zinc-800 rounded-xl">
-              <Filter size={14} className="text-gray-500" />
+            <div className="flex items-center gap-2 px-3 h-[42px] bg-background border border-border rounded-lg">
+              <Filter size={14} className="text-muted-foreground" />
               <Select value={filterBarberId} onValueChange={setFilterBarberId}>
-                <SelectTrigger className="w-[130px] h-full border-none bg-transparent shadow-none px-0 py-0 focus:ring-0 text-xs text-gray-300">
+                <SelectTrigger className="w-[130px] h-full border-none bg-transparent shadow-none px-0 py-0 focus:ring-0 text-xs text-muted-foreground">
                   <SelectValue placeholder={t('schedule.filterAll')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -452,9 +453,9 @@ export default function Schedule({
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center gap-2 px-3 h-[42px] bg-zinc-950 border border-zinc-800 rounded-xl">
+            <div className="flex items-center gap-2 px-3 h-[42px] bg-background border border-border rounded-lg">
               <Select value={filterServiceId} onValueChange={setFilterServiceId}>
-                <SelectTrigger className="w-[120px] h-full border-none bg-transparent shadow-none px-0 py-0 focus:ring-0 text-xs text-gray-300">
+                <SelectTrigger className="w-[120px] h-full border-none bg-transparent shadow-none px-0 py-0 focus:ring-0 text-xs text-muted-foreground">
                   <SelectValue placeholder={t('schedule.filterAll')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -470,8 +471,8 @@ export default function Schedule({
       {/* VIEWS */}
       <div className="flex flex-col">
         {viewMode === 'Daily' && (
-          <div className="flex flex-col bg-[#050505] border border-zinc-800 rounded-2xl overflow-hidden relative">
-            <div className="flex items-center justify-between p-3 border-b border-zinc-800 bg-[#0A0A0A]">
+          <div className="flex flex-col bg-background border border-border rounded-xl relative">
+            <div className="flex items-center justify-between p-3 border-b border-border bg-card rounded-t-xl">
               <div className="flex items-center gap-3">
                 <Button
                   variant="ghost"
@@ -484,12 +485,12 @@ export default function Schedule({
                     } else {
                       setSelectedDay(DAYS_OF_WEEK[currentIndex - 1]);
                     }
-                  }} 
-                  className="hover:bg-zinc-800 text-gray-400"
+                  }}
+                  className="hover:bg-accent text-muted-foreground"
                 >
                   <ChevronLeft size={18}/>
                 </Button>
-                <span className="font-bold text-white min-w-[120px] text-center">{weekDates.find(d => d.day === selectedDay)?.label}</span>
+                <span className="font-bold text-foreground min-w-[120px] text-center">{weekDates.find(d => d.day === selectedDay)?.label}</span>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -501,8 +502,8 @@ export default function Schedule({
                     } else {
                       setSelectedDay(DAYS_OF_WEEK[currentIndex + 1]);
                     }
-                  }} 
-                  className="hover:bg-zinc-800 text-gray-400"
+                  }}
+                  className="hover:bg-accent text-muted-foreground"
                 >
                   <ChevronRight size={18}/>
                 </Button>
@@ -510,7 +511,7 @@ export default function Schedule({
             </div>
 
             {/* Mobile Barber Tabs */}
-            <div className="flex lg:hidden border-b border-zinc-800 overflow-x-auto scrollbar-none bg-[#0A0A0A] sticky top-[64px] md:top-[72px] z-30">
+            <div className="flex lg:hidden border-b border-border overflow-x-auto scrollbar-none bg-card sticky top-[64px] md:top-[72px] z-30">
               {activeBarbers.map((b, idx) => (
                 <Button
                   variant="ghost"
@@ -518,8 +519,8 @@ export default function Schedule({
                   onClick={() => setActiveMobileBarberIndex(idx)}
                   className={`flex-1 rounded-none border-b-2 py-2.5 h-auto ${
                     activeMobileBarberIndex === idx
-                      ? 'border-amber-500 text-amber-500 bg-amber-500/5'
-                      : 'border-transparent text-gray-500 hover:text-gray-300'
+                      ? 'border-foreground text-foreground bg-accent'
+                      : 'border-transparent text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   {b.name.split(' ')[0]}
@@ -528,14 +529,14 @@ export default function Schedule({
             </div>
 
             {/* Single horizontal scrollable row: time axis + barber columns (each with own header) */}
-            <div className="relative flex overflow-x-auto bg-[#0A0A0A]">
+            <div className="relative flex overflow-x-auto overflow-y-hidden bg-card rounded-b-xl">
 
               {/* Time Axis */}
-              <div className="w-[60px] flex-none shrink-0 border-r border-zinc-800 bg-[#050505] sticky left-0 z-20 pt-[56px]"
+              <div className="w-[60px] flex-none shrink-0 border-r border-border bg-background sticky left-0 z-20 pt-[56px]"
                    style={{ height: `calc(${(businessHours.closeHour - businessHours.openHour + 1) * 60 * PIXELS_PER_MINUTE}px + 56px)` }}>
                 {Array.from({ length: businessHours.closeHour - businessHours.openHour + 1 }, (_, i) => i + businessHours.openHour).map(hour => (
                   <div key={hour}
-                       className={`absolute w-full text-right pr-2 text-xs text-gray-500 font-mono ${hour === businessHours.openHour ? 'translate-y-1' : '-translate-y-2'}`}
+                       className={`absolute w-full text-right pr-2 text-xs text-muted-foreground font-mono ${hour === businessHours.openHour ? 'translate-y-1' : '-translate-y-2'}`}
                        style={{ top: `calc(56px + ${(hour - businessHours.openHour) * 60 * PIXELS_PER_MINUTE}px)` }}>
                     {hour.toString().padStart(2, '0')}:00
                   </div>
@@ -545,12 +546,12 @@ export default function Schedule({
               {/* Barber Columns — each owns its own header + grid */}
               {activeBarbers.map((b, idx) => (
                 <div key={b.id}
-                     className={`flex-1 min-w-[200px] flex flex-col border-r border-zinc-800 ${activeMobileBarberIndex === idx ? 'flex' : 'hidden lg:flex'}`}>
+                     className={`flex-1 min-w-[200px] flex flex-col border-r border-border ${activeMobileBarberIndex === idx ? 'flex' : 'hidden lg:flex'}`}>
 
                   {/* Column Header */}
-                  <div className="h-[56px] flex flex-col items-center justify-center border-b border-zinc-800 bg-[#0A0A0A] shrink-0">
-                    <div className="font-bold text-sm text-white">{b.name}</div>
-                    <div className="text-[10px] text-gray-500 uppercase font-mono tracking-wider mt-0.5 flex justify-center gap-1">
+                  <div className="h-[56px] flex flex-col items-center justify-center border-b border-border bg-card shrink-0">
+                    <div className="font-bold text-sm text-foreground">{b.name}</div>
+                    <div className="text-[10px] text-muted-foreground uppercase font-mono tracking-wider mt-0.5 flex justify-center gap-1">
                       {b.status === 'break' && <span className="text-amber-500">{t('overview.statusBreak')}</span>}
                       {b.status === 'active' && <span className="text-teal-500">{t('overview.statusOnSeat')}</span>}
                     </div>
@@ -567,12 +568,12 @@ export default function Schedule({
         )}
 
         {viewMode === 'Weekly' && (
-          <div className="bg-[#050505] rounded-2xl border border-zinc-800 p-4 space-y-4">
+          <div className="bg-background rounded-xl border border-border p-4 space-y-4">
              <div className="flex items-center gap-3 mb-4">
                 <Button variant="secondary" size="icon" onClick={() => setWeekOffset(o => o - 1)}>
                   <ChevronLeft size={18}/>
                 </Button>
-                <span className="font-bold text-white text-lg">{weekRangeStr}</span>
+                <span className="font-bold text-foreground text-lg">{weekRangeStr}</span>
                 <Button variant="secondary" size="icon" onClick={() => setWeekOffset(o => o + 1)}>
                   <ChevronRight size={18}/>
                 </Button>
@@ -589,15 +590,15 @@ export default function Schedule({
                  });
                  
                  return (
-                   <div key={date.day} className={`bg-[#0A0A0A] border rounded-2xl flex overflow-hidden ${date.isToday ? 'border-amber-500/50 shadow-lg shadow-amber-500/5 ring-1 ring-inset ring-amber-500/20' : 'border-zinc-800'}`}>
-                     
+                   <div key={date.day} className={`bg-card border rounded-xl flex overflow-hidden ${date.isToday ? 'border-ring/50 shadow-lg shadow-black/20 ring-1 ring-inset ring-ring/20' : 'border-border'}`}>
+
                      {/* Left: Date Header */}
-                     <div className="w-[72px] sm:w-[80px] p-3 sm:p-4 flex flex-col items-center justify-center border-r border-zinc-800 bg-[#050505] shrink-0">
-                       <div className="text-[10px] font-mono uppercase text-gray-500">{date.day}</div>
-                       <div className={`mt-1 flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full ${date.isToday ? 'bg-amber-500/10 text-amber-500 font-extrabold text-lg sm:text-xl' : 'text-white font-bold text-lg sm:text-xl'}`}>
+                     <div className="w-[72px] sm:w-[80px] p-3 sm:p-4 flex flex-col items-center justify-center border-r border-border bg-background shrink-0">
+                       <div className="text-[10px] font-mono uppercase text-muted-foreground">{date.day}</div>
+                       <div className={`mt-1 flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full ${date.isToday ? 'bg-primary text-primary-foreground font-extrabold text-lg sm:text-xl' : 'text-foreground font-bold text-lg sm:text-xl'}`}>
                          {date.dayNum}
                        </div>
-                       <Button variant="ghost" size="sm" onClick={() => { setSelectedDay(date.day); setViewMode('Daily'); }} className="mt-2 sm:mt-3 text-[10px] uppercase tracking-wider text-gray-500 hover:text-amber-500 font-bold transition-colors">
+                       <Button variant="ghost" size="sm" onClick={() => { setSelectedDay(date.day); setViewMode('Daily'); }} className="mt-2 sm:mt-3 text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground font-bold transition-colors">
                          View
                        </Button>
                      </div>
@@ -606,45 +607,38 @@ export default function Schedule({
                      <div className="flex-1 p-3 sm:p-4 flex flex-col gap-2 relative min-w-0">
                        {dayEntries.length === 0 ? (
                          <div className="h-full flex items-center justify-center min-h-[60px]">
-                           <span className="text-sm text-zinc-400 italic">{t('schedule.noEntriesForDay')}</span>
+                           <span className="text-sm text-muted-foreground italic">{t('schedule.noEntriesForDay')}</span>
                          </div>
                        ) : (
                          <div className="flex flex-col gap-2">
                            {dayEntries.slice(0, expandedWeeklyDays.includes(date.fullDateString) ? undefined : 4).map(e => {
-                             const isConfirmed = e.status === 'Confirmed';
                              const isCompleted = !!e.completedAt;
                              const isServing = e.startedAt && !e.completedAt;
-                             
-                             let borderLeftColor = 'border-l-zinc-700';
-                             if (isCompleted) borderLeftColor = 'border-l-blue-500';
-                             else if (isServing) borderLeftColor = 'border-l-violet-500';
-                             else if (isConfirmed) borderLeftColor = 'border-l-emerald-500';
-                             else if (e.status === 'Pending Reply') borderLeftColor = 'border-l-sky-500';
-                             
+
                              return (
-                               <div 
-                                 key={e.id} 
-                                 onClick={() => { setSelectedDay(date.day); setViewMode('Daily'); }} 
-                                 className={`p-2.5 sm:p-3 rounded-xl border border-zinc-800 bg-[#121212] border-l-[3px] ${borderLeftColor} text-xs flex justify-between items-center cursor-pointer hover:bg-zinc-800/50 transition-colors ${isCompleted ? 'opacity-80' : ''}`}
+                               <div
+                                 key={e.id}
+                                 onClick={() => { setSelectedDay(date.day); setViewMode('Daily'); }}
+                                 className={`p-2.5 sm:p-3 rounded-lg ${getStatusBadgeStyles(e)} text-xs flex justify-between items-center cursor-pointer hover:opacity-90 transition-opacity ${isCompleted ? 'opacity-80' : ''}`}
                                >
                                  <div className="flex flex-col gap-1 min-w-0 flex-1 pr-2 sm:pr-4">
                                    <div className="flex items-center gap-2">
-                                     <span className="font-bold text-sm text-white truncate">{e.customerName}</span>
+                                     <span className="font-bold text-sm truncate">{e.customerName}</span>
                                      {isServing && (
-                                       <span className="text-[10px] font-black bg-violet-500/20 text-violet-400 border border-violet-500/30 px-1.5 py-0.5 rounded animate-pulse shrink-0">LIVE</span>
+                                       <span className="text-[10px] font-black bg-violet-900 text-violet-100 px-1.5 py-0.5 rounded animate-pulse shrink-0">LIVE</span>
                                      )}
                                      {isCompleted && (
-                                       <span className="text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded">DONE</span>
+                                       <span className="text-[10px] font-bold bg-blue-900 text-blue-100 px-1.5 py-0.5 rounded">DONE</span>
                                      )}
                                    </div>
-                                   <div className="text-[11px] text-gray-400 flex items-center gap-2 truncate">
+                                   <div className="text-[11px] opacity-70 flex items-center gap-2 truncate">
                                      <span className="flex items-center gap-1 shrink-0"><User size={12}/> <span className="truncate max-w-[60px] sm:max-w-none">{e.barber}</span></span>
                                      <span className="flex items-center gap-1 shrink-0"><Scissors size={12}/> <span className="truncate">{e.service}</span></span>
                                    </div>
                                  </div>
-                                 <div className="flex flex-col items-end shrink-0 pl-2 sm:pl-4 border-l border-zinc-800">
-                                   <span className="font-mono text-xs font-bold text-gray-300">{e.timeRange.replace('~','').split('-')[0].trim()}</span>
-                                   <span className="font-mono text-[10px] text-gray-500">{e.timeRange.replace('~','').split('-')[1]?.trim() || ''}</span>
+                                 <div className="flex flex-col items-end shrink-0 pl-2 sm:pl-4 border-l border-current/15">
+                                   <span className="font-mono text-xs font-bold opacity-90">{e.timeRange.replace('~','').split('-')[0].trim()}</span>
+                                   <span className="font-mono text-[10px] opacity-60">{e.timeRange.replace('~','').split('-')[1]?.trim() || ''}</span>
                                  </div>
                                </div>
                              );
@@ -655,7 +649,7 @@ export default function Schedule({
                                 <Button
                                   variant="secondary"
                                   size="sm"
-                                  onClick={(e) => { e.stopPropagation(); setExpandedWeeklyDays(prev => [...prev, date.fullDateString]); }} 
+                                  onClick={(e) => { e.stopPropagation(); setExpandedWeeklyDays(prev => [...prev, date.fullDateString]); }}
                                   className="rounded-full text-[10px]"
                                 >
                                   + {dayEntries.length - 4} {t('schedule.moreEntries').replace('{n}', '').trim()}
@@ -668,8 +662,8 @@ export default function Schedule({
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={(e) => { e.stopPropagation(); setExpandedWeeklyDays(prev => prev.filter(d => d !== date.fullDateString)); }} 
-                                  className="rounded-full text-[10px] text-gray-500 hover:text-white"
+                                  onClick={(e) => { e.stopPropagation(); setExpandedWeeklyDays(prev => prev.filter(d => d !== date.fullDateString)); }}
+                                  className="rounded-full text-[10px] text-muted-foreground hover:text-foreground"
                                 >
                                   Sembunyikan
                                 </Button>
@@ -686,9 +680,9 @@ export default function Schedule({
         )}
 
         {viewMode === 'Monthly' && (
-          <div className="bg-[#050505] rounded-2xl border border-zinc-900 p-4">
+          <div className="bg-background rounded-xl border border-border p-4">
              <div className="flex items-center justify-between mb-4 flex-none">
-                <h2 className="text-xl font-bold text-white flex items-center gap-3">
+                <h2 className="text-xl font-bold text-foreground flex items-center gap-3">
                   <Button variant="secondary" size="icon" onClick={() => setMonthOffset(o => o - 1)}>
                     <ChevronLeft size={18}/>
                   </Button>
@@ -698,14 +692,14 @@ export default function Schedule({
                   </Button>
                 </h2>
              </div>
-             
+
              <div className="grid grid-cols-7 gap-2 mb-2">
-               {DAYS_OF_WEEK.map(d => <div key={d} className="text-center text-xs font-mono font-bold text-gray-500 uppercase">{d}</div>)}
+               {DAYS_OF_WEEK.map(d => <div key={d} className="text-center text-xs font-mono font-bold text-muted-foreground uppercase">{d}</div>)}
              </div>
-             
-             <div className="grid grid-cols-7 gap-[1px] bg-zinc-800 border border-zinc-800 rounded-xl overflow-hidden">
+
+             <div className="grid grid-cols-7 gap-[1px] bg-border border border-border rounded-lg overflow-hidden">
                {monthDays.map((md, idx) => {
-                 if (!md) return <div key={`empty-${idx}`} className="bg-[#0A0A0A] min-h-[80px] sm:min-h-[100px] opacity-40" />;
+                 if (!md) return <div key={`empty-${idx}`} className="bg-muted/30 min-h-[80px] sm:min-h-[100px]" />;
                  const dayEntries = filteredEntries.filter(e => e.scheduledDate === md.fullDateString);
                  dayEntries.sort((a, b) => {
                    const startA = parseStartMinutes(a.timeRange) || 0;
@@ -713,54 +707,28 @@ export default function Schedule({
                    return startA - startB;
                  });
                  
-                 const firstEntry = dayEntries[0];
-                 const isCompleted = firstEntry?.completedAt;
-                 const isServing = firstEntry?.startedAt && !firstEntry?.completedAt;
-                 const isConfirmed = firstEntry?.status === 'Confirmed';
-                 
-                 let borderColor = 'border-l-transparent';
-                 if (firstEntry) {
-                   if (isCompleted) borderColor = 'border-l-blue-500';
-                   else if (isServing) borderColor = 'border-l-violet-500';
-                   else if (isConfirmed) borderColor = 'border-l-emerald-500';
-                   else if (firstEntry.status === 'Pending Reply') borderColor = 'border-l-sky-500';
-                   else borderColor = 'border-l-zinc-700';
-                 }
-
                  return (
-                   <div 
-                     key={idx} 
-                     onClick={() => jumpToDate(md.fullDate)} 
-                     className={`bg-[#121212] hover:bg-zinc-900/80 min-h-[80px] sm:min-h-[100px] cursor-pointer transition-colors flex flex-col p-1.5 sm:p-2 gap-1 border-l-2 ${borderColor} ${md.isToday ? 'bg-amber-500/10' : ''}`}
+                   <div
+                     key={idx}
+                     onClick={() => jumpToDate(md.fullDate)}
+                     className={`bg-card hover:bg-accent/80 min-h-[80px] sm:min-h-[100px] cursor-pointer transition-colors flex flex-col p-1.5 sm:p-2 gap-1 ${md.isToday ? 'bg-accent' : ''}`}
                    >
                      <div className="flex justify-between items-start w-full">
-                       <div className="flex gap-0.5 flex-wrap flex-1 max-w-[60%] pt-1">
-                         {dayEntries.slice(0, 3).map((e, i) => {
-                           let dotColor = 'bg-zinc-600';
-                           if (e.completedAt || e.status === 'Completed') dotColor = 'bg-blue-400';
-                           else if (e.startedAt && !e.completedAt) dotColor = 'bg-violet-400';
-                           else if (e.status === 'Confirmed') dotColor = 'bg-emerald-400';
-                           else if (e.status === 'Pending Reply') dotColor = 'bg-sky-400';
-                           else if (e.status === 'Estimated') dotColor = 'bg-amber-400';
-                           return <span key={i} className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />;
-                         })}
-                         {dayEntries.length > 3 && <span className="text-[7px] text-gray-500 font-bold ml-0.5 leading-none">+{dayEntries.length - 3}</span>}
-                       </div>
-                       <div className={`flex items-center justify-center rounded-full shrink-0 ${md.isToday ? 'w-5 h-5 bg-amber-500 text-black text-[10px] font-extrabold' : 'text-xs font-bold text-gray-400'}`}>
+                       <div className={`flex items-center justify-center rounded-full shrink-0 ${md.isToday ? 'w-5 h-5 bg-primary text-primary-foreground text-[10px] font-extrabold' : 'text-xs font-bold text-muted-foreground'}`}>
                          {md.dayNum}
                        </div>
                      </div>
-                     
-                     {firstEntry && (
-                       <div className={`mt-auto flex flex-col gap-0.5 overflow-hidden ${isCompleted ? 'opacity-80' : ''}`}>
-                         <span className="text-[10px] sm:text-xs font-semibold text-white truncate w-full leading-tight">
-                           {firstEntry.customerName}
-                         </span>
-                         <span className="text-[9px] sm:text-[10px] font-mono text-gray-400">
-                           {firstEntry.timeRange.replace('~','').split('-')[0].trim()}
-                         </span>
-                       </div>
-                     )}
+
+                     <div className="flex flex-col gap-0.5 overflow-hidden">
+                       {dayEntries.slice(0, 2).map((e) => (
+                         <div key={e.id} className={`px-1 py-0.5 rounded text-[8px] sm:text-[9px] font-semibold truncate ${getStatusBadgeStyles(e)}`}>
+                           {e.customerName}
+                         </div>
+                       ))}
+                       {dayEntries.length > 2 && (
+                         <span className="text-[7px] text-muted-foreground font-bold pl-0.5">+{dayEntries.length - 2} lagi</span>
+                       )}
+                     </div>
                    </div>
                  );
                })}
@@ -779,13 +747,13 @@ export default function Schedule({
           </div>
           <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
             {filteredEntries.filter(e => e.scheduledDate === weekDates.find(d => d.day === selectedDay)?.fullDateString && e.status === 'Estimated' && !e.completedAt).map(entry => (
-              <div key={entry.id} onClick={() => setActiveSlotDetails({ day: selectedDay, timeRange: entry.timeRange, entry })} className="flex-none bg-[#0A0A0A] border border-amber-500/30 rounded-xl p-3 w-[200px] cursor-pointer hover:bg-zinc-900 transition-colors">
+              <div key={entry.id} onClick={() => setActiveSlotDetails({ day: selectedDay, timeRange: entry.timeRange, entry })} className="flex-none bg-amber-200 text-amber-950 border border-amber-300 rounded-lg p-3 w-[200px] cursor-pointer hover:opacity-90 transition-opacity">
                 <div className="flex justify-between items-start mb-2">
-                  <div className="font-bold text-white text-sm truncate">{entry.customerName}</div>
-                  {entry.queueNumber && <div className="bg-amber-500 text-black text-[10px] font-bold px-1.5 py-0.5 rounded">No. {entry.queueNumber}</div>}
+                  <div className="font-bold text-sm truncate">{entry.customerName}</div>
+                  {entry.queueNumber && <div className="bg-amber-950 text-amber-100 text-[10px] font-bold px-1.5 py-0.5 rounded">No. {entry.queueNumber}</div>}
                 </div>
-                <div className="text-xs text-gray-400 truncate flex items-center gap-1.5"><User size={10}/> {entry.barber}</div>
-                <div className="text-xs text-gray-400 truncate flex items-center gap-1.5"><Scissors size={10}/> {entry.service}</div>
+                <div className="text-xs opacity-70 truncate flex items-center gap-1.5"><User size={10}/> {entry.barber}</div>
+                <div className="text-xs opacity-70 truncate flex items-center gap-1.5"><Scissors size={10}/> {entry.service}</div>
               </div>
             ))}
           </div>
@@ -794,15 +762,13 @@ export default function Schedule({
 
       {/* MODALS */}
       <Dialog open={!!bookingSlot} onOpenChange={(open) => !open && setBookingSlot(null)}>
-        <DialogContent className="p-0 sm:rounded-2xl gap-0 overflow-hidden bg-[#0F0F0F] border-zinc-800 shadow-2xl">
-          <div className="p-5 border-b border-zinc-900">
+        <DialogContent className="p-0 sm:rounded-xl gap-0 overflow-hidden bg-popover border-border shadow-2xl">
+          <div className="p-5 border-b border-border">
             <DialogTitle className="flex items-center gap-2 m-0 p-0">
-              <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500">
-                <Calendar size={16} />
-              </div>
+              <Calendar size={16} className="text-muted-foreground shrink-0" />
               <div className="flex flex-col text-left">
-                <span className="font-bold text-white text-base leading-none mb-1">{t('schedule.quickBookTitle')}</span>
-                <span className="text-xs text-gray-500 font-sans normal-case">
+                <span className="font-bold text-foreground text-base leading-none mb-1">{t('schedule.quickBookTitle')}</span>
+                <span className="text-xs text-muted-foreground font-sans normal-case">
                   {bookingSlot?.day} — {t('schedule.slot')} {bookingSlot?.hour}
                 </span>
               </div>
@@ -811,13 +777,13 @@ export default function Schedule({
 
           <form onSubmit={handleConfirmQuickBook} className="p-5 space-y-4">
             <div className="space-y-1.5">
-              <label className="text-[10px] text-gray-500 uppercase tracking-wider font-mono font-bold block">{t('schedule.customerName')}</label>
-              <input type="text" required value={newCustomerName} onChange={e => setNewCustomerName(e.target.value)} placeholder={t('schedule.customerNamePlaceholder')} className="w-full bg-[#121212] border border-zinc-850 text-white text-sm rounded-xl px-3.5 py-2.5 focus:border-amber-500 outline-none" />
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono font-bold block">{t('schedule.customerName')}</label>
+              <input type="text" required value={newCustomerName} onChange={e => setNewCustomerName(e.target.value)} placeholder={t('schedule.customerNamePlaceholder')} className="w-full bg-background border border-border text-foreground text-sm rounded-lg px-3.5 py-2.5 focus:border-ring outline-none" />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] text-gray-500 uppercase tracking-wider font-mono font-bold block">{t('schedule.selectService')}</label>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono font-bold block">{t('schedule.selectService')}</label>
               <Select value={selectedServiceId} onValueChange={setSelectedServiceId}>
-                <SelectTrigger className="w-full bg-[#121212] border border-zinc-850 text-white text-sm rounded-xl px-3.5 py-2.5 h-auto">
+                <SelectTrigger className="w-full bg-background border border-border text-foreground text-sm rounded-lg px-3.5 py-2.5 h-auto">
                   <SelectValue placeholder="Select Service" />
                 </SelectTrigger>
                 <SelectContent>
@@ -826,9 +792,9 @@ export default function Schedule({
               </Select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] text-gray-500 uppercase tracking-wider font-mono font-bold block">{t('schedule.selectBarber')}</label>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono font-bold block">{t('schedule.selectBarber')}</label>
               <Select value={selectedBarberId} onValueChange={setSelectedBarberId}>
-                <SelectTrigger className="w-full bg-[#121212] border border-zinc-850 text-white text-sm rounded-xl px-3.5 py-2.5 h-auto">
+                <SelectTrigger className="w-full bg-background border border-border text-foreground text-sm rounded-lg px-3.5 py-2.5 h-auto">
                   <SelectValue placeholder="Select Barber" />
                 </SelectTrigger>
                 <SelectContent>
@@ -854,62 +820,55 @@ export default function Schedule({
           setConfirmTime('');
         }
       }}>
-        <DialogContent className="p-0 sm:rounded-2xl gap-0 overflow-hidden bg-[#0F0F0F] border-zinc-800 shadow-2xl">
-          <div className="p-5 border-b border-zinc-900">
+        <DialogContent className="p-0 sm:rounded-xl gap-0 overflow-hidden bg-popover border-border shadow-2xl">
+          <div className="p-5 border-b border-border">
             <DialogTitle className="flex items-center gap-2 m-0 p-0">
-              <div className="p-2 rounded-xl bg-teal-500/10 text-teal-400">
-                <User size={16}/>
-              </div>
+              <User size={16} className="text-muted-foreground shrink-0" />
               <div className="flex flex-col text-left">
-                <span className="font-bold text-white text-base leading-none mb-1">{t('schedule.appointmentDetails')}</span>
-                <span className="text-xs text-gray-400 font-sans normal-case">
+                <span className="font-bold text-foreground text-base leading-none mb-1">{t('schedule.appointmentDetails')}</span>
+                <span className="text-xs text-muted-foreground font-sans normal-case">
                   {activeSlotDetails?.day} <span className="mx-1">•</span> {activeSlotDetails?.timeRange.replace('~', '').trim()}
                 </span>
               </div>
             </DialogTitle>
           </div>
-          
+
           {activeSlotDetails && (
             <div className="p-5 space-y-4">
-              <div className="bg-[#121212] border border-zinc-850 p-4 rounded-xl space-y-1">
-                <div className="text-[10px] sm:text-xs text-gray-500 uppercase font-mono font-bold">{t('schedule.customerName')}</div>
-                <div className="text-base font-bold text-white flex items-center gap-2">
+              <div className="bg-background border border-border p-4 rounded-lg space-y-1">
+                <div className="text-[10px] sm:text-xs text-muted-foreground uppercase font-mono font-bold">{t('schedule.customerName')}</div>
+                <div className="text-base font-bold text-foreground flex items-center gap-2">
                   {activeSlotDetails.entry.customerName}
                   {activeSlotDetails.entry.queueNumber && <span className="text-[10px] bg-amber-500/10 text-amber-500 font-mono px-1.5 py-0.5 rounded">No. {activeSlotDetails.entry.queueNumber}</span>}
                 </div>
-                <div className="text-xs text-gray-400 font-mono">{t('schedule.phone')} {activeSlotDetails.entry.phone}</div>
+                <div className="text-xs text-muted-foreground font-mono">{t('schedule.phone')} {activeSlotDetails.entry.phone}</div>
               </div>
               <div className="grid grid-cols-2 gap-3.5">
-                <div className="bg-[#121212] border border-zinc-850 p-3 rounded-xl">
-                  <div className="text-[10px] sm:text-xs text-gray-500 uppercase font-mono font-bold mb-1 flex items-center gap-1.5"><Scissors size={12} className="text-amber-500"/> {t('requests.service')}</div>
-                  <div className="text-sm font-semibold text-gray-200 truncate">{activeSlotDetails.entry.service}</div>
+                <div className="bg-background border border-border p-3 rounded-lg">
+                  <div className="text-[10px] sm:text-xs text-muted-foreground uppercase font-mono font-bold mb-1 flex items-center gap-1.5"><Scissors size={12} className="text-muted-foreground"/> {t('requests.service')}</div>
+                  <div className="text-sm font-semibold text-foreground truncate">{activeSlotDetails.entry.service}</div>
                 </div>
-                <div className="bg-[#121212] border border-zinc-850 p-3 rounded-xl">
-                  <div className="text-[10px] sm:text-xs text-gray-500 uppercase font-mono font-bold mb-1 flex items-center gap-1.5"><User size={12} className="text-teal-400"/> {t('schedule.assignedBarber')}</div>
-                  <div className="text-sm font-semibold text-gray-200 truncate">{activeSlotDetails.entry.barber}</div>
+                <div className="bg-background border border-border p-3 rounded-lg">
+                  <div className="text-[10px] sm:text-xs text-muted-foreground uppercase font-mono font-bold mb-1 flex items-center gap-1.5"><User size={12} className="text-muted-foreground"/> {t('schedule.assignedBarber')}</div>
+                  <div className="text-sm font-semibold text-foreground truncate">{activeSlotDetails.entry.barber}</div>
                 </div>
               </div>
-              
-              <div className="border-t border-zinc-900 pt-4 space-y-2.5">
+
+              <div className="border-t border-border pt-4 space-y-2.5">
                  {activeSlotDetails.entry.status === 'Pending Reply' && (
-                   <Button 
+                   <Button
                      variant="default"
-                     onClick={() => handleWhatsAppAction(activeSlotDetails.entry)} 
-                     className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-semibold"
+                     onClick={() => handleWhatsAppAction(activeSlotDetails.entry)}
+                     className="w-full font-semibold"
                    >
                      <MessageSquarePlus size={16} className="mr-2" /> {t('schedule.sendWhatsAppNudge')}
                    </Button>
                  )}
                  <div className="flex flex-col gap-2">
                    {activeSlotDetails.entry.status === 'Estimated' && (
-                     <div className="bg-[#121212] border border-zinc-850 p-3 rounded-xl flex items-center justify-between">
-                        <div className="text-xs text-gray-400 font-mono font-bold uppercase">{t('schedule.scheduledTime', 'Set Time')}</div>
-                        <input 
-                          type="time" 
-                          value={confirmTime}
-                          onChange={(e) => setConfirmTime(e.target.value)}
-                          className="bg-[#1A1A1A] text-white text-sm font-bold p-1.5 rounded-lg border border-zinc-800 outline-none focus:border-amber-500 transition-colors"
-                        />
+                     <div className="bg-background border border-border p-3 rounded-lg flex items-center justify-between">
+                        <div className="text-xs text-muted-foreground font-mono font-bold uppercase">{t('schedule.scheduledTime')}</div>
+                        <TimePicker value={confirmTime} onChange={setConfirmTime} />
                      </div>
                    )}
                    <div className="flex gap-2 mt-2">
@@ -935,10 +894,10 @@ export default function Schedule({
                        </Button>
                      )}
                      {activeSlotDetails.entry.completedAt || activeSlotDetails.entry.startedAt ? (
-                       <Button 
+                       <Button
                          variant="secondary"
-                         className="flex-1 font-semibold h-11 text-gray-300"
-                         onClick={() => { 
+                         className="flex-1 font-semibold h-11"
+                         onClick={() => {
                            setActiveSlotDetails(null); 
                            setConfirmTime('');
                          }} 

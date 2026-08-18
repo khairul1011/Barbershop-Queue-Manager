@@ -134,6 +134,7 @@ export const en = {
   'schedule.filterAll': 'All',
   'schedule.noEntriesForDay': 'No bookings for this day.',
   'schedule.moreEntries': '+{n} more',
+  'schedule.scheduledTime': 'Set Time',
   
   // Settings
   'settings.title': 'System Settings',

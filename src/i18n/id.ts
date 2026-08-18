@@ -134,6 +134,7 @@ export const id = {
   'schedule.filterAll': 'Semua',
   'schedule.noEntriesForDay': 'Tidak ada booking untuk hari ini.',
   'schedule.moreEntries': '+{n} lagi',
+  'schedule.scheduledTime': 'Atur Jam',
 
   // Settings
   'settings.title': 'Pengaturan Sistem',

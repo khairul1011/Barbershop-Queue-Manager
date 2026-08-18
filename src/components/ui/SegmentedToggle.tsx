@@ -5,6 +5,8 @@ export interface SegmentOption<T extends string> {
   value: T;
   label: string;
   activeColor?: 'teal' | 'amber' | 'gray' | 'blue';
+  /** When at least one option in the group carries an icon, inactive tabs collapse to icon-only and the active tab expands to icon+label. */
+  icon?: React.ReactNode;
 }
 
 export interface SegmentedToggleProps<T extends string> {
@@ -24,13 +26,17 @@ export function SegmentedToggle<T extends string>({
   className = '',
   idPrefix = 'toggle'
 }: SegmentedToggleProps<T>) {
+  const hasIcons = options.some((option) => option.icon);
+
   return (
-    <div className={`flex bg-[#0D0D0D] p-1 rounded-xl border border-border-subtle ${className}`}>
+    <div className={`flex bg-background p-1 rounded-lg border border-border ${className}`}>
       {options.map((option) => {
         const isActive = value === option.value;
-        const sizeClass = size === 'sm' ? 'h-6 px-2.5 text-[10px]' : 'h-8 px-4 text-xs';
-        
-        let activeClass = 'text-gray-500 hover:text-white';
+        const sizeClass = hasIcons
+          ? (size === 'sm' ? 'h-6 px-2 text-[10px] gap-1.5' : 'h-8 px-3 text-xs gap-1.5')
+          : (size === 'sm' ? 'h-6 px-2.5 text-[10px]' : 'h-8 px-4 text-xs');
+
+        let activeClass = 'text-muted-foreground hover:text-foreground';
         if (isActive) {
           if (option.activeColor === 'teal') {
             activeClass = 'bg-teal-500 text-black font-semibold';
@@ -41,7 +47,7 @@ export function SegmentedToggle<T extends string>({
           } else if (option.activeColor === 'blue') {
             activeClass = 'bg-blue-500 text-black font-semibold';
           } else {
-            activeClass = 'bg-zinc-700 text-white font-semibold';
+            activeClass = 'bg-primary text-primary-foreground font-semibold';
           }
         }
 
@@ -49,10 +55,17 @@ export function SegmentedToggle<T extends string>({
           <button
             key={option.value}
             onClick={() => onChange(option.value)}
-            className={`inline-flex items-center justify-center whitespace-nowrap ${sizeClass} font-mono font-bold rounded-lg uppercase cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 ${activeClass}`}
+            className={`inline-flex items-center justify-center whitespace-nowrap ${sizeClass} font-mono font-bold rounded-md uppercase cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${activeClass}`}
             id={`${idPrefix}-${option.value}`}
           >
-            {option.label}
+            {hasIcons ? (
+              <>
+                {option.icon}
+                {isActive && <span>{option.label}</span>}
+              </>
+            ) : (
+              option.label
+            )}
           </button>
         );
       })}

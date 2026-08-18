@@ -34,12 +34,12 @@ export function BentoCard({
   actions,
 }: BentoCardProps) {
   
-  const baseClasses = "relative overflow-hidden flex flex-col rounded-2xl p-5 md:p-6 transition-all duration-300";
-  
+  const baseClasses = "relative overflow-hidden flex flex-col rounded-xl p-5 md:p-6 transition-colors duration-200";
+
   const variantClasses = {
-    default: "bg-card-bg border border-border-subtle hover:border-[#2A2A2A] hover:-translate-y-0.5 hover:shadow-xl hover:shadow-black/20",
-    featured: "bg-card-bg border border-amber-500/10 hover:border-amber-500/20 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-amber-500/5",
-    ghost: "bg-transparent border border-dashed border-border-subtle"
+    default: "bg-card border border-border hover:border-ring/30",
+    featured: "bg-card border border-primary/15 hover:border-primary/25",
+    ghost: "bg-transparent border border-dashed border-border"
   };
 
   return (
@@ -56,7 +56,7 @@ export function BentoCard({
     >
       {/* Featured ambient glow */}
       {variant === 'featured' && (
-        <div className="absolute inset-0 bg-amber-500/[0.03] pointer-events-none" />
+        <div className="absolute inset-0 bg-primary/[0.03] pointer-events-none" />
       )}
 
       {/* Header section (Title, Icon, Tags, Badge) */}
@@ -64,15 +64,15 @@ export function BentoCard({
         <div className="flex items-start justify-between gap-3 mb-4 relative z-10">
           <div className="flex items-center flex-wrap gap-2.5">
             {icon && (
-              <div className="p-2 rounded-xl bg-white/5 text-white/70">
+              <div className="text-muted-foreground flex items-center">
                 {icon}
               </div>
             )}
-            
+
             {(title || subtitle) && (
               <div>
-                {title && <h3 className="font-display font-bold text-white tracking-tight text-base md:text-lg">{title}</h3>}
-                {subtitle && <p className="text-xs text-gray-400 font-sans mt-0.5">{subtitle}</p>}
+                {title && <h3 className="font-display font-bold text-foreground tracking-tight text-base md:text-lg">{title}</h3>}
+                {subtitle && <p className="text-xs text-muted-foreground font-sans mt-0.5">{subtitle}</p>}
               </div>
             )}
 
@@ -80,10 +80,10 @@ export function BentoCard({
             {tags && tags.length > 0 && (
               <div className="flex flex-wrap items-center gap-2 mt-0.5 sm:mt-0">
                 {tags.map((tag, idx) => (
-                  <Badge 
-                    key={idx} 
+                  <Badge
+                    key={idx}
                     variant="secondary"
-                    className="bg-white/5 border-white/5 text-[11px] text-gray-400 font-sans font-normal truncate max-w-[150px] rounded-md px-2 py-0.5"
+                    className="bg-muted border-border text-[11px] text-muted-foreground font-sans font-normal truncate max-w-[150px] rounded-md px-2 py-0.5"
                   >
                     {tag}
                   </Badge>
@@ -119,7 +119,7 @@ export function BentoCard({
 
       {/* Action Buttons Footer */}
       {actions && (
-        <div className="mt-4 pt-4 border-t border-border-subtle relative z-10">
+        <div className="mt-4 pt-4 border-t border-border relative z-10">
           {actions}
         </div>
       )}

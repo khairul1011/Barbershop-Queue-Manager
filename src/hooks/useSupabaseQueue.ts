@@ -62,36 +62,56 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[]) {
     try {
       setLoading(true);
       setError(null);
-      
+
       const today = new Date();
       const from = new Date(today);
       from.setDate(today.getDate() - 7);
       const to = new Date(today);
       to.setDate(today.getDate() + 7);
-      
+
       // FIX Bug #3: pakai getLocalDateString agar rentang fetch berbasis tanggal LOKAL (WIB)
       // bukan toISOString() yang UTC-based — penting agar entry hari ini tidak keluar rentang
       const fromStr = getLocalDateString(from);
       const toStr   = getLocalDateString(to);
-      
-      const { data, error: supabaseError } = await supabase
+
+      // Query A: entri AKTIF (belum selesai) — dibatasi ±7 hari dari hari ini karena ini murni
+      // operasional (antrian & sesi berjalan tidak relevan untuk tanggal jauh di masa lalu/depan).
+      const activeQueryPromise = supabase
         .from('queue_entries')
         .select('*')
+        .is('completed_at', null)
         .gte('scheduled_date', fromStr)
         .lte('scheduled_date', toStr)
         .order('scheduled_date', { ascending: true })
         .order('scheduled_time', { ascending: true, nullsFirst: true })
         .order('created_at', { ascending: true }); // Penting untuk kalkulasi posisi antrian
-        
-      if (supabaseError) throw supabaseError;
-      
+
+      // Query B: seluruh riwayat SELESAI — TIDAK dibatasi rentang tanggal, supaya navigasi
+      // kalender (Weekly/Monthly) dan tab Riwayat tetap bisa menampilkan bulan-bulan sebelumnya.
+      // .limit(1000) sebagai pengaman ringan (bukan pagination penuh) agar query tidak membengkak
+      // tanpa batas kalau riwayat sudah sangat banyak.
+      const completedQueryPromise = supabase
+        .from('queue_entries')
+        .select('*')
+        .not('completed_at', 'is', null)
+        .order('completed_at', { ascending: false })
+        .limit(1000);
+
+      const [activeRes, completedRes] = await Promise.all([activeQueryPromise, completedQueryPromise]);
+
+      if (activeRes.error) throw activeRes.error;
+      if (completedRes.error) throw completedRes.error;
+
+      const activeRows = activeRes.data || [];
+      const completedRows = completedRes.data || [];
+
       // Temporary groups to calculate queue numbers for 'Estimated' status
       const estimatedCountPerDayBarber: Record<string, number> = {};
 
-      const allEntries: QueueEntry[] = (data || []).map(row => {
+      const mapRowToEntry = (row: any): QueueEntry => {
         const barberObj = barbers.find(b => b.id === row.barber_id);
         const barberName = barberObj ? barberObj.name : 'Unknown Barber';
-        
+
         const serviceObj = services.find(s => s.id === row.service_id);
         const serviceName = serviceObj ? serviceObj.name : 'Unknown Service';
         const durationMinutes = serviceObj ? serviceObj.duration : 30;
@@ -107,7 +127,7 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[]) {
             const endTotalMinutes = startTotalMinutes + durationMinutes;
             const endH = Math.floor(endTotalMinutes / 60) % 24;
             const endM = endTotalMinutes % 60;
-            
+
             const startStr = `${startH.toString().padStart(2, '0')}:${startM.toString().padStart(2, '0')}`;
             const endStr = `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`;
             timeRange = `~${startStr} - ${endStr}`;
@@ -119,7 +139,7 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[]) {
             const endTotalMinutes = startTotalMinutes + durationMinutes;
             const endH = Math.floor(endTotalMinutes / 60) % 24;
             const endM = endTotalMinutes % 60;
-            
+
             const startStr = `${startH.toString().padStart(2, '0')}:${startM.toString().padStart(2, '0')}`;
             const endStr = `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`;
             timeRange = `~${startStr} - ${endStr}`;
@@ -152,29 +172,26 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[]) {
           startedAt: row.started_at || undefined,
           completedAt: row.completed_at || undefined,
         };
-      });
+      };
 
-      // Partisi data - FIX Bug #1: gunakan `data` array asli (bukan private field di QueueEntry)
-      // agar nilai started_at/completed_at/barber_id dari DB tidak ter-strip oleh TypeScript.
+      // Partisi entri aktif: sesi berjalan (started_at terisi) vs antrian menunggu.
       const newQueue: QueueEntry[] = [];
       const newServingSessions: Record<string, QueueEntry | null> = {};
-      const newCompletedEntries: QueueEntry[] = [];
 
-      (data || []).forEach((row, idx) => {
-        const entry = allEntries[idx];
-        if (!entry) return;
-
-        if (row.completed_at) {
-          newCompletedEntries.push(entry);
-        } else if (row.started_at) {
+      activeRows.forEach((row: any) => {
+        const entry = mapRowToEntry(row);
+        if (row.started_at) {
           newServingSessions[row.barber_id] = entry;
         } else {
           newQueue.push(entry);
         }
       });
 
+      // Semua row dari Query B sudah pasti selesai (completed_at terisi) — langsung jadi riwayat.
+      const newCompletedEntries: QueueEntry[] = completedRows.map(mapRowToEntry);
+
       // Diagnostik sementara: log jumlah row dari Supabase vs hasil partisi
-      console.log(`[DIAG] fetch: ${(data||[]).length} rows → queue:${newQueue.length}, serving:${Object.keys(newServingSessions).length}, completed:${newCompletedEntries.length}`);
+      console.log(`[DIAG] fetch: active=${activeRows.length} (queue:${newQueue.length}, serving:${Object.keys(newServingSessions).length}), completed=${completedRows.length}`);
 
       setQueue(newQueue);
       setServingSessions(newServingSessions);

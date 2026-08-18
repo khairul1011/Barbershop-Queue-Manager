@@ -4,7 +4,8 @@ import { useSupabaseBarbers } from './hooks/useSupabaseBarbers';
 import { useSupabaseQueue } from './hooks/useSupabaseQueue';
 import { useSupabaseRequests } from './hooks/useSupabaseRequests';
 import { useSupabaseBusinessHours } from './hooks/useSupabaseBusinessHours';
-import Sidebar from './components/Sidebar';
+import AppSidebar from './components/Sidebar';
+import { SidebarProvider, SidebarInset, SidebarTrigger } from './components/ui/sidebar';
 import Overview from './components/Overview';
 import Schedule from './components/Schedule';
 import Requests from './components/Requests';
@@ -15,13 +16,6 @@ import LanguageSwitcher from './components/LanguageSwitcher';
 import { DotPattern } from './components/ui/dot-pattern';
 import { useTranslation } from './i18n';
 import { QueueEntry, WhatsAppRequest, Barber, Service, QueueStatus } from './types';
-import {
-  INITIAL_BARBERS,
-  INITIAL_QUEUE,
-  INITIAL_REQUESTS,
-  INITIAL_SERVICES,
-  INITIAL_SERVING_SESSIONS
-} from './data/mockData';
 import {
   Search,
   Clock,
@@ -42,8 +36,6 @@ export default function App() {
 
   // Navigation Tabs
   const [activeTab, setActiveTab] = useState('overview');
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isOpenMobile, setIsOpenMobile] = useState(false);
 
   // Core App States
   const { requests, setRequests, loading: requestsLoading, error: requestsError, approveRequest, rejectRequest, refreshRequests } = useSupabaseRequests();
@@ -684,47 +676,68 @@ export default function App() {
   const pendingRequestsCount = requests.filter(r => r.status === 'pending').length;
 
   return (
-    <div className="relative h-dvh bg-[#070707] text-gray-100 flex flex-col md:flex-row font-sans selection:bg-amber-500/20 selection:text-amber-400 overflow-hidden z-0">
-      
+    <SidebarProvider className="relative h-dvh bg-background text-foreground font-sans selection:bg-primary/20 selection:text-foreground overflow-hidden z-0">
+
       {/* Ambient Depth Background */}
-      <div className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-500/5 via-[#070707]/80 to-[#070707]" />
+      <div className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/5 via-background/80 to-background" />
 
       {/* Subtle Dot Pattern Background */}
       <DotPattern
         className="[mask-image:radial-gradient(1500px_circle_at_center,white,transparent)] z-0"
         cx={1} cy={1} cr={1}
       />
-      
-      {/* SIDEBAR — desktop: fixed column; mobile: hidden (rendered as top bar inside Sidebar component) */}
-      <div className="z-20 flex-shrink-0 md:h-screen">
-        <Sidebar
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          isCollapsed={isCollapsed}
-          setIsCollapsed={setIsCollapsed}
-          isOpenMobile={isOpenMobile}
-          setIsOpenMobile={setIsOpenMobile}
-          pendingRequestsCount={pendingRequestsCount}
-        />
-      </div>
 
-      {/* MAIN VIEW AREA — scrolls independently on desktop; on mobile fills remaining height */}
-      <div className="flex-1 flex flex-col min-w-0 z-10 relative overflow-y-auto">
+      {/* SIDEBAR — desktop: fixed column (via primitive's own positioning); mobile: Sheet drawer */}
+      <AppSidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        pendingRequestsCount={pendingRequestsCount}
+      />
 
-        {/* TOP INTEGRATION BAR (Desktop only - Sidebar renders its own mobile top bar) */}
-        <header className="hidden md:flex bg-[#0A0A0A]/95 backdrop-blur border-b border-[#1A1A1A] min-h-[72px] px-6 items-center justify-between sticky top-0 z-50 flex-shrink-0">
+      <SidebarInset className="z-10 min-w-0 bg-transparent">
+
+        {/* MOBILE TOP BAR — h-[64px] is load-bearing: Schedule.tsx sticky offsets are hardcoded to match */}
+        <div className="md:hidden flex items-center justify-between bg-background border-b border-border px-5 h-[64px] sticky top-0 z-40 flex-shrink-0">
+          <div className="flex items-center gap-2.5">
+            <SidebarTrigger className="text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg" id="mobile-menu-toggle-btn" />
+            <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
+              <span className="font-display font-bold text-primary-foreground text-sm">G</span>
+            </div>
+            <span className="font-display font-semibold tracking-wide text-foreground text-base">GOLDEN SHEARS</span>
+          </div>
+          <div className="flex items-center gap-3">
+            {pendingRequestsCount > 0 && (
+              <button
+                onClick={() => setActiveTab('requests')}
+                className="relative p-2 text-foreground hover:bg-accent rounded-lg transition-all cursor-pointer"
+                id="mobile-requests-badge-btn"
+              >
+                <MessageSquare size={20} />
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center">
+                  {pendingRequestsCount}
+                </span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* MAIN VIEW AREA — scrolls independently on desktop; on mobile fills remaining height */}
+        <div className="flex-1 flex flex-col min-w-0 z-10 relative overflow-y-auto">
+
+        {/* TOP INTEGRATION BAR (Desktop only - mobile has its own top bar above) */}
+        <header className="hidden md:flex bg-background/95 backdrop-blur border-b border-border min-h-[72px] px-6 items-center justify-between sticky top-0 z-50 flex-shrink-0">
 
           {/* Left: Quick search mockup */}
-          <div className="hidden lg:flex items-center gap-2.5 bg-[#0F0F0F] border border-[#1A1A1A] rounded-xl px-3.5 py-2 w-72">
-            <Search size={15} className="text-gray-500" />
+          <div className="hidden lg:flex items-center gap-2.5 bg-card border border-border rounded-lg px-3.5 py-2 w-72">
+            <Search size={15} className="text-muted-foreground" />
             <input
               type="text"
               placeholder={t('header.searchPlaceholder')}
-              className="bg-transparent text-xs text-gray-200 focus:outline-none w-full placeholder-gray-600"
+              className="bg-transparent text-xs text-foreground focus:outline-none w-full placeholder-muted-foreground"
               id="global-search-input"
             />
           </div>
-          <div className="sm:hidden text-amber-500 font-mono text-xs font-semibold uppercase tracking-wider">
+          <div className="sm:hidden text-foreground font-mono text-xs font-semibold uppercase tracking-wider">
             {activeTab === 'overview' ? t('header.dashboard') : activeTab.toUpperCase()}
           </div>
 
@@ -732,14 +745,14 @@ export default function App() {
           <div className="flex items-center gap-4">
 
             {/* Live Clock Widget */}
-            <div className="flex items-center gap-2 text-xs md:text-sm font-sans text-gray-400 bg-[#0F0F0F] border border-[#1A1A1A] rounded-xl px-3 py-2">
-              <Clock size={14} className="text-amber-500" />
-              <span className="font-mono text-gray-300">
+            <div className="flex items-center gap-2 text-xs md:text-sm font-sans text-muted-foreground bg-card border border-border rounded-lg px-3 py-2">
+              <Clock size={14} className="text-muted-foreground" />
+              <span className="font-mono text-muted-foreground">
                 <span className="hidden lg:inline">
                   {currentTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                  <span className="text-gray-600 mx-1.5">•</span>
+                  <span className="text-muted-foreground/60 mx-1.5">•</span>
                 </span>
-                <span className="text-white font-bold">
+                <span className="text-foreground font-bold">
                   <span className="sm:hidden">
                     {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                   </span>
@@ -755,22 +768,22 @@ export default function App() {
             {/* Quick Notification Ring Mock */}
             <button
               onClick={() => triggerToast("All active seats are operating optimally.", "info", "System Scan")}
-              className="relative p-2 bg-[#0F0F0F] border border-[#1A1A1A] hover:bg-[#151515] hover:text-amber-500 rounded-xl transition-all cursor-pointer"
+              className="relative p-2 bg-card border border-border hover:bg-accent hover:text-foreground rounded-lg transition-all cursor-pointer"
               title="System Notifications"
               id="topbar-notif-btn"
             >
-              <Bell size={16} className="text-gray-400" />
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-amber-500" />
+              <Bell size={16} className="text-muted-foreground" />
+              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-primary" />
             </button>
 
             {/* User Barber Operator Hub Profile */}
-            <div className="hidden lg:flex items-center gap-2 pl-2 border-l border-[#1A1A1A]">
-              <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 font-bold font-mono text-xs">
+            <div className="hidden lg:flex items-center gap-2 pl-2 border-l border-border">
+              <div className="w-8 h-8 rounded-lg bg-accent border border-border flex items-center justify-center text-foreground font-bold font-mono text-xs">
                 HQ
               </div>
               <div className="text-left">
-                <span className="text-xs font-semibold text-white block">{t('header.hqOperator')}</span>
-                <span className="text-[9px] text-teal-400 font-mono tracking-wider uppercase block">GOLDEN SHEARS</span>
+                <span className="text-xs font-semibold text-foreground block">{t('header.hqOperator')}</span>
+                <span className="text-[9px] text-muted-foreground font-mono tracking-wider uppercase block">GOLDEN SHEARS</span>
               </div>
             </div>
           </div>
@@ -780,7 +793,8 @@ export default function App() {
         <main className="flex-1 p-5 md:p-8 space-y-6 max-w-7xl w-full mx-auto">
           {renderActiveTab()}
         </main>
-      </div>
+        </div>
+      </SidebarInset>
 
       {/* GLOBAL TOAST BANNER CONTAINER (AnimatePresence) */}
       <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-3 w-full max-w-[380px] px-4 sm:px-0">
@@ -796,8 +810,8 @@ export default function App() {
                   : toast.type === 'error'
                     ? 'bg-red-950/90 border-red-500/30 text-red-100'
                   : toast.type === 'info'
-                    ? 'bg-zinc-900/95 border-amber-500/30 text-gray-200'
-                    : 'bg-zinc-900/95 border-teal-500/30 text-gray-200'
+                    ? 'bg-popover border-amber-500/30 text-foreground'
+                    : 'bg-popover border-teal-500/30 text-foreground'
                 }`}
             >
               {/* Type Indicator Icon */}
@@ -824,11 +838,11 @@ export default function App() {
               {/* Message Block */}
               <div className="flex-1 min-w-0 pr-4">
                 {toast.title && (
-                  <h4 className="text-xs font-bold font-mono tracking-wider uppercase text-white mb-0.5">
+                  <h4 className="text-xs font-bold font-mono tracking-wider uppercase text-foreground mb-0.5">
                     {toast.title}
                   </h4>
                 )}
-                <p className="text-xs font-sans leading-relaxed text-gray-300 break-words">
+                <p className="text-xs font-sans leading-relaxed text-muted-foreground break-words">
                   {toast.message}
                 </p>
               </div>
@@ -836,7 +850,7 @@ export default function App() {
               {/* Close Button */}
               <button
                 onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
-                className="absolute top-3.5 right-3.5 text-gray-500 hover:text-white transition-colors cursor-pointer"
+                className="absolute top-3.5 right-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                 id={`close-toast-${toast.id}`}
               >
                 <X size={14} />
@@ -845,6 +859,6 @@ export default function App() {
           ))}
         </AnimatePresence>
       </div>
-    </div>
+    </SidebarProvider>
   );
 }

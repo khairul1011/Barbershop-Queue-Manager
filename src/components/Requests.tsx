@@ -62,14 +62,14 @@ export default function Requests({
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl md:text-3xl font-display font-bold text-white tracking-tight">{t('requests.title')}</h1>
-        <p className="text-sm text-gray-400 font-sans mt-0.5">
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground tracking-tight">{t('requests.title')}</h1>
+        <p className="text-sm text-muted-foreground font-sans mt-0.5">
           {t('requests.subtitle')}
         </p>
       </div>
 
       {requestsError && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-sm text-red-400 flex items-center gap-3">
+        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 text-sm text-destructive flex items-center gap-3">
           <X className="shrink-0" size={18} />
           <div>
             <p className="font-bold font-sans">Error Sinkronisasi</p>
@@ -79,8 +79,8 @@ export default function Requests({
       )}
 
       {requestsLoading && requests.length === 0 ? (
-        <div className="py-16 flex flex-col items-center justify-center text-gray-500 space-y-4">
-          <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+        <div className="py-16 flex flex-col items-center justify-center text-muted-foreground space-y-4">
+          <div className="w-8 h-8 border-2 border-foreground/40 border-t-transparent rounded-full animate-spin" />
           <p className="text-sm font-sans">Memuat data dari server...</p>
         </div>
       ) : (
@@ -109,7 +109,7 @@ export default function Requests({
                             <Button
                               variant="default"
                               onClick={() => saveEdit(req.id)}
-                              className="flex-1 bg-teal-500 text-black hover:bg-teal-600 font-bold"
+                              className="flex-1 font-bold"
                               id={`save-btn-${req.id}`}
                             >
                               <Save size={13} className="mr-1.5" />
@@ -129,19 +129,18 @@ export default function Requests({
                             <Button
                               variant="default"
                               onClick={() => onApprove(req.id)}
-                              className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold shadow-lg shadow-teal-500/5 hover:shadow-teal-500/15"
+                              className="flex-1 font-bold"
                               id={`approve-btn-${req.id}`}
                             >
                               <Check size={14} className="mr-1" />
                               {t('requests.approveBook')}
                             </Button>
-  
+
                             {/* Edit Button */}
                             <Button
                               variant="outline"
                               size="icon"
                               onClick={() => startEdit(req)}
-                              className="text-amber-500 hover:text-amber-400"
                               title={t('requests.modifySlots')}
                               id={`edit-btn-${req.id}`}
                             >
@@ -167,7 +166,7 @@ export default function Requests({
                       {/* Card top: WhatsApp Logo & Sender info */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-teal-500/10 text-teal-400 flex items-center justify-center font-bold">
+                          <div className="w-10 h-10 rounded-full bg-muted text-muted-foreground flex items-center justify-center font-bold">
                             <MessageSquare size={18} />
                           </div>
                           <div>
@@ -176,31 +175,31 @@ export default function Requests({
                                 type="text"
                                 value={editName}
                                 onChange={(e) => setEditName(e.target.value)}
-                                className="bg-[#070707] border border-border-subtle rounded px-2 py-0.5 text-sm text-white focus:outline-none"
+                                className="bg-background border border-border rounded px-2 py-0.5 text-sm text-foreground focus:outline-none"
                                 id={`edit-sendername-${req.id}`}
                               />
                             ) : (
-                              <h4 className="text-[15px] font-bold text-white font-sans">{req.senderName}</h4>
+                              <h4 className="text-[15px] font-bold text-foreground font-sans">{req.senderName}</h4>
                             )}
-                            <p className="text-xs text-gray-500 font-mono flex items-center gap-1 mt-0.5">
+                            <p className="text-xs text-muted-foreground font-mono flex items-center gap-1 mt-0.5">
                               <Phone size={10} />
                               <span>{req.senderPhone}</span>
                             </p>
                           </div>
                         </div>
-                        <span className="text-xs font-mono text-gray-600 font-medium">
+                        <span className="text-xs font-mono text-muted-foreground/70 font-medium">
                           {req.receivedTime}
                         </span>
                       </div>
-  
+
                       {/* Quoted original message (WhatsApp vibe) */}
-                      <div className="bg-[#070707] border-l-2 border-teal-500 rounded-r-xl p-3 text-xs text-gray-400 font-sans italic leading-relaxed">
+                      <div className="bg-background border-l-2 border-muted-foreground/30 rounded-r-lg p-3 text-xs text-muted-foreground font-sans italic leading-relaxed">
                         "{req.message}"
                       </div>
-  
+
                       {/* Extracted Booking Slots Frame */}
-                      <div className="bg-[#070707] border border-border-subtle rounded-xl p-3.5 space-y-3">
-                        <span className="text-[10px] text-teal-400 uppercase tracking-wider font-mono font-bold flex items-center gap-1.5">
+                      <div className="bg-background border border-border rounded-lg p-3.5 space-y-3">
+                        <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono font-bold flex items-center gap-1.5">
                           <ShieldCheck size={12} />
                           {t('requests.aiExtractedIntent')}
                         </span>
@@ -210,9 +209,9 @@ export default function Requests({
                             {/* Day & Time Selection */}
                             <div className="grid grid-cols-2 gap-3">
                               <div>
-                                <label className="text-[10px] text-gray-500 block uppercase font-mono mb-1">{t('requests.day')}</label>
+                                <label className="text-[10px] text-muted-foreground block uppercase font-mono mb-1">{t('requests.day')}</label>
                                 <Select value={editDay} onValueChange={(v) => setEditDay(v as any)}>
-                                  <SelectTrigger id={`edit-day-select-${req.id}`} className="w-full bg-[#121212] border border-border-subtle text-white text-xs rounded p-1.5 h-auto py-2">
+                                  <SelectTrigger id={`edit-day-select-${req.id}`} className="w-full bg-card border border-border text-foreground text-xs rounded p-1.5 h-auto py-2">
                                     <SelectValue placeholder={t('requests.day')} />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -223,23 +222,23 @@ export default function Requests({
                                 </Select>
                                 </div>
                                 <div>
-                                  <label className="text-[10px] text-gray-500 block uppercase font-mono mb-1">{t('requests.time')}</label>
+                                  <label className="text-[10px] text-muted-foreground block uppercase font-mono mb-1">{t('requests.time')}</label>
                                   <input
                                     type="text"
                                     value={editTime}
                                     onChange={(e) => setEditTime(e.target.value)}
                                     placeholder="e.g. 14:00"
-                                    className="w-full bg-[#121212] border border-border-subtle text-white text-xs rounded p-1.5 focus:outline-none focus:border-amber-500"
+                                    className="w-full bg-card border border-border text-foreground text-xs rounded p-1.5 focus:outline-none focus:border-ring"
                                     id={`edit-time-input-${req.id}`}
                                   />
                                 </div>
                               </div>
-  
+
                               {/* Service Selection */}
                               <div>
-                                <label className="text-[10px] text-gray-500 block uppercase font-mono mb-1">{t('requests.service')}</label>
+                                <label className="text-[10px] text-muted-foreground block uppercase font-mono mb-1">{t('requests.service')}</label>
                                 <Select value={editService} onValueChange={setEditService}>
-                                  <SelectTrigger id={`edit-service-select-${req.id}`} className="w-full bg-[#121212] border border-border-subtle text-white text-xs rounded p-1.5 h-auto py-2">
+                                  <SelectTrigger id={`edit-service-select-${req.id}`} className="w-full bg-card border border-border text-foreground text-xs rounded p-1.5 h-auto py-2">
                                     <SelectValue placeholder={t('requests.service')} />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -254,18 +253,18 @@ export default function Requests({
                             <div className="grid grid-cols-3 gap-2 text-xs">
                               {/* Day */}
                               <div className="flex items-center gap-1.5">
-                                <Calendar size={13} className="text-amber-500 shrink-0" />
-                                <span className="text-gray-300 font-sans font-medium">{req.extractedDay}</span>
+                                <Calendar size={13} className="text-muted-foreground shrink-0" />
+                                <span className="text-foreground font-sans font-medium">{req.extractedDay}</span>
                               </div>
                               {/* Time */}
                               <div className="flex items-center gap-1.5">
-                                <Clock size={13} className="text-amber-500 shrink-0" />
-                                <span className="text-gray-300 font-mono">{req.extractedTime}</span>
+                                <Clock size={13} className="text-muted-foreground shrink-0" />
+                                <span className="text-foreground font-mono">{req.extractedTime}</span>
                               </div>
                               {/* Service */}
                               <div className="flex items-center gap-1.5 col-span-1 truncate">
-                                <Scissors size={13} className="text-amber-500 shrink-0" />
-                                <span className="text-gray-300 font-sans truncate">{req.extractedService}</span>
+                                <Scissors size={13} className="text-muted-foreground shrink-0" />
+                                <span className="text-foreground font-sans truncate">{req.extractedService}</span>
                               </div>
                             </div>
                           )}
@@ -278,14 +277,14 @@ export default function Requests({
             ) : (
               <motion.div
                 layout
-                className="col-span-full py-16 flex flex-col items-center text-center justify-center text-gray-500 space-y-3"
+                className="col-span-full py-16 flex flex-col items-center text-center justify-center text-muted-foreground space-y-3"
               >
-                <div className="w-14 h-14 rounded-full bg-card-bg border border-border-subtle flex items-center justify-center text-teal-400">
+                <div className="w-14 h-14 rounded-full bg-card border border-border flex items-center justify-center text-muted-foreground">
                   <ShieldCheck size={26} />
                 </div>
               <div>
-                <h4 className="text-base font-bold text-white font-sans">{t('requests.noPending')}</h4>
-                <p className="text-xs text-gray-500 mt-1 max-w-sm font-sans mx-auto">
+                <h4 className="text-base font-bold text-foreground font-sans">{t('requests.noPending')}</h4>
+                <p className="text-xs text-muted-foreground mt-1 max-w-sm font-sans mx-auto">
                   {t('requests.noPendingDesc')}
                 </p>
               </div>

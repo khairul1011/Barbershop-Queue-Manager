@@ -22,7 +22,6 @@ import { useTranslation } from '../i18n';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { NeonButton } from '@/components/ui/neon-button';
 
 interface OverviewProps {
   queue: QueueEntry[];
@@ -136,7 +135,7 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
   if (barber.status === 'break') {
     return (
       <BentoCard variant="default" badge={{ label: t('overview.statusBreak') as string || 'BREAK', color: 'gray' }} title={barber.name}>
-        <div className="py-6 flex flex-col items-center justify-center text-gray-500">
+        <div className="py-6 flex flex-col items-center justify-center text-muted-foreground">
           <UserCheck size={24} className="mb-2 opacity-50" />
           <p className="font-sans text-sm font-medium">{t('overview.onBreak') as string || 'On Break'}</p>
         </div>
@@ -161,27 +160,27 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
           >
             <div className="flex items-start justify-between">
               <div>
-                <h4 className="text-xl font-bold text-white font-sans tracking-tight">
+                <h4 className="text-xl font-bold text-foreground font-sans tracking-tight">
                   {session.customerName}
                 </h4>
-                <p className="text-sm text-gray-400 mt-1 flex items-center gap-1.5 font-sans">
-                  <span className="text-amber-500 font-medium">{session.service}</span>
+                <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1.5 font-sans">
+                  <span className="text-foreground font-medium">{session.service}</span>
                 </p>
               </div>
 
               <div className="text-right">
-                <span className="text-xs text-gray-500 font-mono block">{t('overview.estimatedTime')}</span>
-                <span className="text-sm font-semibold text-gray-300 font-mono block mt-0.5">
+                <span className="text-xs text-muted-foreground font-mono block">{t('overview.estimatedTime')}</span>
+                <span className="text-sm font-semibold text-muted-foreground font-mono block mt-0.5">
                   {session.timeRange}
                 </span>
               </div>
             </div>
 
             {/* Active Timer Display */}
-            <div className="bg-[#050505] border border-border-subtle rounded-xl p-3 flex items-center justify-between">
+            <div className="bg-background border border-border rounded-lg p-3 flex items-center justify-between">
               <div>
-                <span className="text-[10px] text-gray-500 font-sans uppercase tracking-wider block">{t('overview.serviceTimer')}</span>
-                <span className="text-2xl font-bold font-mono text-white tracking-widest block mt-0.5">
+                <span className="text-[10px] text-muted-foreground font-sans uppercase tracking-wider block">{t('overview.serviceTimer')}</span>
+                <span className="text-2xl font-bold font-mono text-foreground tracking-widest block mt-0.5">
                   {formatTime(elapsedSeconds)}
                 </span>
               </div>
@@ -209,7 +208,7 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
             {/* Done Action Button */}
             <Button
               variant="default"
-              className="w-full shadow-xl shadow-amber-500/5 hover:shadow-amber-500/15"
+              className="w-full"
               onClick={handleDoneClick}
             >
               <CheckCircle2 size={18} className="mr-2" />
@@ -223,31 +222,28 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
             animate={{ opacity: 1 }}
             className="py-6 flex flex-col items-center text-center space-y-3"
           >
-            <div className="w-12 h-12 rounded-2xl bg-[#151515] flex items-center justify-center text-gray-500 border border-border-subtle">
+            <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center text-muted-foreground border border-border">
               <UserCheck size={24} />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-white font-sans">{t('overview.seatEmpty') as string || 'Seat Available'}</h4>
+              <h4 className="text-sm font-bold text-foreground font-sans">{t('overview.seatEmpty') as string || 'Seat Available'}</h4>
             </div>
             <div className="flex gap-2 w-full mt-2">
               {nextInLine && (
                 <Button
+                  variant="default"
                   onClick={() => onCallNext(barber.id)}
-                  className="flex-1 h-10 bg-amber-500 hover:bg-amber-600 text-amber-950 font-bold border-none transition-colors shadow-lg shadow-amber-500/10"
+                  className="flex-1 h-10 font-bold"
                 >
                   <span className="truncate">Panggil {nextInLine.customerName}</span>
                   <ArrowRight size={16} className="ml-1.5 shrink-0" />
                 </Button>
               )}
-              
+
               <Button
                 variant={!nextInLine ? "default" : "outline"}
                 onClick={() => onQuickStart(barber.id)}
-                className={`flex-1 h-10 transition-colors ${
-                  !nextInLine 
-                    ? 'bg-emerald-500 hover:bg-emerald-600 text-emerald-950 font-bold border-none shadow-lg shadow-emerald-500/10' 
-                    : 'text-gray-400 hover:text-white border-border-subtle hover:bg-[#1A1A1A] font-medium shadow-none'
-                }`}
+                className="flex-1 h-10 font-medium"
               >
                 <PlusCircle size={16} className="mr-1.5 shrink-0" />
                 Mulai Cepat
@@ -258,24 +254,24 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
       </AnimatePresence>
 
       <Dialog open={showCompleteDialog} onOpenChange={setShowCompleteDialog}>
-        <DialogContent className="sm:max-w-[400px] border border-border-subtle bg-sidebar-bg p-0 overflow-hidden shadow-2xl">
-          <div className="bg-gradient-to-b from-[#151515] to-sidebar-bg p-6 pb-4 border-b border-border-subtle">
+        <DialogContent className="sm:max-w-[400px] border border-border bg-popover p-0 overflow-hidden shadow-2xl">
+          <div className="bg-gradient-to-b from-accent/40 to-popover p-6 pb-4 border-b border-border">
             <DialogHeader>
-              <DialogTitle className="text-xl font-bold font-display text-white tracking-tight">Selesaikan Sesi</DialogTitle>
-              <p className="text-sm text-gray-400 mt-1">Konfirmasi layanan dan nama pelanggan.</p>
+              <DialogTitle className="text-xl font-bold font-display text-foreground tracking-tight">Selesaikan Sesi</DialogTitle>
+              <p className="text-sm text-muted-foreground mt-1">Konfirmasi layanan dan nama pelanggan.</p>
             </DialogHeader>
           </div>
-          
+
           <div className="p-6 space-y-5">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-300">Layanan <span className="text-red-500">*</span></label>
+              <label className="text-sm font-medium text-muted-foreground">Layanan <span className="text-destructive">*</span></label>
               <Select value={completeServiceId} onValueChange={setCompleteServiceId}>
-                <SelectTrigger className="w-full bg-[#050505] border-border-subtle text-white h-11 rounded-xl">
+                <SelectTrigger className="w-full bg-background border-border text-foreground h-11 rounded-lg">
                   <SelectValue placeholder="Pilih layanan" />
                 </SelectTrigger>
-                <SelectContent className="bg-[#121212] border-border-subtle text-white rounded-xl">
+                <SelectContent className="bg-popover border-border text-popover-foreground rounded-lg">
                   {services.map((svc) => (
-                    <SelectItem key={svc.id} value={svc.id} className="focus:bg-[#222222] focus:text-white">
+                    <SelectItem key={svc.id} value={svc.id} className="focus:bg-accent focus:text-accent-foreground">
                       <div className="flex items-center justify-between w-full">
                         <span>{svc.name}</span>
                       </div>
@@ -286,17 +282,17 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-300">Nama Pelanggan</label>
-              <input 
-                type="text" 
+              <label className="text-sm font-medium text-muted-foreground">Nama Pelanggan</label>
+              <input
+                type="text"
                 value={completeCustomerName}
                 onChange={(e) => setCompleteCustomerName(e.target.value)}
-                placeholder="Biarkan kosong untuk Anonymous" 
-                className="w-full bg-[#050505] border border-border-subtle rounded-xl px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-amber-500 transition-colors h-11"
+                placeholder="Biarkan kosong untuk Anonymous"
+                className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-foreground placeholder-muted-foreground focus:outline-none focus:border-ring transition-colors h-11"
               />
             </div>
 
-            <Button onClick={submitComplete} className="w-full h-11 mt-2 text-black font-semibold rounded-xl" disabled={!completeServiceId}>
+            <Button onClick={submitComplete} className="w-full mt-2" disabled={!completeServiceId}>
               <CheckCircle2 size={16} className="mr-2" /> Simpan & Selesai
             </Button>
           </div>
@@ -368,13 +364,13 @@ export default function Overview({
       {/* Overview Header & Quick Actions */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-display font-bold text-white tracking-tight">{t('overview.title')}</h1>
-          <p className="text-sm text-gray-400 font-sans mt-0.5">{t('overview.subtitle')}</p>
+          <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground tracking-tight">{t('overview.title')}</h1>
+          <p className="text-sm text-muted-foreground font-sans mt-0.5">{t('overview.subtitle')}</p>
         </div>
         <Button
           variant="default"
           onClick={() => setShowWalkInModal(true)}
-          className="shadow-lg shadow-amber-500/10 hover:shadow-amber-500/25 active:scale-95 px-4"
+          className="active:scale-95 px-4"
           id="add-walk-in-btn"
         >
           <PlusCircle size={18} className="sm:mr-2" />
@@ -387,16 +383,14 @@ export default function Overview({
         {/* Stat 1: Total Customers Today */}
         <BentoCard className="!p-4 md:!p-5 justify-between group">
           <div className="flex items-center justify-between">
-            <span className="text-xs md:text-sm text-gray-400 font-sans">{t('overview.todaysVisits')}</span>
-            <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500">
-              <Users size={16} />
-            </div>
+            <span className="text-xs md:text-sm text-muted-foreground font-sans">{t('overview.todaysVisits')}</span>
+            <Users size={16} className="text-muted-foreground" />
           </div>
           <div className="mt-4 md:mt-6">
-            <h3 className="text-2xl md:text-4xl font-display font-bold text-white font-mono leading-none">
+            <h3 className="text-2xl md:text-4xl font-display font-bold text-foreground font-mono leading-none">
               {totalVisits}
             </h3>
-            <p className="text-[10px] md:text-xs text-teal-400 font-sans mt-1 flex items-center gap-1">
+            <p className="text-[10px] md:text-xs text-muted-foreground font-sans mt-1 flex items-center gap-1">
               <TrendingUp size={12} />
               <span>+{completedCount} {t('overview.completed')}</span>
             </p>
@@ -406,16 +400,14 @@ export default function Overview({
         {/* Stat 2: Avg Wait Time */}
         <BentoCard className="!p-4 md:!p-5 justify-between group">
           <div className="flex items-center justify-between">
-            <span className="text-xs md:text-sm text-gray-400 font-sans">{t('overview.avgWaitTime')}</span>
-            <div className="p-2 rounded-xl bg-teal-500/10 text-teal-400">
-              <Clock size={16} />
-            </div>
+            <span className="text-xs md:text-sm text-muted-foreground font-sans">{t('overview.avgWaitTime')}</span>
+            <Clock size={16} className="text-muted-foreground" />
           </div>
           <div className="mt-4 md:mt-6">
-            <h3 className="text-2xl md:text-4xl font-display font-bold text-white font-mono leading-none">
-              {estimatedWaitTime} <span className="text-xs md:text-sm font-sans font-normal text-gray-500">{t('overview.mins')}</span>
+            <h3 className="text-2xl md:text-4xl font-display font-bold text-foreground font-mono leading-none">
+              {estimatedWaitTime} <span className="text-xs md:text-sm font-sans font-normal text-muted-foreground">{t('overview.mins')}</span>
             </h3>
-            <p className="text-[10px] md:text-xs text-gray-400 font-sans mt-1">
+            <p className="text-[10px] md:text-xs text-muted-foreground font-sans mt-1">
               {t('overview.basedOnFlow')}
             </p>
           </div>
@@ -424,16 +416,14 @@ export default function Overview({
         {/* Stat 3: Revenue Today */}
         <BentoCard className="!p-4 md:!p-5 justify-between group">
           <div className="flex items-center justify-between">
-            <span className="text-xs md:text-sm text-gray-400 font-sans">{t('overview.revenue')}</span>
-            <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
-              <DollarSign size={16} />
-            </div>
+            <span className="text-xs md:text-sm text-muted-foreground font-sans">{t('overview.revenue')}</span>
+            <DollarSign size={16} className="text-muted-foreground" />
           </div>
           <div className="mt-4 md:mt-6">
-            <h3 className="text-xl md:text-3xl font-display font-bold text-emerald-400 font-mono leading-none">
-              {(revenueToday / 1000).toLocaleString()}<span className="text-xs font-normal text-gray-500">{t('overview.kIDR')}</span>
+            <h3 className="text-xl md:text-3xl font-display font-bold text-foreground font-mono leading-none">
+              {(revenueToday / 1000).toLocaleString()}<span className="text-xs font-normal text-muted-foreground">{t('overview.kIDR')}</span>
             </h3>
-            <p className="text-[10px] md:text-xs text-gray-400 font-sans mt-1">
+            <p className="text-[10px] md:text-xs text-muted-foreground font-sans mt-1">
               {t('overview.confirmedServices')}
             </p>
           </div>
@@ -446,7 +436,7 @@ export default function Overview({
         {/* Column 1: Seats Grid (Left) */}
         <div className="col-span-1 lg:col-span-2">
           <div className="flex items-center gap-2 mb-4">
-            <h2 className="text-lg font-bold text-white font-display tracking-tight">{t('overview.allSeats') as string || 'Active Barber Seats'}</h2>
+            <h2 className="text-lg font-bold text-foreground font-display tracking-tight">{t('overview.allSeats') as string || 'Active Barber Seats'}</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {barbers.map(barber => (
@@ -476,23 +466,23 @@ export default function Overview({
             {/* Futuristic backing design details */}
             <div className="absolute -top-12 -left-12 w-40 h-40 bg-teal-500/5 rounded-full blur-2xl pointer-events-none" />
 
-            <p className="text-sm text-gray-300 font-sans leading-relaxed">
+            <p className="text-sm text-muted-foreground font-sans leading-relaxed">
               "{t('overview.aiEstimatorDesc1')}
-              <span className="text-teal-400 font-medium"> {barbers.filter(b => b.status === 'active').length} Barbers</span>{t('overview.aiEstimatorDesc2')} <span className="text-amber-500 font-medium font-mono">{estimatedWaitTime} {t('overview.mins')}</span> {t('overview.aiEstimatorDesc3')}"
+              <span className="text-teal-400 font-medium"> {barbers.filter(b => b.status === 'active').length} Barbers</span>{t('overview.aiEstimatorDesc2')} <span className="text-teal-400 font-medium font-mono">{estimatedWaitTime} {t('overview.mins')}</span> {t('overview.aiEstimatorDesc3')}"
             </p>
 
-            <div className="mt-5 space-y-3 pt-4 border-t border-border-subtle">
+            <div className="mt-5 space-y-3 pt-4 border-t border-border">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-400 font-sans">{t('overview.currentCapacity')}</span>
+                <span className="text-muted-foreground font-sans">{t('overview.currentCapacity')}</span>
                 <span className="text-teal-400 font-semibold font-mono">{t('overview.optimalFlow')} (78%)</span>
               </div>
-              <div className="w-full bg-[#151515] h-1.5 rounded-full overflow-hidden">
-                <div className="bg-gradient-to-r from-teal-500 to-amber-500 h-full w-[78%] rounded-full" />
+              <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
+                <div className="bg-gradient-to-r from-teal-500 to-teal-300 h-full w-[78%] rounded-full" />
               </div>
             </div>
 
-            <div className="mt-4 p-3 rounded-xl bg-teal-500/5 border border-teal-500/10 flex items-center justify-between">
-              <span className="text-xs text-gray-400 font-sans">{t('overview.suggestedAutoResponse')}</span>
+            <div className="mt-4 p-3 rounded-lg bg-teal-500/5 border border-teal-500/10 flex items-center justify-between">
+              <span className="text-xs text-muted-foreground font-sans">{t('overview.suggestedAutoResponse')}</span>
               <span className="text-[10px] text-teal-400 font-mono font-medium bg-teal-500/10 px-2 py-0.5 rounded-md">{t('overview.smartReplyActive')}</span>
             </div>
           </BentoCard>
@@ -504,17 +494,17 @@ export default function Overview({
           >
             <div className="space-y-4">
               {barbers.map((barber) => (
-                <div key={barber.id} className="flex items-center justify-between p-2.5 rounded-xl bg-[#070707] border border-border-subtle">
+                <div key={barber.id} className="flex items-center justify-between p-2.5 rounded-lg bg-background border border-border">
                   <div className="flex items-center gap-3">
                     <img
                       src={barber.avatar}
                       alt={barber.name}
-                      className="w-10 h-10 rounded-xl object-cover border border-border-subtle"
+                      className="w-10 h-10 rounded-lg object-cover border border-border"
                       referrerPolicy="no-referrer"
                     />
                     <div>
-                      <h4 className="text-sm font-bold text-white font-sans">{barber.name}</h4>
-                      <p className="text-xs text-gray-400 font-sans">{barber.specialty}</p>
+                      <h4 className="text-sm font-bold text-foreground font-sans">{barber.name}</h4>
+                      <p className="text-xs text-muted-foreground font-sans">{barber.specialty}</p>
                     </div>
                   </div>
                   <Badge variant={
@@ -534,26 +524,26 @@ export default function Overview({
       <Dialog open={showWalkInModal} onOpenChange={setShowWalkInModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-xl font-display font-bold text-white tracking-tight mb-4">{t('overview.walkInTitle')}</DialogTitle>
+            <DialogTitle className="text-xl font-display font-bold text-foreground tracking-tight mb-4">{t('overview.walkInTitle')}</DialogTitle>
           </DialogHeader>
 
           <form onSubmit={handleWalkInSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs text-gray-400 uppercase tracking-wider font-mono mb-1.5">{t('overview.customerName')}</label>
+              <label className="block text-xs text-muted-foreground uppercase tracking-wider font-mono mb-1.5">{t('overview.customerName')}</label>
               <input
                 type="text"
                 required
                 value={walkInName}
                 onChange={(e) => setWalkInName(e.target.value)}
                 placeholder={t('overview.customerNamePlaceholder')}
-                className="w-full bg-[#070707] border border-border-subtle rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-amber-500 font-sans placeholder-gray-600"
+                className="w-full bg-background border border-border rounded-lg px-4 py-3 text-foreground text-sm focus:outline-none focus:border-ring font-sans placeholder-muted-foreground"
                 id="walkin-name-input"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs text-gray-400 uppercase tracking-wider font-mono mb-1.5">{t('overview.selectService')}</label>
+                <label className="block text-xs text-muted-foreground uppercase tracking-wider font-mono mb-1.5">{t('overview.selectService')}</label>
                 <Select value={walkInService} onValueChange={setWalkInService}>
                   <SelectTrigger id="walkin-service-select">
                     <SelectValue placeholder="Select Service" />
@@ -567,7 +557,7 @@ export default function Overview({
               </div>
 
               <div>
-                <label className="block text-xs text-gray-400 uppercase tracking-wider font-mono mb-1.5">{t('overview.selectBarber')}</label>
+                <label className="block text-xs text-muted-foreground uppercase tracking-wider font-mono mb-1.5">{t('overview.selectBarber')}</label>
                 <Select value={walkInBarber} onValueChange={setWalkInBarber}>
                   <SelectTrigger id="walkin-barber-select">
                     <SelectValue placeholder="Select Barber" />
@@ -590,14 +580,15 @@ export default function Overview({
               >
                 {t('overview.cancel')}
               </Button>
-              <NeonButton
-                variant="solid"
+              <Button
+                variant="default"
+                neon
                 type="submit"
                 className="flex-1"
                 id="walkin-submit-btn"
               >
                 {t('overview.addToQueue')}
-              </NeonButton>
+              </Button>
             </div>
           </form>
         </DialogContent>

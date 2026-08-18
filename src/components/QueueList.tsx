@@ -70,8 +70,8 @@ export default function QueueList({
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl md:text-3xl font-display font-bold text-white tracking-tight">{t('queue.title')}</h1>
-        <p className="text-sm text-gray-400 font-sans mt-0.5">
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground tracking-tight">{t('queue.title')}</h1>
+        <p className="text-sm text-muted-foreground font-sans mt-0.5">
           {t('queue.subtitle')}
         </p>
       </div>
@@ -80,22 +80,22 @@ export default function QueueList({
       <div className="flex flex-col sm:flex-row gap-3">
         {/* Search */}
         <div className="flex-1 relative">
-          <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
+          <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder={t('queue.searchPlaceholder')}
-            className="w-full bg-[#070707] border border-border-subtle rounded-xl pl-10 pr-4 py-3 text-white text-sm focus:outline-none focus:border-amber-500 font-sans placeholder-gray-600"
+            className="w-full bg-background border border-border rounded-lg pl-10 pr-4 py-3 text-foreground text-sm focus:outline-none focus:border-ring font-sans placeholder-muted-foreground"
             id="queue-search-input"
           />
         </div>
 
         {/* Barber Filter */}
-        <div className="flex items-center gap-2 bg-[#141414] border border-[#222222] rounded-xl px-3 h-[46px]">
-          <Filter size={16} className="text-amber-500" />
+        <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-3 h-[46px]">
+          <Filter size={16} className="text-muted-foreground" />
           <Select value={selectedBarberFilter} onValueChange={setSelectedBarberFilter}>
-            <SelectTrigger id="queue-barber-filter" className="w-[140px] border-none bg-transparent shadow-none px-0 focus:ring-0 text-sm text-gray-300">
+            <SelectTrigger id="queue-barber-filter" className="w-[140px] border-none bg-transparent shadow-none px-0 focus:ring-0 text-sm text-muted-foreground">
               <SelectValue placeholder={t('queue.allBarbers')} />
             </SelectTrigger>
             <SelectContent>
@@ -119,49 +119,45 @@ export default function QueueList({
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, x: -30 }}
-              className="bg-card-bg border border-border-subtle rounded-2xl overflow-hidden"
+              className="bg-card border border-border rounded-xl overflow-hidden"
             >
               {/* Card Header: name + badge */}
               <div className="flex items-start justify-between p-4 pb-3">
                 <div className="flex items-center gap-3">
-                  <span className="w-7 h-7 rounded-full bg-[#151515] border border-border-subtle flex items-center justify-center font-mono text-[11px] text-gray-400 flex-none">
+                  <span className="w-7 h-7 rounded-full bg-muted border border-border flex items-center justify-center font-mono text-[11px] text-muted-foreground flex-none">
                     {index + 1}
                   </span>
                   <div>
-                    <div className="font-bold text-gray-100 font-sans">{item.customerName}</div>
-                    <div className="text-xs text-gray-500 font-mono">{item.phone}</div>
+                    <div className="font-bold text-foreground font-sans">{item.customerName}</div>
+                    <div className="text-xs text-muted-foreground font-mono">{item.phone}</div>
                   </div>
                 </div>
                 <Badge variant={getBadgeVariant(item.status) as any} className="shrink-0 ml-2">
                   {item.status}
                 </Badge>
               </div>
-              
+
               {/* Card Body: service, barber, time */}
               <div className="px-4 pb-3 space-y-1">
-                <div className="text-xs text-gray-400 font-sans flex items-center gap-2">
-                  <Sparkles size={11} className="text-amber-500" />
+                <div className="text-xs text-muted-foreground font-sans flex items-center gap-2">
+                  <Sparkles size={11} className="text-muted-foreground" />
                   {item.service}
-                  <span className="text-gray-600">•</span>
-                  <span className="text-amber-500 font-medium">{item.barber}</span>
+                  <span className="text-muted-foreground/50">•</span>
+                  <span className="text-foreground font-medium">{item.barber}</span>
                 </div>
-                <div className="text-xs text-gray-500 font-mono flex items-center gap-2">
+                <div className="text-xs text-muted-foreground font-mono flex items-center gap-2">
                   <Clock size={11} />
                   {item.timeRange}
                 </div>
               </div>
-              
+
               {/* Card Footer: actions */}
-              <div className="flex items-center gap-2 px-4 py-3 bg-[#070707] border-t border-border-subtle">
+              <div className="flex items-center gap-2 px-4 py-3 bg-background border-t border-border">
                 <Button
                   variant="outline"
                   onClick={() => { const b = barbers.find(b => b.name === item.barber); if (b) onServeNow(item, b.id); }}
                   disabled={!!(barbers.find(b => b.name === item.barber) && servingSessions[barbers.find(b => b.name === item.barber)!.id])}
-                  className={`flex-1 min-h-[44px] ${
-                    (barbers.find(b => b.name === item.barber) && servingSessions[barbers.find(b => b.name === item.barber)!.id])
-                      ? ''
-                      : 'border-amber-500/20 text-amber-500 hover:bg-amber-500 hover:text-black'
-                  }`}
+                  className="flex-1 min-h-[44px]"
                   title={(barbers.find(b => b.name === item.barber) && servingSessions[barbers.find(b => b.name === item.barber)!.id]) ? "Seat is currently occupied" : t('queue.callToChair')}
                 >
                   <Play size={13} fill="currentColor" className="mr-1.5 stroke-none" />
@@ -171,7 +167,6 @@ export default function QueueList({
                   variant="secondary"
                   size="icon"
                   onClick={() => handleWhatsAppNudge(item)}
-                  className="text-teal-400 hover:text-teal-300"
                   title={t('queue.whatsappNudge')}
                 >
                   <MessageCircle size={16} />
@@ -187,9 +182,9 @@ export default function QueueList({
               </div>
             </motion.div>
           )) : (
-            <div className="py-12 text-center text-gray-500 font-sans bg-card-bg border border-border-subtle rounded-2xl">
+            <div className="py-12 text-center text-muted-foreground font-sans bg-card border border-border rounded-xl">
               <div className="flex flex-col items-center gap-2">
-                <Users size={24} className="text-gray-700" />
+                <Users size={24} className="text-muted-foreground/50" />
                 <span>{t('queue.noMatches')}</span>
               </div>
             </div>
@@ -197,11 +192,11 @@ export default function QueueList({
         </AnimatePresence>
       </div>
 
-      <div className="hidden md:block bg-card-bg border border-border-subtle rounded-2xl overflow-hidden">
+      <div className="hidden md:block bg-card border border-border rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-border-subtle text-gray-500 text-xs font-mono uppercase tracking-wider bg-[#070707]">
+              <tr className="border-b border-border text-muted-foreground text-xs font-mono uppercase tracking-wider bg-background">
                 <th className="py-4 px-5">{t('queue.orderName')}</th>
                 <th className="py-4 px-4">{t('queue.estTimeRange')}</th>
                 <th className="py-4 px-4">{t('queue.serviceDetails')}</th>
@@ -210,7 +205,7 @@ export default function QueueList({
                 <th className="py-4 px-5 text-right">{t('queue.quickActions')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border-subtle text-sm">
+            <tbody className="divide-y divide-border text-sm">
               <AnimatePresence mode="popLayout">
                 {filteredQueue.length > 0 ? (
                   filteredQueue.map((item, index) => (
@@ -219,33 +214,33 @@ export default function QueueList({
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, x: -30 }}
-                      className="hover:bg-[#121212]/50 transition-colors"
+                      className="hover:bg-accent/50 transition-colors"
                     >
                       {/* Name / Index */}
                       <td className="py-4 px-5">
                         <div className="flex items-center gap-3">
-                          <span className="w-6 h-6 rounded-full bg-[#151515] border border-border-subtle flex items-center justify-center font-mono text-[11px] text-gray-400">
+                          <span className="w-6 h-6 rounded-full bg-muted border border-border flex items-center justify-center font-mono text-[11px] text-muted-foreground">
                             {index + 1}
                           </span>
                           <div>
-                            <span className="font-bold text-gray-100 font-sans block">{item.customerName}</span>
-                            <span className="text-xs text-gray-500 font-mono">{item.phone}</span>
+                            <span className="font-bold text-foreground font-sans block">{item.customerName}</span>
+                            <span className="text-xs text-muted-foreground font-mono">{item.phone}</span>
                           </div>
                         </div>
                       </td>
 
                       {/* Time Range */}
-                      <td className="py-4 px-4 font-mono text-xs text-gray-300">
+                      <td className="py-4 px-4 font-mono text-xs text-muted-foreground">
                         {item.timeRange}
                       </td>
 
                       {/* Service */}
-                      <td className="py-4 px-4 text-gray-300 font-sans">
+                      <td className="py-4 px-4 text-muted-foreground font-sans">
                         {item.service}
                       </td>
 
                       {/* Barber */}
-                      <td className="py-4 px-4 font-sans font-medium text-amber-500">
+                      <td className="py-4 px-4 font-sans font-medium text-foreground">
                         {item.barber}
                       </td>
 
@@ -266,11 +261,7 @@ export default function QueueList({
                             if (targetBarber) onServeNow(item, targetBarber.id);
                           }}
                           disabled={!!(barbers.find(b => b.name === item.barber) && servingSessions[barbers.find(b => b.name === item.barber)!.id])}
-                          className={`min-h-[44px] ${
-                            (barbers.find(b => b.name === item.barber) && servingSessions[barbers.find(b => b.name === item.barber)!.id])
-                              ? ''
-                              : 'border-amber-500/20 text-amber-500 hover:bg-amber-500 hover:text-black'
-                          }`}
+                          className="min-h-[44px]"
                           title={(barbers.find(b => b.name === item.barber) && servingSessions[barbers.find(b => b.name === item.barber)!.id]) ? "Seat is currently occupied" : t('queue.callToChair')}
                           id={`serve-btn-${item.id}`}
                         >
@@ -283,7 +274,6 @@ export default function QueueList({
                           variant="secondary"
                           size="icon"
                           onClick={() => handleWhatsAppNudge(item)}
-                          className="text-teal-400 hover:text-teal-300"
                           title={t('queue.whatsappNudge')}
                           id={`nudge-btn-${item.id}`}
                         >
@@ -305,9 +295,9 @@ export default function QueueList({
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center text-gray-500 font-sans">
+                    <td colSpan={6} className="py-12 text-center text-muted-foreground font-sans">
                       <div className="flex flex-col items-center gap-2">
-                        <Users size={24} className="text-gray-700" />
+                        <Users size={24} className="text-muted-foreground/50" />
                         <span>No queue entries match your search filters today.</span>
                       </div>
                     </td>
