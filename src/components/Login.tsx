@@ -187,7 +187,7 @@ export default function Login({ shopName, logoUrl }: LoginProps) {
                 <Button 
                   type="submit" 
                   disabled={loading || googleLoading} 
-                  className="w-full bg-amber-500 hover:bg-amber-600 text-zinc-950 font-bold" 
+                  className="w-full bg-white hover:bg-zinc-200 text-black font-medium" 
                   id="login-submit-btn"
                 >
                   {loading ? 'Processing...' : (isSignUp ? 'Sign up' : 'Login')}
