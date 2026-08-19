@@ -63,7 +63,12 @@ Output: {"nama":null,"hari":null,"jam":null,"servis":null,"kapster":null,"isBook
 Input: "ok makasih"
 Output: {"nama":null,"hari":null,"jam":null,"servis":null,"kapster":null,"isBookingIntent":false,"naturalReply":"Sama-sama kak! Ditunggu kedatangannya ya."}`;
 
-const MODEL_CHAIN = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite', 'gemini-3.1-flash', 'gemini-3.5-flash'];
+// 'gemini-3.1-flash' (no -lite suffix) doesn't exist as a model — confirmed
+// via direct API test (404 NOT_FOUND) — 3.1 only ships lite/image variants.
+// Replaced with 'gemini-3.6-flash' (verified working), since the dead entry
+// meant messages >80 chars (which skip straight to index 2 below) only ever
+// got one real fallback attempt instead of two.
+const MODEL_CHAIN = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.5-flash'];
 
 function getStartingIndex(text) {
   return text.length > 80 ? 2 : 0;
@@ -123,7 +128,7 @@ Tugasmu:
       
       return JSON.parse(raw.trim());
     } catch (err) {
-      console.warn('[FALLBACK]', currentModel, '-> mencoba model berikutnya');
+      console.warn('[FALLBACK]', currentModel, '-> mencoba model berikutnya. Sebab:', err.message);
     }
   }
 
