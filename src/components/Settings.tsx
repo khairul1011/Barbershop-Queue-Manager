@@ -30,6 +30,7 @@ interface SettingsProps {
   barbers: Barber[];
   barbersLoading?: boolean;
   onAddService: (newService: Omit<Service, 'id'>) => void;
+  onUpdateService: (id: string, updates: Partial<Omit<Service, 'id'>>) => void;
   onRemoveService: (id: string) => void;
   onUpdateBarberStatus: (id: string, status: 'active' | 'break' | 'off') => void;
   onAddBarber: (newBarber: Omit<Barber, 'id'>) => void;
@@ -46,6 +47,7 @@ export default function SettingsView({
   barbers,
   barbersLoading,
   onAddService,
+  onUpdateService,
   onRemoveService,
   onUpdateBarberStatus,
   onAddBarber,
@@ -60,6 +62,7 @@ export default function SettingsView({
   const [newServiceName, setNewServiceName] = useState('');
   const [newServicePrice, setNewServicePrice] = useState(100000);
   const [newServiceDuration, setNewServiceDuration] = useState(30);
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
 
   // Shop profile form states
   const [shopNameInput, setShopNameInput] = useState(businessHours.shopName);
@@ -81,14 +84,35 @@ export default function SettingsView({
   const handleAddServiceSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newServiceName.trim() || newServicePrice <= 0 || newServiceDuration <= 0) return;
-    onAddService({
-      name: newServiceName,
-      price: newServicePrice,
-      duration: newServiceDuration
-    });
+
+    if (editingServiceId) {
+      onUpdateService(editingServiceId, {
+        name: newServiceName,
+        price: newServicePrice,
+        duration: newServiceDuration
+      });
+    } else {
+      onAddService({
+        name: newServiceName,
+        price: newServicePrice,
+        duration: newServiceDuration
+      });
+    }
+    resetServiceForm();
+  };
+
+  const resetServiceForm = () => {
     setNewServiceName('');
     setNewServicePrice(100000);
     setNewServiceDuration(30);
+    setEditingServiceId(null);
+  };
+
+  const startEditService = (svc: Service) => {
+    setNewServiceName(svc.name);
+    setNewServicePrice(svc.price);
+    setNewServiceDuration(svc.duration);
+    setEditingServiceId(svc.id);
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -178,7 +202,16 @@ export default function SettingsView({
 
           {/* Service Adder Form */}
           <form onSubmit={handleAddServiceSubmit} className="space-y-3 bg-background border border-border p-4 rounded-lg">
-            <span className="text-[10px] text-muted-foreground font-mono font-bold uppercase block">{t('settings.addCustomService')}</span>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-muted-foreground font-mono font-bold uppercase block">
+                {editingServiceId ? t('settings.editService') : t('settings.addCustomService')}
+              </span>
+              {editingServiceId && (
+                <Button variant="ghost" size="icon" type="button" onClick={resetServiceForm}>
+                  <X size={14} />
+                </Button>
+              )}
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <input
                 type="text"
@@ -215,8 +248,8 @@ export default function SettingsView({
               className="w-full"
               id="setting-service-add-btn"
             >
-              <Plus size={14} className="mr-1.5" />
-              {t('settings.addServiceItem')}
+              {editingServiceId ? <Save size={14} className="mr-1.5" /> : <Plus size={14} className="mr-1.5" />}
+              {editingServiceId ? t('settings.saveServiceChanges') : t('settings.addServiceItem')}
             </Button>
           </form>
 
@@ -241,15 +274,26 @@ export default function SettingsView({
                       <span className="flex items-center gap-0.5"><Clock size={10} /> {svc.duration} {t('settings.mins')}</span>
                     </p>
                   </div>
-                  <Button
-                    variant="destructive"
-                    size="icon"
-                    onClick={() => onRemoveService(svc.id)}
-                    title={t('settings.deleteService')}
-                    id={`remove-service-${svc.id}`}
-                  >
-                    <Trash size={14} />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      onClick={() => startEditService(svc)}
+                      title={t('settings.editService')}
+                      id={`edit-service-${svc.id}`}
+                    >
+                      <Edit3 size={14} />
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      onClick={() => onRemoveService(svc.id)}
+                      title={t('settings.deleteService')}
+                      id={`remove-service-${svc.id}`}
+                    >
+                      <Trash size={14} />
+                    </Button>
+                  </div>
                 </div>
               ))
             )}

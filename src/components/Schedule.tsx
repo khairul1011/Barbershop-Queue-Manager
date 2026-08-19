@@ -50,6 +50,17 @@ const STATUS_VARIANT_STYLES: Record<QueueStatusVariant, string> = {
   gray: 'bg-muted text-muted-foreground border border-border',
 };
 
+// Slightly more opaque than the badge background, used for the small
+// initials avatar chip on entry cards so it reads as a "photo" accent.
+const AVATAR_VARIANT_STYLES: Record<QueueStatusVariant, string> = {
+  emerald: 'bg-emerald-500/25 text-emerald-100',
+  amber: 'bg-amber-500/25 text-amber-950',
+  sky: 'bg-sky-500/25 text-sky-100',
+  violet: 'bg-violet-500/30 text-violet-100',
+  blue: 'bg-blue-500/25 text-blue-100',
+  gray: 'bg-muted-foreground/20 text-foreground',
+};
+
 export default function Schedule({ 
   queue, 
   servingSessions,
@@ -214,6 +225,7 @@ export default function Schedule({
   });
 
   const getStatusBadgeStyles = (entry: QueueEntry) => STATUS_VARIANT_STYLES[getQueueStatusVariant(entry)];
+  const getAvatarStyles = (entry: QueueEntry) => AVATAR_VARIANT_STYLES[getQueueStatusVariant(entry)];
 
   const handleConfirmQuickBook = (e: React.FormEvent) => {
     e.preventDefault();
@@ -339,47 +351,55 @@ export default function Schedule({
           {hours.map(hour => (
             <div
               key={hour}
-              className="absolute w-full border-t border-border"
+              className="absolute w-full border-t border-border group/slot"
               style={{ top: (hour - businessHours.openHour) * 60 * PIXELS_PER_MINUTE }}
               onClick={() => {
                 setBookingSlot({ day, hour: `${hour.toString().padStart(2, '0')}:00`, barberName: barber.name });
                 setSelectedBarberId(barber.id);
               }}
             >
-              <div className="absolute inset-0 active:bg-accent hover:bg-accent/40 transition-colors cursor-pointer" style={{ height: 60 * PIXELS_PER_MINUTE }} />
+              <div className="absolute inset-0 flex items-center justify-center active:bg-accent hover:bg-accent/40 transition-colors cursor-pointer" style={{ height: 60 * PIXELS_PER_MINUTE }}>
+                <Plus size={16} className="text-muted-foreground opacity-0 group-hover/slot:opacity-60 transition-opacity" />
+              </div>
             </div>
           ))}
 
           {/* Render Blocks */}
           {positionedEntries.map(({ entry, topPx, heightPx, left, width }) => {
             const isSmall = heightPx <= 60;
+            const initial = entry.customerName.trim().charAt(0).toUpperCase() || '?';
             return (
               <div
                 key={entry.id}
                 onClick={() => setActiveSlotDetails({ day, timeRange: entry.timeRange, entry })}
-                className={`absolute rounded-lg ${isSmall ? 'py-1 px-2 justify-center' : 'p-2'} cursor-pointer transition-all hover:scale-[1.02] hover:z-20 ${getStatusBadgeStyles(entry)} shadow-sm overflow-hidden flex flex-col`}
-                style={{ top: topPx, height: heightPx, left, width }}
+                className={`absolute rounded-xl ${isSmall ? 'py-1 px-2' : 'p-2'} cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md hover:z-20 ${getStatusBadgeStyles(entry)} shadow-sm overflow-hidden flex items-start gap-1.5`}
+                style={{ top: topPx + 5, height: Math.max(heightPx - 10, 24), left, width }}
               >
-                <div className="flex justify-between items-start gap-1">
-                  <div className="font-bold text-[11px] truncate leading-tight">
-                    {entry.customerName}
-                    {isSmall && <span className="font-normal opacity-70 ml-1">· {entry.service}</span>}
+                <div className={`shrink-0 rounded-full flex items-center justify-center font-bold ${getAvatarStyles(entry)} ${isSmall ? 'w-4 h-4 text-[9px]' : 'w-6 h-6 text-[10px] mt-0.5'}`}>
+                  {initial}
+                </div>
+                <div className="flex-1 min-w-0 flex flex-col">
+                  <div className="flex justify-between items-start gap-1">
+                    <div className="font-bold text-[11px] truncate leading-tight">
+                      {entry.customerName}
+                      {isSmall && <span className="font-normal opacity-70 ml-1">· {entry.service}</span>}
+                    </div>
+                    {entry.startedAt && !entry.completedAt && (
+                      <div className="w-1.5 h-1.5 rounded-full bg-violet-700 shrink-0 mt-1 animate-pulse" />
+                    )}
                   </div>
-                  {entry.startedAt && !entry.completedAt && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-violet-700 shrink-0 mt-1 animate-pulse" />
+                  {!isSmall && (
+                    <div className="text-[9px] font-mono opacity-60 flex items-center mt-0.5">
+                      ~{entry.timeRange.replace('~', '').trim()}
+                    </div>
+                  )}
+                  {!isSmall && (
+                    <div className="text-[9px] font-medium opacity-80 mt-1.5 flex items-center gap-1 truncate">
+                      <Scissors size={8} className="shrink-0" />
+                      <span className="truncate">{entry.service}</span>
+                    </div>
                   )}
                 </div>
-                {!isSmall && (
-                  <div className="text-[9px] font-mono opacity-60 flex items-center mt-0.5">
-                    ~{entry.timeRange.replace('~', '').trim()}
-                  </div>
-                )}
-                {!isSmall && (
-                  <div className="text-[9px] font-medium opacity-80 mt-1.5 flex items-center gap-1 truncate">
-                    <Scissors size={8} className="shrink-0" />
-                    <span className="truncate">{entry.service}</span>
-                  </div>
-                )}
               </div>
             );
           })}
@@ -541,12 +561,12 @@ export default function Schedule({
             <div className="relative flex overflow-x-auto overflow-y-hidden bg-card rounded-b-xl">
 
               {/* Time Axis */}
-              <div className="w-[60px] flex-none shrink-0 border-r border-border bg-background sticky left-0 z-20 pt-[56px]"
-                   style={{ height: `calc(${(businessHours.closeHour - businessHours.openHour + 1) * 60 * PIXELS_PER_MINUTE}px + 56px)` }}>
+              <div className="w-[60px] flex-none shrink-0 border-r border-border bg-background sticky left-0 z-20 pt-[64px]"
+                   style={{ height: `calc(${(businessHours.closeHour - businessHours.openHour + 1) * 60 * PIXELS_PER_MINUTE}px + 64px)` }}>
                 {Array.from({ length: businessHours.closeHour - businessHours.openHour + 1 }, (_, i) => i + businessHours.openHour).map(hour => (
                   <div key={hour}
                        className={`absolute w-full text-right pr-2 text-xs text-muted-foreground font-mono ${hour === businessHours.openHour ? 'translate-y-1' : '-translate-y-2'}`}
-                       style={{ top: `calc(56px + ${(hour - businessHours.openHour) * 60 * PIXELS_PER_MINUTE}px)` }}>
+                       style={{ top: `calc(64px + ${(hour - businessHours.openHour) * 60 * PIXELS_PER_MINUTE}px)` }}>
                     {hour.toString().padStart(2, '0')}:00
                   </div>
                 ))}
@@ -558,8 +578,17 @@ export default function Schedule({
                      className={`flex-1 min-w-[200px] flex flex-col border-r border-border ${activeMobileBarberIndex === idx ? 'flex' : 'hidden lg:flex'}`}>
 
                   {/* Column Header */}
-                  <div className="h-[56px] flex flex-col items-center justify-center border-b border-border bg-card shrink-0">
-                    <div className="font-bold text-sm text-foreground">{b.name}</div>
+                  <div className="h-[64px] flex flex-col items-center justify-center border-b border-border bg-card shrink-0">
+                    <div className="flex items-center gap-1.5">
+                      {b.avatar ? (
+                        <img src={b.avatar} alt={b.name} className="w-5 h-5 rounded-full object-cover border border-border shrink-0" referrerPolicy="no-referrer" />
+                      ) : (
+                        <div className="w-5 h-5 rounded-full bg-muted text-muted-foreground text-[9px] font-bold flex items-center justify-center shrink-0">
+                          {b.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="font-bold text-sm text-foreground">{b.name}</div>
+                    </div>
                     <div className="text-[10px] text-muted-foreground uppercase font-mono tracking-wider mt-0.5 flex justify-center gap-1">
                       {b.status === 'break' && <span className="text-amber-500">{t('overview.statusBreak')}</span>}
                       {b.status === 'active' && <span className="text-teal-500">{t('overview.statusOnSeat')}</span>}

@@ -76,7 +76,7 @@ export default function App() {
   // Core App States
   const { requests, loading: requestsLoading, error: requestsError, approveRequest, rejectRequest, updateRequestDetails, refreshRequests } = useSupabaseRequests();
   const { barbers, loading: barbersLoading, error: barbersError, addBarber, editBarber, removeBarber, updateBarberStatus } = useSupabaseBarbers();
-  const { services, loading: servicesLoading, error: servicesError, addService, removeService } = useSupabaseServices();
+  const { services, loading: servicesLoading, error: servicesError, addService, updateService, removeService } = useSupabaseServices();
   const { queue, servingSessions, completedEntries, loading: queueLoading, error: queueError, addQueueEntry, updateQueueEntryStatus, serveQueueEntry, completeServingSession, removeQueueEntry, startQuickWalkIn } = useSupabaseQueue(barbers, services);
   const { businessHours, updateBusinessHours, updateShopProfile } = useSupabaseBusinessHours();
 
@@ -602,6 +602,16 @@ export default function App() {
     }
   };
 
+  // Callback: Update existing service
+  const handleUpdateService = async (id: string, updates: Partial<Omit<Service, 'id'>>) => {
+    try {
+      await updateService(id, updates);
+      triggerToast(`Layanan berhasil diperbarui.`, 'success', 'Service Updated');
+    } catch (err) {
+      triggerToast(`Gagal memperbarui layanan.`, 'error', 'Update Failed');
+    }
+  };
+
   // Callback: Remove custom service
   const handleRemoveService = async (id: string) => {
     requestConfirm('Yakin mau hapus layanan ini?', async () => {
@@ -743,6 +753,7 @@ export default function App() {
             barbers={barbers}
             barbersLoading={barbersLoading}
             onAddService={handleAddService}
+            onUpdateService={handleUpdateService}
             onRemoveService={handleRemoveService}
             onUpdateBarberStatus={handleUpdateBarberStatus}
             onAddBarber={handleAddBarber}
@@ -922,7 +933,17 @@ export default function App() {
           'flex-1 p-5 md:p-8 space-y-6 w-full mx-auto',
           contentLayout === 'compact' ? 'max-w-5xl' : 'max-w-7xl'
         )}>
-          {renderActiveTab()}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+            >
+              {renderActiveTab()}
+            </motion.div>
+          </AnimatePresence>
         </main>
         </div>
       </SidebarInset>

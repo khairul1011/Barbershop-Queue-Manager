@@ -146,6 +146,8 @@ export const id = {
   'settings.addServiceItem': 'Tambah Item Layanan',
   'settings.mins': 'menit',
   'settings.deleteService': 'Hapus Layanan',
+  'settings.editService': 'Edit Layanan',
+  'settings.saveServiceChanges': 'Simpan Perubahan',
   'settings.barberDutyStatus': 'Status Shift Kapster',
   'settings.active': 'Aktif',
   'settings.break': 'Istirahat',

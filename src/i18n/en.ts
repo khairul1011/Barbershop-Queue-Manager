@@ -146,6 +146,8 @@ export const en = {
   'settings.addServiceItem': 'Add Service Item',
   'settings.mins': 'mins',
   'settings.deleteService': 'Delete Service',
+  'settings.editService': 'Edit Service',
+  'settings.saveServiceChanges': 'Save Changes',
   'settings.barberDutyStatus': 'Barber Duty Status',
   'settings.active': 'Active',
   'settings.break': 'Break',

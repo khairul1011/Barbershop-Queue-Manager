@@ -69,6 +69,28 @@ export function useSupabaseServices() {
     }
   };
 
+  const updateService = async (id: string, updates: Partial<Omit<Service, 'id'>>) => {
+    try {
+      setError(null);
+      const payload: Record<string, unknown> = {};
+      if (updates.name !== undefined) payload.name = updates.name;
+      if (updates.price !== undefined) payload.price = updates.price;
+      if (updates.duration !== undefined) payload.duration_minutes = updates.duration;
+
+      const { error: supabaseError } = await supabase
+        .from('services')
+        .update(payload)
+        .eq('id', id);
+
+      if (supabaseError) throw supabaseError;
+
+      setServices(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+    } catch (err) {
+      console.error('Error updating service:', err);
+      throw err; // Re-throw to be handled by caller
+    }
+  };
+
   // Soft delete: layanan diarsipkan (archived = true), bukan dihapus
   // permanen — layanan yang udah pernah dipakai di queue_entries nggak bisa
   // di-hard-delete (foreign key constraint) tanpa merusak riwayat antrean lama.
@@ -94,6 +116,7 @@ export function useSupabaseServices() {
     loading,
     error,
     addService,
+    updateService,
     removeService,
     refreshServices: fetchServices
   };
