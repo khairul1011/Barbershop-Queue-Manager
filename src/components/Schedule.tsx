@@ -366,14 +366,17 @@ export default function Schedule({
 
           {/* Render Blocks */}
           {positionedEntries.map(({ entry, topPx, heightPx, left, width }) => {
-            const isSmall = heightPx <= 60;
+            const renderedHeight = Math.max(heightPx - 10, 24);
+            // Full 3-line layout (name + time + service) needs ~68px to avoid
+            // clipping; anything shorter falls back to the single-line compact mode.
+            const isSmall = renderedHeight < 68;
             const initial = entry.customerName.trim().charAt(0).toUpperCase() || '?';
             return (
               <div
                 key={entry.id}
                 onClick={() => setActiveSlotDetails({ day, timeRange: entry.timeRange, entry })}
                 className={`absolute rounded-xl ${isSmall ? 'py-1 px-2' : 'p-2'} cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md hover:z-20 ${getStatusBadgeStyles(entry)} shadow-sm overflow-hidden flex items-start gap-1.5`}
-                style={{ top: topPx + 5, height: Math.max(heightPx - 10, 24), left, width }}
+                style={{ top: topPx + 5, height: renderedHeight, left, width }}
               >
                 <div className={`shrink-0 rounded-full flex items-center justify-center font-bold ${getAvatarStyles(entry)} ${isSmall ? 'w-4 h-4 text-[9px]' : 'w-6 h-6 text-[10px] mt-0.5'}`}>
                   {initial}
