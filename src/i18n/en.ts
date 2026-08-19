@@ -86,7 +86,6 @@ export const en = {
   'requests.noPendingDesc': 'Nice work! All incoming WhatsApp queue bookings are approved or addressed.',
 
   // Schedule
-  'schedule.hqTitle': 'Golden Shears HQ',
   'schedule.hqSubtitle': 'Hourly slot scheduler Board. Seamlessly manage walk-ins and active queues.',
   'schedule.premiumBarbershop': 'Premium Barbershop',
   'schedule.generateReport': 'Generate report',

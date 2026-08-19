@@ -28,6 +28,7 @@ interface QueueListProps {
   onServeNow: (entry: QueueEntry, barberId: string) => void;
   onRemove: (id: string) => void;
   onSendWhatsApp: (phone: string, text: string) => void;
+  shopName: string;
 }
 
 export default function QueueList({
@@ -37,7 +38,8 @@ export default function QueueList({
   todayKey,
   onServeNow,
   onRemove,
-  onSendWhatsApp
+  onSendWhatsApp,
+  shopName
 }: QueueListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBarberFilter, setSelectedBarberFilter] = useState('All Barbers');
@@ -54,7 +56,7 @@ export default function QueueList({
   });
 
   const handleWhatsAppNudge = (item: QueueEntry) => {
-    const text = `Halo ${item.customerName}, giliran Anda di Golden Shears hampir tiba! Silakan bersiap-siap menuju outlet. Terima kasih.`;
+    const text = `Halo ${item.customerName}, giliran Anda di ${shopName} hampir tiba! Silakan bersiap-siap menuju outlet. Terima kasih.`;
     onSendWhatsApp(item.phone, text);
   };
 

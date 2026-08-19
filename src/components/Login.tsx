@@ -3,7 +3,12 @@ import { supabase } from '../lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { DotPattern } from '@/components/ui/dot-pattern';
 
-export default function Login() {
+interface LoginProps {
+  shopName: string;
+  logoUrl: string | null;
+}
+
+export default function Login({ shopName, logoUrl }: LoginProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -30,10 +35,14 @@ export default function Login() {
 
       <div className="relative z-10 w-full max-w-sm bg-card border border-border rounded-2xl p-8 space-y-6 shadow-2xl">
         <div className="text-center space-y-1">
-          <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center mx-auto mb-3">
-            <span className="font-display font-bold text-primary-foreground text-lg">G</span>
+          <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center mx-auto mb-3 overflow-hidden">
+            {logoUrl ? (
+              <img src={logoUrl} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <span className="font-display font-bold text-primary-foreground text-lg">{shopName.charAt(0).toUpperCase()}</span>
+            )}
           </div>
-          <h1 className="text-xl font-display font-bold text-foreground tracking-tight">Golden Shears HQ</h1>
+          <h1 className="text-xl font-display font-bold text-foreground tracking-tight">{shopName} HQ</h1>
           <p className="text-sm text-muted-foreground">Masuk untuk mengelola antrean & jadwal</p>
         </div>
 

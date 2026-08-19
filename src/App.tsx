@@ -78,7 +78,7 @@ export default function App() {
   const { barbers, loading: barbersLoading, error: barbersError, addBarber, editBarber, removeBarber, updateBarberStatus } = useSupabaseBarbers();
   const { services, loading: servicesLoading, error: servicesError, addService, removeService } = useSupabaseServices();
   const { queue, servingSessions, completedEntries, loading: queueLoading, error: queueError, addQueueEntry, updateQueueEntryStatus, serveQueueEntry, completeServingSession, removeQueueEntry, startQuickWalkIn } = useSupabaseQueue(barbers, services);
-  const { businessHours, updateBusinessHours } = useSupabaseBusinessHours();
+  const { businessHours, updateBusinessHours, updateShopProfile } = useSupabaseBusinessHours();
 
   // Stats Counters (derived from Supabase data)
 
@@ -700,6 +700,7 @@ export default function App() {
             onServeNow={handleServeNow}
             onRemove={handleRemoveQueueEntry}
             onSendWhatsApp={handleSendWhatsAppSimulated}
+            shopName={businessHours.shopName}
           />
         );
       case 'requests':
@@ -749,6 +750,7 @@ export default function App() {
             onRemoveBarber={handleRemoveBarber}
             businessHours={businessHours}
             onUpdateBusinessHours={updateBusinessHours}
+            onUpdateShopProfile={updateShopProfile}
           />
         );
       default:
@@ -761,15 +763,19 @@ export default function App() {
   if (authLoading) {
     return (
       <div className="h-dvh flex items-center justify-center bg-background">
-        <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center animate-pulse">
-          <span className="font-display font-bold text-primary-foreground text-sm">G</span>
+        <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center animate-pulse overflow-hidden">
+          {businessHours.logoUrl ? (
+            <img src={businessHours.logoUrl} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <span className="font-display font-bold text-primary-foreground text-sm">{businessHours.shopName.charAt(0).toUpperCase()}</span>
+          )}
         </div>
       </div>
     );
   }
 
   if (!session) {
-    return <Login />;
+    return <Login shopName={businessHours.shopName} logoUrl={businessHours.logoUrl} />;
   }
 
   return (
@@ -791,6 +797,8 @@ export default function App() {
         pendingRequestsCount={pendingRequestsCount}
         sidebarVariant={sidebarVariant}
         sidebarMode={sidebarMode}
+        shopName={businessHours.shopName}
+        logoUrl={businessHours.logoUrl}
       />
 
       <SidebarInset className="z-10 min-w-0 bg-transparent">
@@ -799,10 +807,14 @@ export default function App() {
         <div className="md:hidden flex items-center justify-between bg-background border-b border-border px-5 h-[64px] sticky top-0 z-40 flex-shrink-0">
           <div className="flex items-center gap-2.5">
             <SidebarTrigger className="text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg" id="mobile-menu-toggle-btn" />
-            <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
-              <span className="font-display font-bold text-primary-foreground text-sm">G</span>
+            <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center overflow-hidden">
+              {businessHours.logoUrl ? (
+                <img src={businessHours.logoUrl} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <span className="font-display font-bold text-primary-foreground text-sm">{businessHours.shopName.charAt(0).toUpperCase()}</span>
+              )}
             </div>
-            <span className="font-display font-semibold tracking-wide text-foreground text-base">GOLDEN SHEARS</span>
+            <span className="font-display font-semibold tracking-wide text-foreground text-base">{businessHours.shopName.toUpperCase()}</span>
           </div>
           <div className="flex items-center gap-3">
             {pendingRequestsCount > 0 && (
@@ -891,7 +903,7 @@ export default function App() {
               </div>
               <div className="text-left">
                 <span className="text-xs font-semibold text-foreground block">{t('header.hqOperator')}</span>
-                <span className="text-[9px] text-muted-foreground font-mono tracking-wider uppercase block">GOLDEN SHEARS</span>
+                <span className="text-[9px] text-muted-foreground font-mono tracking-wider uppercase block">{businessHours.shopName}</span>
               </div>
               <button
                 onClick={() => supabase.auth.signOut()}

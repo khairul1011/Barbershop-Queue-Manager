@@ -112,6 +112,8 @@ Proyek ini adalah **experiment pribadi** (bukan produk komersial saat ini), diba
 - **Bot WhatsApp sudah kebal dari spam balasan dobel saat restart**, dan punya jeda balasan natural (bukan instan) — lihat [Bagian 2 §✅ Sudah Diselesaikan](#-sudah-diselesaikan).
 - **Customer otomatis dikasih tau via WhatsApp** saat kapster approve/reject booking-nya di dashboard — sebelumnya bot cuma bisa bales dalam percakapan aktif, sekarang bisa kirim pesan duluan lewat Supabase Realtime subscription.
 - Perbaikan bug hardcode `'Wed'` sudah selesai, sistem kini dinamis mengikuti `todayKey`.
+- **Dashboard sekarang punya sistem login** (Supabase Auth, satu akun staff bersama) — akses data lewat RLS juga sudah dibatasi khusus staff yang login (`authenticated`-only, `anon` dicabut total), bot WhatsApp jalan pakai `service_role` key terpisah yang bypass RLS. Lihat [Bagian 2 §✅ Sudah Diselesaikan — RLS](#-sudah-diselesaikan).
+- Komponen `DataPagination` reusable sudah dipasang di Riwayat, siap dipakai ulang di halaman lain tanpa nulis ulang logic nomor halaman.
 
 ❌ Belum ada / masih dummy:
 - Integrasi Instagram DM (memang sengaja belum dikerjakan — lihat §3 Non-Goals & Fase 5 di roadmap).
@@ -264,12 +266,16 @@ Grid pada **Schedule → Daily View** sebelumnya mengalami mis-alignment antara 
 - **Catatan:** field ini beda dari `status` ('active'/'break'/'off') yang udah ada — itu toggle harian (kapster libur hari ini), `archived` khusus buat "kapster udah nggak dipakai lagi / dihapus permanen". Jangan disatuin, biar nggak ketuker kapster yang cuma libur sehari dengan yang beneran keluar.
 
 ### Row Level Security (RLS) mati di semua tabel Supabase
-**File:** Database Supabase (`public.*`), bukan kode aplikasi.
-**Status:** FIXED (sebagian).
-- Semua 6 tabel (`barbers`, `services`, `whatsapp_requests`, `queue_entries`, `business_hours`, `barber_time_off`) nggak punya RLS aktif — ketauan dari Supabase security advisor (level `ERROR`). Karena frontend ngobrol langsung ke Supabase pakai anon/publishable key yang emang secara desain nempel publik di JS bundle browser, RLS mati berarti siapa pun yang nemu URL dashboard-nya bisa baca DAN tulis/hapus SEMUA baris di SEMUA tabel lewat DevTools, termasuk data pribadi pelanggan (nama, nomor WA) di `whatsapp_requests`, tanpa perlu login (dashboard-nya emang belum ada sistem login).
-- **Solusi:** RLS diaktifkan di keenam tabel, dengan policy per role `anon` yang dipetain persis dari operasi yang beneran dipakai kode (dicek semua `.from()` call di `src/hooks/*.ts` dan `server/index.js`) — misal `whatsapp_requests` cuma dikasih SELECT/INSERT/UPDATE (nggak ada DELETE, karena nggak ada kode yang butuh itu), `services` cuma SELECT/INSERT/DELETE (nggak ada UPDATE, UI-nya emang nggak punya edit inline). Prinsipnya least-privilege di level operasi, bukan di level identitas pengguna (karena belum ada auth).
-- **Kenapa cuma "sebagian" fixed:** ini nutup celah "operasi yang nggak semestinya" (mis. hapus massal data pelanggan), tapi BELUM nutup celah "siapa aja bisa baca data pelanggan" — itu butuh sistem login/auth beneran di dashboard yang membedakan staff vs publik, yang belum ada sama sekali di aplikasi ini. Ini perbaikan pertama yang aman diterapkan tanpa bikin app/bot berhenti fungsi, bukan solusi privasi data yang final.
-- Migrasi `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` + `CREATE POLICY` dijalankan manual lewat Supabase SQL Editor (DDL security setting, di luar kewenangan otomatis Claude Code). Diverifikasi lewat Supabase advisor (`get_advisors` nol temuan security setelahnya) dan tes langsung di dashboard + cek log bot — keduanya tetap jalan normal.
+**File:** Database Supabase (`public.*`), `src/App.tsx`, `src/components/Login.tsx`, `server/supabaseClient.js`.
+**Status:** FIXED (tuntas, dua fase).
+
+**Fase 1 — RLS least-privilege per operasi (riwayat lama):** Semua 6 tabel (`barbers`, `services`, `whatsapp_requests`, `queue_entries`, `business_hours`, `barber_time_off`) awalnya nggak punya RLS aktif — ketauan dari Supabase security advisor (level `ERROR`). RLS diaktifkan dengan policy per role `anon` yang dipetain dari operasi yang beneran dipakai kode. Ini nutup celah "operasi yang nggak semestinya" (mis. hapus massal data pelanggan), tapi BELUM nutup celah "siapa aja bisa baca data pelanggan" karena dashboard-nya emang belum ada sistem login.
+
+**Fase 2 — Login dashboard + tutup total akses `anon` (baru):**
+- **Login dashboard**: ditambahkan sistem login pakai Supabase Auth — satu akun staff bersama (email+password, bukan multi-user per kapster, sesuai skala toko kecil), lewat komponen baru `src/components/Login.tsx`. `App.tsx` sekarang nge-gate seluruh dashboard di belakang `supabase.auth.getSession()`/`onAuthStateChange`; tombol logout ada di header desktop & top bar mobile.
+- **Bot WhatsApp pindah ke `service_role` key**: `server/supabaseClient.js` sekarang prioritas baca `SUPABASE_SERVICE_ROLE_KEY` (fallback ke anon key kalau env var belum ke-set, biar nggak hard-crash), jadi bot bypass RLS sepenuhnya sebagai backend terpercaya — nggak lagi gantungan sama akses `anon` yang sama dengan browser publik. Key ditambahkan ke `server/.env` di VPS lewat SSH, dideploy lewat pipeline auto-deploy yang udah ada (1x restart, diverifikasi lewat PM2 log — uptime jalan normal, nggak ada crash loop).
+- **Policy `authenticated` ditambahkan** (mirror persis dari operasi yang tadinya `anon`), lalu **semua policy `anon` dicabut total** di keenam tabel. Diverifikasi langsung pakai `curl` dengan publishable key murni (tanpa login): baca data pelanggan → 0 baris (padahal ada data asli), tulis data → `401` `"row-level security policy violation"`. Dashboard yang login (`authenticated` role) dan bot (`service_role`) tetap jalan normal — dicek ulang setelahnya, keduanya nggak kepengaruh.
+- Sekarang celah "siapa aja yang nemu anon key publik bisa baca nomor WA pelanggan tanpa login" sudah benar-benar tertutup — bukan cuma "sebagian" lagi kayak sebelumnya.
 
 ### Gagal Menghapus Layanan (Foreign Key Constraint `queue_entries`) — bug yang sama kayak kapster
 **File:** `src/hooks/useSupabaseServices.ts`
@@ -277,6 +283,73 @@ Grid pada **Schedule → Daily View** sebelumnya mengalami mis-alignment antara 
 - Ketauan pas audit struktur database: `removeService()` masih `.delete()` langsung ke tabel `services`, persis pola bug kapster sebelum diperbaiki. Dikonfirmasi 100% reproducible — ketiga layanan yang ada sekarang (Potong Rambut, Potong + Cuci, Cukur Jenggot) semuanya udah dipakai di riwayat `queue_entries` (55 baris), jadi coba hapus layanan apa pun dari Settings pasti kena error `23503`, dan nggak ada penanganan khusus buat itu (cuma toast generik "Gagal menghapus layanan" tanpa penjelasan).
 - **Solusi:** pola soft delete yang sama kayak kapster — kolom `archived boolean default false` di tabel `services`, `removeService()` sekarang `UPDATE archived = true` (bukan `.delete()`), `fetchServices()` filter `.eq('archived', false)`. RLS policy `services` juga disesuaikan (`DELETE` dicabut karena udah nggak kepake, ganti jadi `UPDATE`).
 - Dites langsung: soft-delete salah satu dari 3 layanan yang beneran dipakai 55 booking — berhasil, ilang dari listing, riwayat `queue_entries` lama tetap utuh tanpa error.
+
+### Edit request WhatsApp sebelum approve nggak beneran tersimpan ke database
+**File:** `src/App.tsx`, `src/hooks/useSupabaseRequests.ts`
+**Status:** FIXED.
+- `handleEditRequest` sebelumnya cuma `setRequests(...)` — ngubah state lokal browser doang, nggak pernah nulis ke tabel `whatsapp_requests`. Padahal bot (`server/index.js`) ngirim konfirmasi WA ke customer berdasarkan kolom `extracted_day`/`extracted_time`/`extracted_service` **langsung dari baris database**, bukan dari yang kapster lihat/edit di dashboard. Jadi kalau kapster koreksi jam booking sebelum approve, entri antrean internal udah bener, tapi WA yang dikirim ke customer bisa masih pakai data lama.
+- **Solusi:** fungsi baru `updateRequestDetails` di `useSupabaseRequests.ts` nulis perubahan (nama/hari/jam/servis) ke Supabase beneran, termasuk njaga encoding `"Servis|BARBER:NamaKapster"` di kolom `extracted_service` biar kapster hasil ekstraksi AI nggak ketimpa. `handleEditRequest` sekarang `async`, nunggu tulisan berhasil sebelum kasih toast sukses.
+- Dicek logic listener bot: aman dari notifikasi WA prematur, karena dia cuma trigger di status `approved`/`rejected` (nggak react ke edit-doang selagi status masih `pending`) dan idempoten lewat `status_notified` — nggak perlu ubah kode server sama sekali.
+
+### Card request WhatsApp bisa diedit hari/jam/servis — risiko kapster diam-diam pindahin jadwal customer
+**File:** `src/components/Requests.tsx`
+**Status:** DIHAPUS BY DESIGN (bukan bug fix, keputusan produk).
+- Form edit hari/servis sebenarnya rusak duluan: dropdown HARI cuma punya opsi `Mon`–`Sun`, sementara data dari AI berupa string mentah kayak `"besok"` — nggak pernah match, jadi selalu tampil kosong. Sama halnya dropdown LAYANAN cuma punya nama servis satuan, sementara AI kadang gabungin jadi satu string (`"Potong Rambut + Cukur Jenggot"`).
+- Di luar bug tampilan itu, ada masalah yang lebih mendasar: approve otomatis ngirim WA konfirmasi ke customer berdasarkan apa pun yang di-approve — jadi kalau kapster bebas ubah hari/jam/servis sebelum approve, itu sama aja kapster diam-diam mindahin jadwal customer ke waktu lain tanpa persetujuan customer, terus sistem bilang ke customer "udah dikonfirmasi" seolah itu emang yang diminta.
+- **Keputusan:** kemampuan edit hari/jam/servis dihapus total dari card. Kapster cuma bisa approve (persis sesuai hasil ekstraksi AI) atau reject (customer diminta klarifikasi ulang lewat WA langsung — percakapan asli, bukan diputuskan sepihak dari dashboard). Nama pengirim tetap bisa diedit (nggak ada implikasi komitmen jadwal, cuma benerin typo hasil ekstraksi AI).
+
+### Timestamp mentah ISO string di card request WhatsApp
+**File:** `src/components/Requests.tsx`
+**Status:** FIXED.
+- Kolom waktu terima pesan nampilin string ISO mentah apa adanya (`2026-08-19T07:53:59.445178+00:00`), susah dibaca kapster sekilas.
+- **Solusi:** fungsi `formatReceivedTime` — format `"dd MMM, HH:mm"` locale Indonesia (mis. `19 Agu, 14.53`), tanggal selalu ditampilkan (nggak disembunyiin walau pesannya diterima hari ini) biar kapster nggak perlu nebak-nebak.
+
+### Model `gemini-3.1-flash` di fallback chain bot nggak pernah ada (404)
+**File:** `server/gemini.js`
+**Status:** FIXED.
+- `MODEL_CHAIN` punya 4 model (`gemini-3.1-flash-lite`, `gemini-3.5-flash-lite`, `gemini-3.1-flash`, `gemini-3.5-flash`), tapi `gemini-3.1-flash` (tanpa akhiran `-lite`) ternyata nggak pernah eksis sebagai model — dikonfirmasi lewat panggilan API langsung, hasilnya `404 NOT_FOUND` ("keluarga 3.1 cuma ada varian lite"). Dampaknya nggak kelihatan kalau pesan pendek (chain mulai dari index 0), tapi `getStartingIndex()` bikin pesan customer yang panjang (>80 karakter) langsung lompat ke index 2 — model rusak itu duluan — jadi praktiknya cuma ada **1 model cadangan asli** buat pesan panjang, bukan 2. Kalau model terakhir itu kena hambatan sesaat, customer nggak dapat balasan sama sekali, dan log-nya nggak jelas kenapa karena `catch (err)` sebelumnya nggak pernah nyatet `err.message`.
+- **Solusi:** ganti `gemini-3.1-flash` → `gemini-3.6-flash` (dites langsung lewat API, beneran jalan), dan log fallback sekarang nyatet pesan error asli biar diagnosa ke depannya nggak perlu reproduksi manual lagi.
+- Dites end-to-end lewat pesan WA beneran (bukan cuma unit test) — pesan panjang yang tadinya bikin chain gagal total sekarang langsung berhasil di percobaan pertama.
+
+### Mismatch angka pendapatan antara toast notifikasi dan dashboard
+**File:** `src/App.tsx`
+**Status:** FIXED.
+- `handleCompleteSession` (toast "sesi selesai") dan `revenueToday` (angka di dashboard Ringkasan) pakai strategi lookup harga yang beda — toast cocokkan by `id` ATAU `name` dengan fallback hardcode `Rp 120.000`, sementara `revenueToday` cuma cocokkan by `name` dengan fallback `0`. Kalau servis nggak ketemu, dua angka itu bisa nggak sinkron (toast nunjukin angka fiktif, dashboard nunjukin 0).
+- **Solusi:** toast sekarang pakai lookup & fallback yang persis sama dengan `revenueToday` (`services.find(s => s.name === session.service)?.price || 0`), jadi dua angka itu nggak akan pernah beda lagi.
+
+### Fuzzy-match servis/kapster dari WhatsApp diam-diam salah tebak tanpa peringatan
+**File:** `src/App.tsx`
+**Status:** FIXED.
+- `fuzzyMatchService`/`fuzzyMatchBarber` kalau gagal cocokkan nama servis/kapster hasil ekstraksi AI secara persis/parsial, diam-diam fallback ke servis/kapster pertama di list — kapster nggak pernah dikasih tau bahwa itu cuma tebakan, jadi booking bisa nyasar ke servis/kapster yang salah tanpa terdeteksi.
+- **Solusi:** kedua fungsi sekarang balikin `{ id/barber, matched: boolean }`. Di `handleApproveRequest`, kalau salah satu `matched: false`, muncul toast tambahan "Perlu Verifikasi" yang bilang spesifik apa yang ditebak sistem — booking tetap jalan (nggak diblokir), tapi kapster dikasih sinyal jelas buat cek ulang.
+
+### Duplikasi logic warna status antar komponen — QueueList nggak kenali status "sedang dilayani"
+**File:** `src/lib/queueStatus.ts` (baru), `src/components/Schedule.tsx`, `src/components/QueueList.tsx`
+**Status:** FIXED.
+- Mapping status → warna badge diimplementasi ulang di 2 tempat berbeda dengan perilaku yang geser: `QueueList.tsx` cuma switch berdasarkan `item.status` (nggak ngecek `startedAt`, jadi kapster yang lagi ngerjain customer keliatan sama kayak booking yang masih nunggu), sementara `Schedule.tsx` udah lebih lengkap (ngecek prioritas completedAt/startedAt dulu baru status). Status `'Completed'` di `QueueList` juga jatuh ke variant `'default'` (abu-abu), bukan biru kayak di tempat lain.
+- **Solusi:** logic keputusan warna ditarik jadi satu fungsi `getQueueStatusVariant()` di `src/lib/queueStatus.ts` (satu-satunya sumber kebenaran, prioritas completedAt → startedAt → status), dipakai oleh `Schedule.tsx` (lewat mapping ke className penuh) dan `QueueList.tsx` (langsung sebagai variant prop `<Badge>`, sekarang otomatis dapet `'blue'` yang bener buat status Completed).
+- Juga ditemukan & dibenerin sekalian: warna entri jadwal di `Schedule.tsx` sebelumnya pakai palet pastel terang (`bg-emerald-200 text-emerald-950`, dst) yang beda treatment sama badge legenda status di toolbar (`bg-emerald-500/10 text-emerald-400`, tint transparan gelap) — sama-sama hijau tapi kelihatan kayak warna berbeda. Disamakan ke treatment tint transparan yang konsisten di seluruh app.
+
+### Komponen Pagination reusable (`DataPagination`)
+**File:** `src/components/ui/pagination.tsx` (baru), `src/components/ui/DataPagination.tsx` (baru), `src/components/History.tsx`
+**Status:** Fitur baru.
+- Dibangun sebagai elemen siap-pakai di atas primitif shadcn/ui pagination — `DataPagination` menghitung sendiri nomor halaman + ellipsis (`1 … 4 5 6 … 20`), disable Previous/Next di ujung, tanpa perlu nulis ulang logic-nya tiap kali dipasang di halaman baru. Cukup pass `page`/`totalPages`/`onPageChange`.
+- Dipasang pertama kali di **Riwayat** (`History.tsx`, 9 item per halaman, grid & table view keduanya kepasang, reset ke halaman 1 otomatis saat filter/mode berubah). Siap dipasang ulang di halaman lain (misal Booking WhatsApp) tanpa perlu bikin logic baru.
+
+### Legenda warna status & format ribuan di dashboard
+**File:** `src/components/Schedule.tsx`, `src/components/Settings.tsx`, `src/i18n/*.ts`
+**Status:** Peningkatan UI.
+- **Legenda warna** ditambahkan di toolbar Schedule (`PANDUAN WARNA STATUS: Terkonfirmasi/Estimasi/Menunggu Balasan/Berlangsung/Selesai`) — sebelumnya warna entri jadwal nggak ada penjelasannya sama sekali di UI mana pun.
+- **Format ribuan** pada input harga di form tambah layanan (Settings) — sebelumnya `type="number"` nampilin angka mentah (`100000`), sekarang `type="text"` dengan format live pakai `toLocaleString('id-ID')` (`100.000`), parsing tetap ke `number` biasa saat disimpan.
+- Section "Template Notifikasi WhatsApp" yang nggak pernah kepake (state/handler-nya cuma lokal, nggak ada satu pun kode lain yang baca) dihapus dari Settings sekalian beres-beres.
+
+### Nama & logo toko hardcode "Golden Shears" di 10+ tempat (frontend & bot)
+**File:** `src/hooks/useSupabaseBusinessHours.ts`, `src/App.tsx`, `src/components/{Login,Sidebar,QueueList,Schedule,Settings}.tsx`, `server/index.js`, `server/gemini.js`, Database Supabase (`business_hours`).
+**Status:** FIXED (fitur baru — Profil Toko).
+- "Golden Shears"/logo huruf "G" ditulis literal di banyak tempat: sidebar, header desktop, top bar mobile, splash loading screen, halaman Login, judul halaman Jadwal, 2 template pesan WhatsApp ke customer (`QueueList.tsx`, `Schedule.tsx`) — **dan juga di backend bot** (`server/gemini.js` system prompt Gemini, `server/index.js` pesan konfirmasi approve). Ganti nama toko lewat dashboard sebelumnya cuma nyampe ke frontend — bot WA masih balas pakai nama lama karena hardcode-nya kepisah total dari database.
+- **Solusi:** kolom baru `shop_name`/`logo_url` ditambahkan ke tabel `business_hours` (satu baris config yang sama dengan jam operasional). Kartu baru **"Profil Toko"** di Settings (nama + upload logo, pola base64 sama kayak foto kapster). Semua 8 titik hardcode di frontend diganti baca dari `businessHours.shopName`/`logoUrl`. Di backend, `getBusinessContext()`/`getShopName()` di `server/index.js` sekarang query `shop_name` dari `business_hours` dan diteruskan ke `parseBookingMessage()` (`server/gemini.js`) dan `notifyStatusChange()`, gantiin string hardcode.
+- **RLS**: `business_hours` sengaja dibuka lagi read-only (`SELECT`) untuk role `anon` — beda dari tabel lain yang udah dikunci `authenticated`-only (lihat entri RLS di atas) — karena nama/jam toko bukan data sensitif, dan halaman Login butuh nampilin nama/logo toko SEBELUM staff login (belum ada sesi `authenticated`). Write tetap `authenticated`-only.
+- Dites end-to-end: ganti nama lewat Settings → langsung berubah di semua tempat frontend (real-time, tanpa refresh) termasuk halaman Login sebelum sesi login ada. Bug backend-nya ketauan justru dari tes manual: setelah nama toko diganti di dashboard, bot WA masih balas pakai nama lama ("Golden Shears") pas ditanya kapster — fix di atas nutup celah itu, diverifikasi ulang lewat WA beneran setelah deploy.
 
 ---
 
@@ -306,8 +379,9 @@ Logika `startMinutes = ... + 15` antar walk-in mengasumsikan gap tetap 15 menit 
 - [x] Notifikasi WhatsApp otomatis ke customer saat kapster approve/reject booking
 - [x] Perbaiki `sender_phone` yang kadang tersimpan sebagai `@lid`
 - [x] Perbaiki gagal hapus kapster (foreign key constraint) lewat soft delete
-- [x] Aktifkan Row Level Security di semua tabel Supabase (least-privilege, belum ada auth dashboard)
+- [x] Aktifkan Row Level Security di semua tabel Supabase (least-privilege per operasi)
 - [x] Perbaiki gagal hapus layanan (foreign key constraint) lewat soft delete
+- [x] Tambahkan sistem login dashboard (Supabase Auth) + kunci RLS ke `authenticated`-only, bot pindah ke `service_role` key
 - [ ] Demo ke kapster asli, kumpulkan feedback alur UX (lihat [§10 Bagian 1](#10-metrik-keberhasilan-definisi-berhasil-untuk-experiment-ini) — belum divalidasi di lapangan)
 
 ---

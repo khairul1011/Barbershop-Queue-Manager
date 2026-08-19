@@ -159,14 +159,28 @@ async function checkAvailability(hariStr, jamStr, kapsterStr) {
   }
 }
 
+// Fallback name kalau baris business_hours belum ada / query gagal — dipakai
+// juga sebagai default param di parseBookingMessage().
+const DEFAULT_SHOP_NAME = 'BarberFlow';
+
+async function getShopName() {
+  try {
+    const { data } = await supabase.from('business_hours').select('shop_name').limit(1).single();
+    return (data && data.shop_name) || DEFAULT_SHOP_NAME;
+  } catch (err) {
+    return DEFAULT_SHOP_NAME;
+  }
+}
+
 async function getBusinessContext() {
   try {
     const { data: barbers } = await supabase.from('barbers').select('name, specialization, status').eq('status', 'active');
     const { data: services } = await supabase.from('services').select('name, price, duration_minutes');
-    const { data: hours } = await supabase.from('business_hours').select('open_hour, close_hour').limit(1).single();
+    const { data: hours } = await supabase.from('business_hours').select('open_hour, close_hour, shop_name').limit(1).single();
+    const shopName = (hours && hours.shop_name) || DEFAULT_SHOP_NAME;
 
     let context = '';
-    
+
     if (hours) {
       context += `Jam operasional: ${String(hours.open_hour).padStart(2, '0')}:00 - ${String(hours.close_hour).padStart(2, '0')}:00 setiap hari.\n`;
     }
@@ -199,10 +213,10 @@ async function getBusinessContext() {
       context += `\nInfo cuti: Tidak ada kapster yang libur hari ini atau besok (semua kapster aktif tersedia sesuai jam operasional).`;
     }
 
-    return context || "Info bisnis sedang tidak dapat diakses, mohon maaf.";
+    return { context: context || "Info bisnis sedang tidak dapat diakses, mohon maaf.", shopName };
   } catch (err) {
     console.error('[BUSINESS CONTEXT ERROR]', err.message);
-    return "Info bisnis sedang tidak dapat diakses, mohon maaf.";
+    return { context: "Info bisnis sedang tidak dapat diakses, mohon maaf.", shopName: DEFAULT_SHOP_NAME };
   }
 }
 
@@ -266,7 +280,8 @@ async function notifyStatusChange(row) {
   let text;
   if (row.status === 'approved') {
     const barberText = barber ? `, kapster ${barber}` : '';
-    text = `Halo kak ${nama}! Booking kamu buat ${row.extracted_day} jam ${row.extracted_time} (${servis}${barberText}) udah dikonfirmasi ya. Ditunggu kedatangannya di Golden Shears!`;
+    const shopName = await getShopName();
+    text = `Halo kak ${nama}! Booking kamu buat ${row.extracted_day} jam ${row.extracted_time} (${servis}${barberText}) udah dikonfirmasi ya. Ditunggu kedatangannya di ${shopName}!`;
   } else if (row.status === 'rejected') {
     text = `Mohon maaf kak ${nama}, slot ${row.extracted_day} jam ${row.extracted_time} ternyata nggak bisa. Boleh chat lagi kalau mau cari jadwal lain ya.`;
   } else {
@@ -400,8 +415,8 @@ client.on('message', async msg => {
   const historyStr = history.slice(0, -1).join('\n');
 
   // Kirim ke Gemini untuk di-parsing
-  const businessContext = await getBusinessContext();
-  const parsedData = await parseBookingMessage(msg.body, businessContext, historyStr);
+  const { context: businessContext, shopName } = await getBusinessContext();
+  const parsedData = await parseBookingMessage(msg.body, businessContext, historyStr, shopName);
   
   if (parsedData) {
     console.log('[GEMINI PARSED]', JSON.stringify(parsedData, null, 2));

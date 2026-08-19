@@ -33,9 +33,11 @@ interface AppSidebarProps {
   pendingRequestsCount: number;
   sidebarVariant: SidebarVariant;
   sidebarMode: SidebarMode;
+  shopName: string;
+  logoUrl: string | null;
 }
 
-export default function AppSidebar({ activeTab, setActiveTab, pendingRequestsCount, sidebarVariant, sidebarMode }: AppSidebarProps) {
+export default function AppSidebar({ activeTab, setActiveTab, pendingRequestsCount, sidebarVariant, sidebarMode, shopName, logoUrl }: AppSidebarProps) {
   const { t } = useTranslation();
   const { state, toggleSidebar, isMobile, setOpenMobile } = useSidebar();
   const isCollapsed = state === 'collapsed';
@@ -66,12 +68,16 @@ export default function AppSidebar({ activeTab, setActiveTab, pendingRequestsCou
       <SidebarHeader className="border-b border-sidebar-border">
         <div className={`flex items-center py-2 ${isCollapsed ? 'justify-center' : 'justify-between px-1'}`}>
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center shadow-sm shrink-0">
-              <span className="font-display font-bold text-primary-foreground text-lg">G</span>
+            <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center shadow-sm shrink-0 overflow-hidden">
+              {logoUrl ? (
+                <img src={logoUrl} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <span className="font-display font-bold text-primary-foreground text-lg">{shopName.charAt(0).toUpperCase()}</span>
+              )}
             </div>
             {!isCollapsed && (
               <div className="flex flex-col min-w-0">
-                <span className="font-display font-bold tracking-wide text-foreground leading-tight truncate">GOLDEN SHEARS</span>
+                <span className="font-display font-bold tracking-wide text-foreground leading-tight truncate">{shopName.toUpperCase()}</span>
                 <span className="text-[10px] text-muted-foreground font-mono tracking-wider">QUEUE ENGINE</span>
               </div>
             )}

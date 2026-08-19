@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Service, Barber } from '../types';
-import { 
+import {
   Settings,
   Scissors,
   Clock,
@@ -13,7 +13,9 @@ import {
   Edit3,
   X,
   AlertCircle,
-  ChevronDown
+  ChevronDown,
+  Store,
+  Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from '../i18n';
@@ -32,8 +34,9 @@ interface SettingsProps {
   onAddBarber: (newBarber: Omit<Barber, 'id'>) => void;
   onEditBarber: (id: string, updatedBarber: Partial<Barber>) => void;
   onRemoveBarber: (id: string) => void;
-  businessHours: { openHour: number; closeHour: number };
+  businessHours: { openHour: number; closeHour: number; shopName: string; logoUrl: string | null };
   onUpdateBusinessHours: (openHour: number, closeHour: number) => void;
+  onUpdateShopProfile: (shopName: string, logoUrl: string | null) => void;
 }
 
 export default function SettingsView({
@@ -48,13 +51,24 @@ export default function SettingsView({
   onEditBarber,
   onRemoveBarber,
   businessHours,
-  onUpdateBusinessHours
+  onUpdateBusinessHours,
+  onUpdateShopProfile
 }: SettingsProps) {
   const { t } = useTranslation();
   // Service form states
   const [newServiceName, setNewServiceName] = useState('');
   const [newServicePrice, setNewServicePrice] = useState(100000);
   const [newServiceDuration, setNewServiceDuration] = useState(30);
+
+  // Shop profile form states
+  const [shopNameInput, setShopNameInput] = useState(businessHours.shopName);
+  const [shopLogoInput, setShopLogoInput] = useState<string | null>(businessHours.logoUrl);
+  const [shopProfileSaved, setShopProfileSaved] = useState(false);
+
+  useEffect(() => {
+    setShopNameInput(businessHours.shopName);
+    setShopLogoInput(businessHours.logoUrl);
+  }, [businessHours.shopName, businessHours.logoUrl]);
 
   // Barber form states
   const [isBarberFormOpen, setIsBarberFormOpen] = useState(false);
@@ -89,6 +103,29 @@ export default function SettingsView({
       setBarberAvatar(reader.result as string);
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleShopLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 500 * 1024) {
+      alert('Peringatan: Ukuran file melebihi 500KB. Harap pilih gambar yang lebih kecil.');
+      e.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setShopLogoInput(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleShopProfileSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!shopNameInput.trim()) return;
+    onUpdateShopProfile(shopNameInput.trim(), shopLogoInput);
+    setShopProfileSaved(true);
+    setTimeout(() => setShopProfileSaved(false), 2000);
   };
 
   const handleBarberSubmit = (e: React.FormEvent) => {
@@ -429,6 +466,63 @@ export default function SettingsView({
                 </Select>
               </div>
            </div>
+        </div>
+
+        {/* SHOP PROFILE */}
+        <div className="bg-card border border-border rounded-xl p-5 md:p-6 space-y-5">
+          <div className="flex items-center gap-2 border-b border-border pb-3">
+            <Store size={18} className="text-muted-foreground" />
+            <h2 className="text-lg font-display font-bold text-foreground tracking-tight">Profil Toko</h2>
+          </div>
+
+          <form onSubmit={handleShopProfileSubmit} className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-xl bg-primary flex items-center justify-center overflow-hidden shrink-0 border border-border">
+                {shopLogoInput ? (
+                  <img src={shopLogoInput} alt="Logo toko" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="font-display font-bold text-primary-foreground text-2xl">
+                    {shopNameInput.charAt(0).toUpperCase() || '?'}
+                  </span>
+                )}
+              </div>
+              <div className="flex-1 space-y-1.5">
+                <label className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono block">
+                  Logo Toko (Maks 500KB)
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleShopLogoChange}
+                  className="w-full text-xs text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-accent file:text-accent-foreground hover:file:bg-accent/80 cursor-pointer"
+                  id="setting-shop-logo"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="setting-shop-name" className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono block">
+                Nama Toko
+              </label>
+              <input
+                id="setting-shop-name"
+                type="text"
+                required
+                value={shopNameInput}
+                onChange={(e) => setShopNameInput(e.target.value)}
+                placeholder="Nama barbershop Anda"
+                className="w-full bg-background border border-border text-foreground text-sm rounded-lg px-3.5 py-2.5 focus:outline-none focus:border-ring font-sans"
+              />
+              <span className="text-[10px] text-muted-foreground/70 block">
+                Dipakai di sidebar, halaman login, dan pesan WhatsApp ke pelanggan.
+              </span>
+            </div>
+
+            <Button variant="default" type="submit" className="w-full" id="setting-shop-profile-save-btn">
+              {shopProfileSaved ? <Check size={14} className="mr-1.5" /> : <Save size={14} className="mr-1.5" />}
+              {shopProfileSaved ? 'Tersimpan!' : 'Simpan Profil Toko'}
+            </Button>
+          </form>
         </div>
 
       </div>

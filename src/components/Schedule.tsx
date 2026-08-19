@@ -33,7 +33,7 @@ interface ScheduleProps {
   onRemoveBooking?: (id: string) => void;
   todayKey?: string;
   currentTime?: Date;
-  businessHours: { openHour: number; closeHour: number };
+  businessHours: { openHour: number; closeHour: number; shopName: string; logoUrl: string | null };
 }
 
 const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
@@ -242,7 +242,7 @@ export default function Schedule({
   };
 
   const handleWhatsAppAction = (entry: QueueEntry) => {
-    const text = `Halo ${entry.customerName}, konfirmasi jadwal pangkas Anda di Golden Shears untuk hari ${entry.day} ${entry.timeRange}.`;
+    const text = `Halo ${entry.customerName}, konfirmasi jadwal pangkas Anda di ${businessHours.shopName} untuk hari ${entry.day} ${entry.timeRange}.`;
     onSendWhatsApp(entry.phone, text);
     if (activeSlotDetails && activeSlotDetails.entry.id === entry.id) {
       setActiveSlotDetails(prev => prev ? { ...prev, entry: { ...prev.entry, status: 'Confirmed' } } : null);
@@ -399,7 +399,7 @@ export default function Schedule({
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl md:text-4xl font-display font-extrabold text-foreground tracking-tight">
-              {t('schedule.hqTitle')}
+              {businessHours.shopName} HQ
             </h1>
             <p className="text-sm text-muted-foreground font-sans mt-0.5">
               {t('schedule.hqSubtitle')}

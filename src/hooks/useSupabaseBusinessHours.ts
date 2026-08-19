@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 export function useSupabaseBusinessHours() {
-  const [businessHours, setBusinessHours] = useState<{ openHour: number; closeHour: number }>({ openHour: 9, closeHour: 20 });
+  const [businessHours, setBusinessHours] = useState<{ openHour: number; closeHour: number; shopName: string; logoUrl: string | null }>({ openHour: 9, closeHour: 20, shopName: 'BarberFlow', logoUrl: null });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -10,21 +10,23 @@ export function useSupabaseBusinessHours() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const { data, error: supabaseError } = await supabase
         .from('business_hours')
         .select('*')
         .limit(1)
         .single();
-        
+
       if (supabaseError && supabaseError.code !== 'PGRST116') { // Ignore if not found (0 rows)
         throw supabaseError;
       }
-      
+
       if (data) {
         setBusinessHours({
           openHour: data.open_hour,
-          closeHour: data.close_hour
+          closeHour: data.close_hour,
+          shopName: data.shop_name || 'BarberFlow',
+          logoUrl: data.logo_url || null
         });
       }
     } catch (err) {
@@ -53,17 +55,35 @@ export function useSupabaseBusinessHours() {
   const updateBusinessHours = async (openHour: number, closeHour: number) => {
     try {
       setError(null);
-      
+
       const { error: supabaseError } = await supabase
         .from('business_hours')
         .update({ open_hour: openHour, close_hour: closeHour })
         .eq('id', 1);
-        
+
       if (supabaseError) throw supabaseError;
-      
+
       await fetchBusinessHours(); // Refresh data
     } catch (err) {
       console.error('Error updating business hours:', err);
+      throw err; // Re-throw to be handled by caller
+    }
+  };
+
+  const updateShopProfile = async (shopName: string, logoUrl: string | null) => {
+    try {
+      setError(null);
+
+      const { error: supabaseError } = await supabase
+        .from('business_hours')
+        .update({ shop_name: shopName, logo_url: logoUrl })
+        .eq('id', 1);
+
+      if (supabaseError) throw supabaseError;
+
+      await fetchBusinessHours(); // Refresh data
+    } catch (err) {
+      console.error('Error updating shop profile:', err);
       throw err; // Re-throw to be handled by caller
     }
   };
@@ -73,6 +93,7 @@ export function useSupabaseBusinessHours() {
     loading,
     error,
     updateBusinessHours,
+    updateShopProfile,
     refreshBusinessHours: fetchBusinessHours
   };
 }

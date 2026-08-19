@@ -86,7 +86,6 @@ export const id = {
   'requests.noPendingDesc': 'Bagus! Semua permintaan booking WhatsApp sudah disetujui atau diproses.',
 
   // Schedule
-  'schedule.hqTitle': 'Golden Shears HQ',
   'schedule.hqSubtitle': 'Papan jadwal per jam. Atur pelanggan walk-in dan antrian aktif dengan mudah.',
   'schedule.premiumBarbershop': 'Barbershop Premium',
   'schedule.generateReport': 'Buat Laporan',

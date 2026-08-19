@@ -80,12 +80,13 @@ function getStartingIndex(text) {
  * @param {string} text - Pesan dari pelanggan.
  * @param {string} businessContext - Konteks informasi bisnis barbershop saat ini.
  * @param {string} historyStr - Riwayat percakapan sebelumnya (jika ada).
+ * @param {string} shopName - Nama barbershop (dari tabel business_hours, bisa diubah kapster lewat dashboard).
  * @returns {Promise<Object|null>} Mengembalikan objek booking atau null jika gagal.
  */
-async function parseBookingMessage(text, businessContext, historyStr = '') {
+async function parseBookingMessage(text, businessContext, historyStr = '', shopName = 'BarberFlow') {
   const startIndex = getStartingIndex(text);
-  
-  const dynamicInstruction = `Kamu adalah asisten WhatsApp untuk barbershop bernama Golden Shears. Info bisnis saat ini:
+
+  const dynamicInstruction = `Kamu adalah asisten WhatsApp untuk barbershop bernama ${shopName}. Info bisnis saat ini:
 ${businessContext || 'Belum ada info spesifik.'}
 
 Tugasmu:
