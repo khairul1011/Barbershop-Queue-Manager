@@ -190,9 +190,6 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[]) {
       // Semua row dari Query B sudah pasti selesai (completed_at terisi) — langsung jadi riwayat.
       const newCompletedEntries: QueueEntry[] = completedRows.map(mapRowToEntry);
 
-      // Diagnostik sementara: log jumlah row dari Supabase vs hasil partisi
-      console.log(`[DIAG] fetch: active=${activeRows.length} (queue:${newQueue.length}, serving:${Object.keys(newServingSessions).length}), completed=${completedRows.length}`);
-
       setQueue(newQueue);
       setServingSessions(newServingSessions);
       setCompletedEntries(newCompletedEntries);
@@ -215,7 +212,6 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[]) {
       const scheduled_date = dayToDate(entry.day as DayType);
       const dbStatus = mapStatusToSupabase(entry.status || 'Estimated');
 
-      // --- DIAGNOSTIK SEMENTARA: log payload sebelum INSERT ---
       const payload = {
         customer_name: entry.customerName,
         phone: entry.phone,
@@ -225,9 +221,7 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[]) {
         barber_id: entry.barberId,
         service_id: entry.serviceId
       };
-      console.log('[DIAG] addQueueEntry payload:', JSON.stringify(payload, null, 2));
-      // --- AKHIR DIAGNOSTIK ---
-      
+
       const { error: supabaseError } = await supabase
         .from('queue_entries')
         .insert([payload])
@@ -236,20 +230,17 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[]) {
       if (supabaseError) {
         throw supabaseError;
       }
-      
-      console.log('[DIAG] Insert berhasil! Memanggil fetchQueueEntries...');
-      
+
       // Pisahkan penanganan error fetch agar tidak menggagalkan insert yang sudah sukses
       try {
         await fetchQueueEntries();
-        console.log('[DIAG] fetchQueueEntries berhasil dipanggil setelah insert.');
       } catch (fetchErr) {
-        console.error('[DIAG] fetchQueueEntries GAGAL setelah insert sukses:', fetchErr);
+        console.error('fetchQueueEntries gagal dipanggil setelah insert sukses:', fetchErr);
         // Kita JANGAN throw fetchErr agar toast sukses tetap muncul (karena data sudah masuk DB)
       }
-      
+
     } catch (err) {
-      console.error('[DIAG] addQueueEntry caught error (full):', err);
+      console.error('Error adding queue entry:', err);
       throw err;
     }
   };
