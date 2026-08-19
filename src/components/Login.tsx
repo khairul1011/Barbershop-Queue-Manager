@@ -35,7 +35,6 @@ function GoogleIcon(props: React.ComponentProps<'svg'>) {
 }
 
 export default function Login({ shopName, logoUrl }: LoginProps) {
-  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -49,25 +48,10 @@ export default function Login({ shopName, logoUrl }: LoginProps) {
     setInfoMessage(null);
     setLoading(true);
 
-    if (isSignUp) {
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-      setLoading(false);
-      if (signUpError) {
-        setError(signUpError.message);
-      } else if (data?.session) {
-        // Auto signed in
-      } else {
-        setInfoMessage('Pendaftaran berhasil! Silakan periksa email Anda.');
-      }
-    } else {
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-      setLoading(false);
-      if (signInError) {
-        setError('Email atau password salah.');
-      }
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    setLoading(false);
+    if (signInError) {
+      setError('Email atau password salah.');
     }
   };
 
@@ -130,14 +114,12 @@ export default function Login({ shopName, logoUrl }: LoginProps) {
             <div>
               <div className="font-semibold text-xs text-muted-foreground uppercase tracking-wider">{shopName} HQ</div>
               <CardTitle className="text-xl">
-                {isSignUp ? 'Create an account' : 'Login to your account'}
+                Login to your account
               </CardTitle>
             </div>
           </div>
           <CardDescription>
-            {isSignUp
-              ? 'Enter your email below to create your account'
-              : 'Enter your email below to login to your account'}
+            Enter your email below to login to your account
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -159,21 +141,19 @@ export default function Login({ shopName, logoUrl }: LoginProps) {
               <div className="grid gap-2">
                 <div className="flex items-center">
                   <Label htmlFor="password">Password</Label>
-                  {!isSignUp && (
-                    <button
-                      type="button"
-                      onClick={handleForgotPassword}
-                      className="ml-auto inline-block text-sm text-muted-foreground underline-offset-4 hover:underline hover:text-foreground cursor-pointer"
-                    >
-                      Forgot your password?
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    className="ml-auto inline-block text-sm text-muted-foreground underline-offset-4 hover:underline hover:text-foreground cursor-pointer"
+                  >
+                    Forgot your password?
+                  </button>
                 </div>
                 <Input
                   id="password"
                   type="password"
                   required
-                  autoComplete={isSignUp ? 'new-password' : 'current-password'}
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="bg-zinc-950 border-zinc-800 text-white"
@@ -190,7 +170,7 @@ export default function Login({ shopName, logoUrl }: LoginProps) {
                   className="w-full bg-white hover:bg-zinc-200 text-black font-medium" 
                   id="login-submit-btn"
                 >
-                  {loading ? 'Processing...' : (isSignUp ? 'Sign up' : 'Login')}
+                  {loading ? 'Processing...' : 'Login'}
                 </Button>
                 <Button
                   type="button"
@@ -206,41 +186,6 @@ export default function Login({ shopName, logoUrl }: LoginProps) {
             </div>
           </form>
         </CardContent>
-        <CardFooter className="justify-center">
-          <div className="text-sm text-muted-foreground">
-            {isSignUp ? (
-              <>
-                Already have an account?{' '}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsSignUp(false);
-                    setError(null);
-                    setInfoMessage(null);
-                  }}
-                  className="underline underline-offset-4 text-foreground font-medium hover:text-primary cursor-pointer"
-                >
-                  Login
-                </button>
-              </>
-            ) : (
-              <>
-                Don&apos;t have an account?{' '}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsSignUp(true);
-                    setError(null);
-                    setInfoMessage(null);
-                  }}
-                  className="underline underline-offset-4 text-foreground font-medium hover:text-primary cursor-pointer"
-                >
-                  Sign up
-                </button>
-              </>
-            )}
-          </div>
-        </CardFooter>
       </Card>
     </div>
   );
