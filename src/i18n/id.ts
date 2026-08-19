@@ -181,5 +181,6 @@ export const id = {
   'status.Estimated': 'Estimasi',
   'status.PendingReply': 'Menunggu Balasan',
   'status.Completed': 'Selesai',
+  'status.InProgress': 'Berlangsung',
   'status.Canceled': 'Dibatalkan',
 } as const;

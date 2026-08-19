@@ -11,6 +11,7 @@ import { SegmentedToggle } from './ui/SegmentedToggle';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { TimePicker } from '@/components/ui/TimePicker';
 
 interface ScheduleProps {
@@ -438,6 +439,17 @@ export default function Schedule({
             >
               {t('schedule.today')}
             </Button>
+          </div>
+
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="flex items-center gap-1 text-muted-foreground font-mono uppercase text-[10px]">
+              <Info size={12} /> {t('schedule.statusGuide')}
+            </span>
+            <Badge variant="emerald" className="text-[10px] px-2 py-0.5" title={t('schedule.exactSlotLocked')}>{t('status.Confirmed')}</Badge>
+            <Badge variant="amber" className="text-[10px] px-2 py-0.5" title={t('schedule.queueOrder')}>{t('status.Estimated')}</Badge>
+            <Badge variant="sky" className="text-[10px] px-2 py-0.5" title={t('schedule.waitingResponse')}>{t('status.PendingReply')}</Badge>
+            <Badge variant="violet" className="text-[10px] px-2 py-0.5">{t('status.InProgress')}</Badge>
+            <Badge variant="blue" className="text-[10px] px-2 py-0.5">{t('status.Completed')}</Badge>
           </div>
 
           <div className="flex items-center gap-2">

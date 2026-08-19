@@ -181,5 +181,6 @@ export const en = {
   'status.Estimated': 'Estimated',
   'status.PendingReply': 'Pending Reply',
   'status.Completed': 'Completed',
+  'status.InProgress': 'In Progress',
   'status.Canceled': 'Canceled',
 } as const;

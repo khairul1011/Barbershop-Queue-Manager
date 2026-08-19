@@ -169,10 +169,11 @@ export default function SettingsView({
                 id="setting-service-name"
               />
               <input
-                type="number"
+                type="text"
+                inputMode="numeric"
                 required
-                value={newServicePrice}
-                onChange={(e) => setNewServicePrice(Number(e.target.value))}
+                value={newServicePrice.toLocaleString('id-ID')}
+                onChange={(e) => setNewServicePrice(Number(e.target.value.replace(/\D/g, '')))}
                 placeholder={t('settings.priceIdr')}
                 className="bg-card border border-border text-foreground text-xs rounded-lg px-3 py-2.5 focus:outline-none focus:border-ring font-mono"
                 id="setting-service-price"
