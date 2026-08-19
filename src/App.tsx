@@ -711,8 +711,6 @@ export default function App() {
             onApprove={handleApproveRequest}
             onReject={handleRejectRequest}
             onEdit={handleEditRequest}
-            services={services}
-            barbers={barbers}
           />
         );
       case 'schedule':

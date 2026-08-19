@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { WhatsAppRequest, Service, Barber, QueueEntry } from '../types';
+import { WhatsAppRequest } from '../types';
 import { MessageSquare, Calendar, Clock, Scissors, UserCheck, ShieldCheck, Check, X, Edit3, Trash, Phone, CornerDownRight, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BentoCard } from './ui/BentoCard';
 import { useTranslation } from '../i18n';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 
 interface RequestsProps {
@@ -14,8 +13,6 @@ interface RequestsProps {
   onApprove: (id: string, customDay?: string, customTime?: string, customService?: string) => void;
   onReject: (id: string) => void;
   onEdit: (id: string, updated: Partial<WhatsAppRequest>) => void;
-  services: Service[];
-  barbers: Barber[];
 }
 
 export default function Requests({
@@ -24,35 +21,27 @@ export default function Requests({
   requestsError,
   onApprove,
   onReject,
-  onEdit,
-  services,
-  barbers
+  onEdit
 }: RequestsProps) {
   const { t } = useTranslation();
   // Local state to track which card is currently being edited
   const [editingId, setEditingId] = useState<string | null>(null);
   
-  // Local edit values
-  const [editDay, setEditDay] = useState<'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun'>('Mon');
-  const [editTime, setEditTime] = useState('');
-  const [editService, setEditService] = useState('');
+  // Local edit values — only the sender name is editable. Day/time/service
+  // come straight from what the customer actually said and get sent back to
+  // them as confirmation on approve, so staff can't quietly reassign a
+  // customer's booking to different terms than they agreed to; if the AI
+  // extraction is wrong or incomplete, reject and let the bot clarify with
+  // the customer directly instead.
   const [editName, setEditName] = useState('');
 
   const startEdit = (req: WhatsAppRequest) => {
     setEditingId(req.id);
-    setEditDay(req.extractedDay);
-    setEditTime(req.extractedTime);
-    setEditService(req.extractedService);
     setEditName(req.senderName);
   };
 
   const saveEdit = (id: string) => {
-    onEdit(id, {
-      senderName: editName,
-      extractedDay: editDay,
-      extractedTime: editTime,
-      extractedService: editService
-    });
+    onEdit(id, { senderName: editName });
     setEditingId(null);
   };
 
@@ -141,7 +130,7 @@ export default function Requests({
                               variant="outline"
                               size="icon"
                               onClick={() => startEdit(req)}
-                              title={t('requests.modifySlots')}
+                              title={t('requests.editSenderName')}
                               id={`edit-btn-${req.id}`}
                             >
                               <Edit3 size={14} />
@@ -204,70 +193,23 @@ export default function Requests({
                           {t('requests.aiExtractedIntent')}
                         </span>
   
-                        {isEditing ? (
-                          <div className="space-y-3 text-sm">
-                            {/* Day & Time Selection */}
-                            <div className="grid grid-cols-2 gap-3">
-                              <div>
-                                <label className="text-[10px] text-muted-foreground block uppercase font-mono mb-1">{t('requests.day')}</label>
-                                <Select value={editDay} onValueChange={(v) => setEditDay(v as any)}>
-                                  <SelectTrigger id={`edit-day-select-${req.id}`} className="w-full bg-card border border-border text-foreground text-xs rounded p-1.5 h-auto py-2">
-                                    <SelectValue placeholder={t('requests.day')} />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => (
-                                      <SelectItem key={d} value={d}>{d}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                </div>
-                                <div>
-                                  <label className="text-[10px] text-muted-foreground block uppercase font-mono mb-1">{t('requests.time')}</label>
-                                  <input
-                                    type="text"
-                                    value={editTime}
-                                    onChange={(e) => setEditTime(e.target.value)}
-                                    placeholder="e.g. 14:00"
-                                    className="w-full bg-card border border-border text-foreground text-xs rounded p-1.5 focus:outline-none focus:border-ring"
-                                    id={`edit-time-input-${req.id}`}
-                                  />
-                                </div>
-                              </div>
-
-                              {/* Service Selection */}
-                              <div>
-                                <label className="text-[10px] text-muted-foreground block uppercase font-mono mb-1">{t('requests.service')}</label>
-                                <Select value={editService} onValueChange={setEditService}>
-                                  <SelectTrigger id={`edit-service-select-${req.id}`} className="w-full bg-card border border-border text-foreground text-xs rounded p-1.5 h-auto py-2">
-                                    <SelectValue placeholder={t('requests.service')} />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {services.map(s => (
-                                      <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="grid grid-cols-3 gap-2 text-xs">
-                              {/* Day */}
-                              <div className="flex items-center gap-1.5">
-                                <Calendar size={13} className="text-muted-foreground shrink-0" />
-                                <span className="text-foreground font-sans font-medium">{req.extractedDay}</span>
-                              </div>
-                              {/* Time */}
-                              <div className="flex items-center gap-1.5">
-                                <Clock size={13} className="text-muted-foreground shrink-0" />
-                                <span className="text-foreground font-mono">{req.extractedTime}</span>
-                              </div>
-                              {/* Service */}
-                              <div className="flex items-center gap-1.5 col-span-1 truncate">
-                                <Scissors size={13} className="text-muted-foreground shrink-0" />
-                                <span className="text-foreground font-sans truncate">{req.extractedService}</span>
-                              </div>
-                            </div>
-                          )}
+                        <div className="grid grid-cols-3 gap-2 text-xs">
+                          {/* Day */}
+                          <div className="flex items-center gap-1.5">
+                            <Calendar size={13} className="text-muted-foreground shrink-0" />
+                            <span className="text-foreground font-sans font-medium">{req.extractedDay}</span>
+                          </div>
+                          {/* Time */}
+                          <div className="flex items-center gap-1.5">
+                            <Clock size={13} className="text-muted-foreground shrink-0" />
+                            <span className="text-foreground font-mono">{req.extractedTime}</span>
+                          </div>
+                          {/* Service */}
+                          <div className="flex items-center gap-1.5 col-span-1 truncate">
+                            <Scissors size={13} className="text-muted-foreground shrink-0" />
+                            <span className="text-foreground font-sans truncate">{req.extractedService}</span>
+                          </div>
+                        </div>
                         </div>
                     </div>
                   </BentoCard>
