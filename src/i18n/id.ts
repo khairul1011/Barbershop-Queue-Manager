@@ -151,13 +151,6 @@ export const id = {
   'settings.active': 'Aktif',
   'settings.break': 'Istirahat',
   'settings.off': 'Off',
-  'settings.whatsappTemplatesTitle': 'Template Notifikasi WhatsApp',
-  'settings.saveTemplates': 'Simpan Template',
-  'settings.saved': 'Tersimpan!',
-  'settings.welcomeTemplateLabel': 'Pesan Sambutan & Konfirmasi',
-  'settings.welcomeTemplateHint': 'Tag tersedia: [name], [day], [time]',
-  'settings.nudgeTemplateLabel': 'Pesan Pengingat Pelanggan Berikutnya',
-  'settings.nudgeTemplateHint': 'Tag tersedia: [name]',
 
   // QueueList
   'queue.title': 'Antrian Live Hari Ini',

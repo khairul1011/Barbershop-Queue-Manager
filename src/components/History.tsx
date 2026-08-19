@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { QueueEntry, Barber } from '../types';
 import { 
   History as HistoryIcon, 
@@ -18,6 +18,9 @@ import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon, X, LayoutGrid, List } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { DataPagination } from '@/components/ui/DataPagination';
+
+const PAGE_SIZE = 9;
 
 interface HistoryProps {
   completedEntries: QueueEntry[];
@@ -30,6 +33,7 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
   const [selectedBarberFilter, setSelectedBarberFilter] = useState(t('history.allBarbers'));
   const [selectedDateFilter, setSelectedDateFilter] = useState<Date | undefined>(undefined);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  const [page, setPage] = useState(1);
 
   // Sort completed entries by completedAt descending (newest first)
   const sortedEntries = [...completedEntries].sort((a, b) => {
@@ -45,6 +49,13 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
     const matchesDate = !selectedDateFilter || item.scheduledDate === format(selectedDateFilter, "yyyy-MM-dd");
     return matchesSearch && matchesBarber && matchesDate;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredEntries.length / PAGE_SIZE));
+  const paginatedEntries = filteredEntries.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, selectedBarberFilter, selectedDateFilter, viewMode]);
 
   const formatTime = (isoString?: string) => {
     if (!isoString) return '--:--';
@@ -168,7 +179,7 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
             </motion.div>
           ) : viewMode === 'grid' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredEntries.map((item, index) => (
+              {paginatedEntries.map((item, index) => (
                 <motion.div
                   key={item.id}
                   initial={{ opacity: 0, y: 10 }}
@@ -243,7 +254,7 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border text-sm">
-                    {filteredEntries.map((item, index) => (
+                    {paginatedEntries.map((item, index) => (
                       <motion.tr
                         key={item.id}
                         initial={{ opacity: 0, y: 5 }}
@@ -282,6 +293,8 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
             </motion.div>
           )}
         </AnimatePresence>
+
+        <DataPagination page={page} totalPages={totalPages} onPageChange={setPage} className="pt-2" />
       </div>
     </div>
   );

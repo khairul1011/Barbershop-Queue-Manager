@@ -205,15 +205,15 @@ export default function Schedule({
 
   const getStatusBadgeStyles = (entry: QueueEntry) => {
     if (entry.completedAt || entry.status === 'Completed') {
-      return 'bg-blue-200 text-blue-950';
+      return 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
     }
     if (entry.startedAt && !entry.completedAt) {
-      return 'bg-violet-200 text-violet-950 ring-2 ring-violet-500';
+      return 'bg-violet-500/10 text-violet-400 border border-violet-500/20 shadow-[0_0_15px_rgba(139,92,246,0.3)]';
     }
     switch (entry.status) {
-      case 'Confirmed': return 'bg-emerald-200 text-emerald-950';
-      case 'Estimated': return 'bg-amber-200 text-amber-950';
-      case 'Pending Reply': return 'bg-sky-200 text-sky-950';
+      case 'Confirmed': return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+      case 'Estimated': return 'bg-amber-500/10 text-amber-500 border border-amber-500/20';
+      case 'Pending Reply': return 'bg-sky-500/10 text-sky-400 border border-sky-500/20';
       default: return 'bg-muted text-muted-foreground border border-border';
     }
   };

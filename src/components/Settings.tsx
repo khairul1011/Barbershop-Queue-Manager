@@ -1,16 +1,14 @@
 import React, { useState } from 'react';
 import { Service, Barber } from '../types';
 import { 
-  Settings, 
-  Scissors, 
-  Clock, 
-  DollarSign, 
-  UserCheck, 
-  MessageSquare, 
-  Plus, 
-  Trash, 
-  Save, 
-  Check, 
+  Settings,
+  Scissors,
+  Clock,
+  DollarSign,
+  UserCheck,
+  Plus,
+  Trash,
+  Save,
   BellRing,
   Edit3,
   X,
@@ -65,16 +63,6 @@ export default function SettingsView({
   const [barberSpecialty, setBarberSpecialty] = useState('');
   const [barberAvatar, setBarberAvatar] = useState('');
 
-  // Template states
-  const [welcomeTemplate, setWelcomeTemplate] = useState(
-    'Halo [name], booking Anda di Golden Shears telah DIKONFIRMASI untuk hari [day] pukul [time]. Harap datang 10 menit sebelum waktu pangkas Anda.'
-  );
-  const [nudgeTemplate, setNudgeTemplate] = useState(
-    'Halo [name], giliran Anda di Golden Shears hampir tiba! Silakan bersiap-siap menuju outlet kami. Terima kasih.'
-  );
-
-  const [isTemplateSaved, setIsTemplateSaved] = useState(false);
-
   const handleAddServiceSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newServiceName.trim() || newServicePrice <= 0 || newServiceDuration <= 0) return;
@@ -86,11 +74,6 @@ export default function SettingsView({
     setNewServiceName('');
     setNewServicePrice(100000);
     setNewServiceDuration(30);
-  };
-
-  const handleSaveTemplates = () => {
-    setIsTemplateSaved(true);
-    setTimeout(() => setIsTemplateSaved(false), 2000);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -375,52 +358,6 @@ export default function SettingsView({
                 </div>
               ))
             )}
-          </div>
-        </div>
-
-        {/* WhatsApp Smart templates (Full width bottom on big screens) */}
-        <div className="lg:col-span-2 bg-card border border-border rounded-xl p-5 md:p-6 space-y-5">
-          <div className="flex items-center justify-between border-b border-border pb-3">
-            <div className="flex items-center gap-2">
-              <MessageSquare size={18} className="text-muted-foreground" />
-              <h2 className="text-lg font-display font-bold text-foreground tracking-tight">{t('settings.whatsappTemplatesTitle')}</h2>
-            </div>
-            <Button
-              variant="default"
-              onClick={handleSaveTemplates}
-              id="save-templates-btn"
-            >
-              {isTemplateSaved ? <Check size={14} className="mr-1.5" /> : <Save size={14} className="mr-1.5" />}
-              <span>{isTemplateSaved ? t('settings.saved') : t('settings.saveTemplates')}</span>
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* Template 1 */}
-            <div className="space-y-2">
-              <label className="text-xs text-muted-foreground uppercase tracking-wider font-mono block">{t('settings.welcomeTemplateLabel')}</label>
-              <textarea
-                value={welcomeTemplate}
-                onChange={(e) => setWelcomeTemplate(e.target.value)}
-                rows={4}
-                className="w-full bg-background border border-border focus:border-ring rounded-lg p-3 text-xs text-muted-foreground font-sans focus:outline-none resize-none leading-relaxed"
-                id="template-welcome"
-              />
-              <span className="text-[10px] text-muted-foreground/70 block">{t('settings.welcomeTemplateHint')}</span>
-            </div>
-
-            {/* Template 2 */}
-            <div className="space-y-2">
-              <label className="text-xs text-muted-foreground uppercase tracking-wider font-mono block">{t('settings.nudgeTemplateLabel')}</label>
-              <textarea
-                value={nudgeTemplate}
-                onChange={(e) => setNudgeTemplate(e.target.value)}
-                rows={4}
-                className="w-full bg-background border border-border focus:border-ring rounded-lg p-3 text-xs text-muted-foreground font-sans focus:outline-none resize-none leading-relaxed"
-                id="template-nudge"
-              />
-              <span className="text-[10px] text-muted-foreground/70 block">{t('settings.nudgeTemplateHint')}</span>
-            </div>
           </div>
         </div>
 

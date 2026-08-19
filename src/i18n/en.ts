@@ -151,13 +151,6 @@ export const en = {
   'settings.active': 'Active',
   'settings.break': 'Break',
   'settings.off': 'Off',
-  'settings.whatsappTemplatesTitle': 'WhatsApp Notification Templates',
-  'settings.saveTemplates': 'Save Templates',
-  'settings.saved': 'Saved!',
-  'settings.welcomeTemplateLabel': 'Welcome & Confirmation Msg',
-  'settings.welcomeTemplateHint': 'Available tags: [name], [day], [time]',
-  'settings.nudgeTemplateLabel': 'Nudge / Next Customer Reminder',
-  'settings.nudgeTemplateHint': 'Available tags: [name]',
 
   // QueueList
   'queue.title': 'Today\'s Live Queue',
