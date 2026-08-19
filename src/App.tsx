@@ -933,12 +933,16 @@ export default function App() {
           'flex-1 p-5 md:p-8 space-y-6 w-full mx-auto',
           contentLayout === 'compact' ? 'max-w-5xl' : 'max-w-7xl'
         )}>
+          {/* Fade-only: a translateY-based transition here would leave a
+              transform on this ancestor, which creates a new containing
+              block and breaks position:sticky elements inside pages
+              (e.g. Schedule's mobile barber-tabs bar). */}
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               transition={{ duration: 0.2, ease: 'easeOut' }}
             >
               {renderActiveTab()}

@@ -549,13 +549,15 @@ export default function Schedule({
                   variant="ghost"
                   key={b.id}
                   onClick={() => setActiveMobileBarberIndex(idx)}
-                  className={`flex-1 rounded-none border-b-2 py-2.5 h-auto ${
+                  className={`flex-1 flex-col gap-0.5 rounded-none border-b-2 py-2 h-auto ${
                     activeMobileBarberIndex === idx
                       ? 'border-foreground text-foreground bg-accent'
                       : 'border-transparent text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  {b.name.split(' ')[0]}
+                  <span>{b.name.split(' ')[0]}</span>
+                  {b.status === 'break' && <span className="text-[9px] font-mono uppercase text-amber-500">{t('overview.statusBreak')}</span>}
+                  {b.status === 'active' && <span className="text-[9px] font-mono uppercase text-teal-500">{t('overview.statusOnSeat')}</span>}
                 </Button>
               ))}
             </div>
@@ -563,13 +565,14 @@ export default function Schedule({
             {/* Single horizontal scrollable row: time axis + barber columns (each with own header) */}
             <div className="relative flex overflow-x-auto overflow-y-hidden bg-card rounded-b-xl">
 
-              {/* Time Axis */}
-              <div className="w-[60px] flex-none shrink-0 border-r border-border bg-background sticky left-0 z-20 pt-[64px]"
-                   style={{ height: `calc(${(businessHours.closeHour - businessHours.openHour + 1) * 60 * PIXELS_PER_MINUTE}px + 64px)` }}>
+              {/* Time Axis — the column header (64px) only renders at lg+ (see Column Header
+                  below), so this offset must match: 0 on mobile, 64px at lg+. */}
+              <div className="w-[60px] flex-none shrink-0 border-r border-border bg-background sticky left-0 z-20 [--col-header-h:0px] lg:[--col-header-h:64px] pt-[var(--col-header-h)]"
+                   style={{ height: `calc(${(businessHours.closeHour - businessHours.openHour + 1) * 60 * PIXELS_PER_MINUTE}px + var(--col-header-h))` }}>
                 {Array.from({ length: businessHours.closeHour - businessHours.openHour + 1 }, (_, i) => i + businessHours.openHour).map(hour => (
                   <div key={hour}
                        className={`absolute w-full text-right pr-2 text-xs text-muted-foreground font-mono ${hour === businessHours.openHour ? 'translate-y-1' : '-translate-y-2'}`}
-                       style={{ top: `calc(64px + ${(hour - businessHours.openHour) * 60 * PIXELS_PER_MINUTE}px)` }}>
+                       style={{ top: `calc(var(--col-header-h) + ${(hour - businessHours.openHour) * 60 * PIXELS_PER_MINUTE}px)` }}>
                     {hour.toString().padStart(2, '0')}:00
                   </div>
                 ))}
@@ -580,8 +583,9 @@ export default function Schedule({
                 <div key={b.id}
                      className={`flex-1 min-w-[200px] flex flex-col border-r border-border ${activeMobileBarberIndex === idx ? 'flex' : 'hidden lg:flex'}`}>
 
-                  {/* Column Header */}
-                  <div className="h-[64px] flex flex-col items-center justify-center border-b border-border bg-card shrink-0">
+                  {/* Column Header — hidden on mobile: the sticky barber-tabs row above already
+                      shows this info, and a second copy right below it just duplicates/overlaps it. */}
+                  <div className="hidden lg:flex h-[64px] flex-col items-center justify-center border-b border-border bg-card shrink-0">
                     <div className="flex items-center gap-1.5">
                       {b.avatar ? (
                         <img src={b.avatar} alt={b.name} className="w-5 h-5 rounded-full object-cover border border-border shrink-0" referrerPolicy="no-referrer" />
