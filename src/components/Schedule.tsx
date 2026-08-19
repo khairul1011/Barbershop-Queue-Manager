@@ -543,7 +543,7 @@ export default function Schedule({
             </div>
 
             {/* Mobile Barber Tabs */}
-            <div className="flex lg:hidden border-b border-border overflow-x-auto scrollbar-none bg-card sticky top-[64px] md:top-[72px] z-30">
+            <div className="flex lg:hidden border-b border-border overflow-x-auto scrollbar-none bg-card sticky top-[64px] md:top-[66px] z-30">
               {activeBarbers.map((b, idx) => (
                 <Button
                   variant="ghost"

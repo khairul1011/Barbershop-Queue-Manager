@@ -855,10 +855,11 @@ export default function App() {
         <div className="flex-1 flex flex-col min-w-0 z-10 relative overflow-y-auto">
 
         {/* TOP INTEGRATION BAR (Desktop only - mobile has its own top bar above) */}
-        <header className="hidden md:flex bg-background/95 backdrop-blur border-b border-border min-h-[72px] px-6 items-center justify-between sticky top-0 z-50 flex-shrink-0">
+        <header className="hidden md:flex items-start sticky top-0 z-50 flex-shrink-0 min-h-[66px] px-6 pt-3">
+          <div className="w-full flex items-center justify-between bg-card border border-border rounded-xl px-6 py-2 shadow-sm">
 
           {/* Left: Quick search mockup */}
-          <div className="hidden lg:flex items-center gap-2.5 bg-card border border-border rounded-lg px-3.5 py-2 w-72">
+          <div className="hidden lg:flex items-center gap-2.5 bg-background border border-border rounded-lg px-3.5 py-2 w-72">
             <Search size={15} className="text-muted-foreground" />
             <input
               type="text"
@@ -875,7 +876,7 @@ export default function App() {
           <div className="flex items-center gap-4">
 
             {/* Live Clock Widget */}
-            <div className="flex items-center gap-2 text-xs md:text-sm font-sans text-muted-foreground bg-card border border-border rounded-lg px-3 py-2">
+            <div className="flex items-center gap-2 text-xs md:text-sm font-sans text-muted-foreground bg-background border border-border rounded-lg px-3 py-2">
               <Clock size={14} className="text-muted-foreground" />
               <span className="font-mono text-muted-foreground">
                 <span className="hidden lg:inline">
@@ -899,7 +900,7 @@ export default function App() {
             {/* Quick Notification Ring Mock */}
             <button
               onClick={() => triggerToast("Semua kursi aktif beroperasi optimal.", "info", "System Scan")}
-              className="relative p-2 bg-card border border-border hover:bg-accent hover:text-foreground rounded-lg transition-all cursor-pointer"
+              className="relative p-2 bg-background border border-border hover:bg-accent hover:text-foreground rounded-lg transition-all cursor-pointer"
               title="System Notifications"
               id="topbar-notif-btn"
             >
@@ -925,6 +926,7 @@ export default function App() {
                 <LogOut size={15} />
               </button>
             </div>
+          </div>
           </div>
         </header>
 

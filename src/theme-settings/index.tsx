@@ -16,12 +16,14 @@ export interface ThemeSettings {
 }
 
 // Default tiap field HARUS persis sama dengan perilaku app sebelum fitur ini
-// ada, biar nggak ada yang berubah visual buat user yang belum sentuh panel.
+// ada, biar nggak ada yang berubah visual buat user yang belum sentuh panel —
+// KECUALI sidebarVariant, yang sengaja diubah ke 'inset' untuk cocok dengan
+// referensi desain Figma (AdminCN dashboard template).
 export const DEFAULT_THEME_SETTINGS: ThemeSettings = {
   radius: 'md',
   contentLayout: 'full',
   scale: 'md',
-  sidebarVariant: 'sidebar',
+  sidebarVariant: 'inset',
   sidebarMode: 'icon',
 };
 

@@ -120,7 +120,7 @@ export default function AppSidebar({ activeTab, setActiveTab, pendingRequestsCou
                   <SidebarMenuItem key={item.id}>
                     <SidebarMenuButton
                       isActive={isActive}
-                      size="lg"
+                      size="default"
                       className="group-data-[collapsible=icon]:p-2!"
                       onClick={() => handleNav(item.id)}
                       tooltip={item.label}
