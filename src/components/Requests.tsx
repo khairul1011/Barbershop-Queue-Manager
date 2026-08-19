@@ -40,6 +40,14 @@ export default function Requests({
     setEditName(req.senderName);
   };
 
+  const formatReceivedTime = (isoString: string) => {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return isoString;
+    const datePart = d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+    const time = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    return `${datePart}, ${time}`;
+  };
+
   const saveEdit = (id: string) => {
     onEdit(id, { senderName: editName });
     setEditingId(null);
@@ -177,7 +185,7 @@ export default function Requests({
                           </div>
                         </div>
                         <span className="text-xs font-mono text-muted-foreground/70 font-medium">
-                          {req.receivedTime}
+                          {formatReceivedTime(req.receivedTime)}
                         </span>
                       </div>
 
