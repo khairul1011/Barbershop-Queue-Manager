@@ -79,13 +79,48 @@ export function useSupabaseRequests() {
   const approveRequest = (id: string) => updateRequestStatus(id, 'approved');
   const rejectRequest = (id: string) => updateRequestStatus(id, 'rejected');
 
+  // Persist an edit (day/time/service/name) made before approval — the WA
+  // confirmation the backend sends on approve reads straight from this row,
+  // so an edit that only lives in local state would send the customer a
+  // message with the pre-edit values.
+  const updateRequestDetails = async (id: string, updates: Partial<WhatsAppRequest>) => {
+    try {
+      setError(null);
+      const current = requests.find(r => r.id === id);
+      const merged = { ...current, ...updates };
+
+      const payload: Record<string, string> = {};
+      if (updates.senderName !== undefined) payload.sender_name = merged.senderName as string;
+      if (updates.extractedDay !== undefined) payload.extracted_day = merged.extractedDay as string;
+      if (updates.extractedTime !== undefined) payload.extracted_time = merged.extractedTime as string;
+      if (updates.extractedService !== undefined) {
+        const barberSuffix = merged.extractedBarber ? `|BARBER:${merged.extractedBarber}` : '';
+        payload.extracted_service = `${merged.extractedService}${barberSuffix}`;
+      }
+
+      if (Object.keys(payload).length === 0) return;
+
+      const { error: supabaseError } = await supabase
+        .from('whatsapp_requests')
+        .update(payload)
+        .eq('id', id);
+
+      if (supabaseError) throw supabaseError;
+
+      await fetchRequests();
+    } catch (err) {
+      console.error('Error updating request details:', err);
+      throw err;
+    }
+  };
+
   return {
     requests,
-    setRequests,
     loading,
     error,
     approveRequest,
     rejectRequest,
+    updateRequestDetails,
     refreshRequests: fetchRequests
   };
 }

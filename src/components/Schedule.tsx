@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TimePicker } from '@/components/ui/TimePicker';
+import { getQueueStatusVariant, QueueStatusVariant } from '@/lib/queueStatus';
 
 interface ScheduleProps {
   queue: QueueEntry[];
@@ -39,6 +40,15 @@ const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 type DayType = typeof DAYS_OF_WEEK[number];
 
 const PIXELS_PER_MINUTE = 2.5;
+
+const STATUS_VARIANT_STYLES: Record<QueueStatusVariant, string> = {
+  emerald: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
+  amber: 'bg-amber-500/10 text-amber-500 border border-amber-500/20',
+  sky: 'bg-sky-500/10 text-sky-400 border border-sky-500/20',
+  violet: 'bg-violet-500/10 text-violet-400 border border-violet-500/20 shadow-[0_0_15px_rgba(139,92,246,0.3)]',
+  blue: 'bg-blue-500/10 text-blue-400 border border-blue-500/20',
+  gray: 'bg-muted text-muted-foreground border border-border',
+};
 
 export default function Schedule({ 
   queue, 
@@ -203,20 +213,7 @@ export default function Schedule({
     return true;
   });
 
-  const getStatusBadgeStyles = (entry: QueueEntry) => {
-    if (entry.completedAt || entry.status === 'Completed') {
-      return 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
-    }
-    if (entry.startedAt && !entry.completedAt) {
-      return 'bg-violet-500/10 text-violet-400 border border-violet-500/20 shadow-[0_0_15px_rgba(139,92,246,0.3)]';
-    }
-    switch (entry.status) {
-      case 'Confirmed': return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
-      case 'Estimated': return 'bg-amber-500/10 text-amber-500 border border-amber-500/20';
-      case 'Pending Reply': return 'bg-sky-500/10 text-sky-400 border border-sky-500/20';
-      default: return 'bg-muted text-muted-foreground border border-border';
-    }
-  };
+  const getStatusBadgeStyles = (entry: QueueEntry) => STATUS_VARIANT_STYLES[getQueueStatusVariant(entry)];
 
   const handleConfirmQuickBook = (e: React.FormEvent) => {
     e.preventDefault();

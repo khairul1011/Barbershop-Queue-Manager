@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import type { Session } from '@supabase/supabase-js';
+import { supabase } from './lib/supabaseClient';
+import Login from './components/Login';
 import { useSupabaseServices } from './hooks/useSupabaseServices';
 import { useSupabaseBarbers } from './hooks/useSupabaseBarbers';
 import { useSupabaseQueue } from './hooks/useSupabaseQueue';
@@ -40,7 +43,8 @@ import {
   MessageSquare,
   X,
   AlertCircle,
-  XCircle
+  XCircle,
+  LogOut
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -51,8 +55,26 @@ export default function App() {
   // Navigation Tabs
   const [activeTab, setActiveTab] = useState('overview');
 
+  // Auth gate — Phase 1: UI-only gate via Supabase Auth (shared staff login).
+  // Data access (RLS) is unchanged in this phase; see PROJECT.md for the
+  // planned follow-up that moves the WhatsApp bot to a service_role key and
+  // tightens RLS to `authenticated`-only.
+  const [session, setSession] = useState<Session | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setAuthLoading(false);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
   // Core App States
-  const { requests, setRequests, loading: requestsLoading, error: requestsError, approveRequest, rejectRequest, refreshRequests } = useSupabaseRequests();
+  const { requests, loading: requestsLoading, error: requestsError, approveRequest, rejectRequest, updateRequestDetails, refreshRequests } = useSupabaseRequests();
   const { barbers, loading: barbersLoading, error: barbersError, addBarber, editBarber, removeBarber, updateBarberStatus } = useSupabaseBarbers();
   const { services, loading: servicesLoading, error: servicesError, addService, removeService } = useSupabaseServices();
   const { queue, servingSessions, completedEntries, loading: queueLoading, error: queueError, addQueueEntry, updateQueueEntryStatus, serveQueueEntry, completeServingSession, removeQueueEntry, startQuickWalkIn } = useSupabaseQueue(barbers, services);
@@ -159,7 +181,9 @@ export default function App() {
     try {
       await completeServingSession(barberId, serviceId, customerName);
       
-      const priceOfService = services.find(s => s.id === serviceId || s.name === session.service)?.price || 120000;
+      // Same lookup key + fallback as `revenueToday` below, so this toast's
+      // number can never disagree with the dashboard once it recomputes.
+      const priceOfService = services.find(s => s.name === session.service)?.price || 0;
 
       // Toast
       triggerToast(
@@ -289,31 +313,36 @@ export default function App() {
     return dayStr; // fallback
   };
 
-  const fuzzyMatchService = (extractedService: string, availableServices: any[]): string => {
-    if (!extractedService) return availableServices.length > 0 ? availableServices[0].id : '';
+  // `matched: false` means we couldn't find a confident (exact/partial) match
+  // against what was extracted from the WhatsApp message, and silently fell
+  // back to a default guess — the caller should warn staff when this happens
+  // rather than let a wrong-guess booking go through unnoticed.
+  const fuzzyMatchService = (extractedService: string, availableServices: Service[]): { id: string; matched: boolean } => {
+    const fallbackId = availableServices.length > 0 ? availableServices[0].id : '';
+    if (!extractedService) return { id: fallbackId, matched: false };
     const s = extractedService.toLowerCase();
     const exactMatch = availableServices.find(srv => srv.name.toLowerCase() === s);
-    if (exactMatch) return exactMatch.id;
-    
-    const partialMatch = availableServices.find(srv => 
+    if (exactMatch) return { id: exactMatch.id, matched: true };
+
+    const partialMatch = availableServices.find(srv =>
       srv.name.toLowerCase().includes(s) || s.includes(srv.name.toLowerCase())
     );
-    if (partialMatch) return partialMatch.id;
+    if (partialMatch) return { id: partialMatch.id, matched: true };
 
-    return availableServices.length > 0 ? availableServices[0].id : '';
+    return { id: fallbackId, matched: false };
   };
 
   const fuzzyMatchBarber = (
-    extractedBarber: string | null | undefined, 
-    availableBarbers: any[],
+    extractedBarber: string | null | undefined,
+    availableBarbers: Barber[],
     daySelected: string,
     timeSelected: string,
-    currentQueue: any[]
-  ): any => {
+    currentQueue: QueueEntry[]
+  ): { barber: Barber | null; matched: boolean } => {
     const isBusy = (bName: string) => {
-       return currentQueue.some(q => 
-         q.day === daySelected && 
-         (q.timeRange || '').includes(timeSelected) && 
+       return currentQueue.some(q =>
+         q.day === daySelected &&
+         (q.timeRange || '').includes(timeSelected) &&
          q.barber === bName
        );
     };
@@ -321,16 +350,16 @@ export default function App() {
     if (extractedBarber) {
       const b = extractedBarber.toLowerCase();
       const exactMatch = availableBarbers.find(barber => barber.name.toLowerCase() === b);
-      if (exactMatch) return exactMatch;
+      if (exactMatch) return { barber: exactMatch, matched: true };
 
-      const partialMatch = availableBarbers.find(barber => 
+      const partialMatch = availableBarbers.find(barber =>
         barber.name.toLowerCase().includes(b) || b.includes(barber.name.toLowerCase())
       );
-      if (partialMatch) return partialMatch;
+      if (partialMatch) return { barber: partialMatch, matched: true };
     }
 
     const available = availableBarbers.find(barber => !isBusy(barber.name));
-    return available || availableBarbers[0] || null;
+    return { barber: available || availableBarbers[0] || null, matched: false };
   };
 
   // Callback: Approve WhatsApp Booking
@@ -351,10 +380,12 @@ export default function App() {
     const serviceSelected = customService || request.extractedService;
 
     const endTime = calculateEndTime(timeSelected, serviceSelected);
-    const targetBarber = fuzzyMatchBarber(request.extractedBarber, barbers, daySelected, timeSelected, queue);
+    const barberMatch = fuzzyMatchBarber(request.extractedBarber, barbers, daySelected, timeSelected, queue);
+    const targetBarber = barberMatch.barber;
 
     if (!targetBarber) return;
-    const sId = fuzzyMatchService(serviceSelected, services);
+    const serviceMatch = fuzzyMatchService(serviceSelected, services);
+    const sId = serviceMatch.id;
     if (!sId) {
       triggerToast('Gagal memetakan layanan secara otomatis.', 'error', 'Mapping Failed');
       return;
@@ -376,6 +407,21 @@ export default function App() {
         'success',
         'Booking Approved'
       );
+
+      // System couldn't confidently match what was extracted from the chat
+      // to a real service/barber and silently defaulted to a guess — flag
+      // it so staff can double-check this specific booking.
+      if (!serviceMatch.matched || !barberMatch.matched) {
+        const guessedParts = [
+          !serviceMatch.matched ? `layanan (dipakai: "${services.find(s => s.id === sId)?.name}")` : null,
+          !barberMatch.matched ? `kapster (dipakai: "${targetBarber.name}")` : null,
+        ].filter(Boolean).join(' dan ');
+        triggerToast(
+          `Tidak ada kecocokan persis untuk ${guessedParts} dari pesan WhatsApp ${request.senderName} — booking tetap dibuat pakai tebakan terbaik sistem. Mohon cek ulang.`,
+          'info',
+          'Perlu Verifikasi'
+        );
+      }
     } catch (err) {
       triggerToast('Gagal menyetujui request ke database antrean.', 'error', 'Approval Failed');
     }
@@ -401,9 +447,13 @@ export default function App() {
   };
 
   // Callback: Edit WhatsApp Request before approval
-  const handleEditRequest = (id: string, updated: Partial<WhatsAppRequest>) => {
-    setRequests(prev => prev.map(r => r.id === id ? { ...r, ...updated } : r));
-    triggerToast(`Parameter booking berhasil disesuaikan.`, 'info', 'Metadata Extracted');
+  const handleEditRequest = async (id: string, updated: Partial<WhatsAppRequest>) => {
+    try {
+      await updateRequestDetails(id, updated);
+      triggerToast(`Parameter booking berhasil disesuaikan.`, 'info', 'Metadata Extracted');
+    } catch (err) {
+      triggerToast('Gagal menyimpan perubahan ke server.', 'error', 'Update Failed');
+    }
   };
 
   const handleAddBooking = async (
@@ -710,6 +760,20 @@ export default function App() {
 
   const pendingRequestsCount = requests.filter(r => r.status === 'pending').length;
 
+  if (authLoading) {
+    return (
+      <div className="h-dvh flex items-center justify-center bg-background">
+        <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center animate-pulse">
+          <span className="font-display font-bold text-primary-foreground text-sm">G</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <Login />;
+  }
+
   return (
     <SidebarProvider className="relative h-dvh bg-background text-foreground font-sans selection:bg-primary/20 selection:text-foreground overflow-hidden z-0">
 
@@ -755,6 +819,14 @@ export default function App() {
                 </span>
               </button>
             )}
+            <button
+              onClick={() => supabase.auth.signOut()}
+              className="p-2 text-muted-foreground hover:text-destructive hover:bg-accent rounded-lg transition-colors cursor-pointer"
+              title="Keluar"
+              id="mobile-logout-btn"
+            >
+              <LogOut size={18} />
+            </button>
           </div>
         </div>
 
@@ -823,6 +895,14 @@ export default function App() {
                 <span className="text-xs font-semibold text-foreground block">{t('header.hqOperator')}</span>
                 <span className="text-[9px] text-muted-foreground font-mono tracking-wider uppercase block">GOLDEN SHEARS</span>
               </div>
+              <button
+                onClick={() => supabase.auth.signOut()}
+                className="p-2 text-muted-foreground hover:text-destructive hover:bg-accent rounded-lg transition-colors cursor-pointer"
+                title="Keluar"
+                id="logout-btn"
+              >
+                <LogOut size={15} />
+              </button>
             </div>
           </div>
         </header>

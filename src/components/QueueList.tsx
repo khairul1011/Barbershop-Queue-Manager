@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { QueueEntry, Barber, QueueStatus } from '../types';
+import { QueueEntry, Barber } from '../types';
 import { useTranslation } from '../i18n';
 import { 
   Users, 
@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { getQueueStatusVariant } from '@/lib/queueStatus';
 
 interface QueueListProps {
   queue: QueueEntry[];
@@ -51,15 +52,6 @@ export default function QueueList({
     const matchesBarber = selectedBarberFilter === 'All Barbers' || item.barber === selectedBarberFilter;
     return matchesSearch && matchesBarber;
   });
-
-  const getBadgeVariant = (status: QueueStatus) => {
-    switch (status) {
-      case 'Confirmed': return 'emerald';
-      case 'Estimated': return 'amber';
-      case 'Pending Reply': return 'sky';
-      default: return 'default';
-    }
-  };
 
   const handleWhatsAppNudge = (item: QueueEntry) => {
     const text = `Halo ${item.customerName}, giliran Anda di Golden Shears hampir tiba! Silakan bersiap-siap menuju outlet. Terima kasih.`;
@@ -132,7 +124,7 @@ export default function QueueList({
                     <div className="text-xs text-muted-foreground font-mono">{item.phone}</div>
                   </div>
                 </div>
-                <Badge variant={getBadgeVariant(item.status) as any} className="shrink-0 ml-2">
+                <Badge variant={getQueueStatusVariant(item)} className="shrink-0 ml-2">
                   {item.status}
                 </Badge>
               </div>
@@ -245,7 +237,7 @@ export default function QueueList({
                       </td>
 
                       <td className="py-4 px-4">
-                        <Badge variant={getBadgeVariant(item.status) as any}>
+                        <Badge variant={getQueueStatusVariant(item)}>
                           {item.status}
                         </Badge>
                       </td>
