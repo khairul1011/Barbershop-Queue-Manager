@@ -7,6 +7,8 @@ export const en = {
   'sidebar.schedule': 'Weekly Schedule',
   'sidebar.settings': 'Settings',
   'sidebar.queueEfficiency': 'Queue Efficiency',
+  'sidebar.collapse': 'Collapse sidebar',
+  'sidebar.expand': 'Expand sidebar',
 
   // App Header
   'header.searchPlaceholder': 'Search appointments, bookings...',

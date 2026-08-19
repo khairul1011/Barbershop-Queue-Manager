@@ -7,6 +7,8 @@ export const id = {
   'sidebar.schedule': 'Jadwal Mingguan',
   'sidebar.settings': 'Pengaturan',
   'sidebar.queueEfficiency': 'Efisiensi Antrian',
+  'sidebar.collapse': 'Ciutkan sidebar',
+  'sidebar.expand': 'Buka sidebar',
 
   // App Header
   'header.searchPlaceholder': 'Cari janji temu, booking...',

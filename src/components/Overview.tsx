@@ -387,9 +387,9 @@ export default function Overview({
             <Users size={16} className="text-muted-foreground" />
           </div>
           <div className="mt-4 md:mt-6">
-            <h3 className="text-2xl md:text-4xl font-display font-bold text-foreground font-mono leading-none">
+            <h2 className="text-2xl md:text-4xl font-display font-bold text-foreground font-mono leading-none">
               {totalVisits}
-            </h3>
+            </h2>
             <p className="text-[10px] md:text-xs text-muted-foreground font-sans mt-1 flex items-center gap-1">
               <TrendingUp size={12} />
               <span>+{completedCount} {t('overview.completed')}</span>
@@ -404,9 +404,9 @@ export default function Overview({
             <Clock size={16} className="text-muted-foreground" />
           </div>
           <div className="mt-4 md:mt-6">
-            <h3 className="text-2xl md:text-4xl font-display font-bold text-foreground font-mono leading-none">
+            <h2 className="text-2xl md:text-4xl font-display font-bold text-foreground font-mono leading-none">
               {estimatedWaitTime} <span className="text-xs md:text-sm font-sans font-normal text-muted-foreground">{t('overview.mins')}</span>
-            </h3>
+            </h2>
             <p className="text-[10px] md:text-xs text-muted-foreground font-sans mt-1">
               {t('overview.basedOnFlow')}
             </p>
@@ -420,9 +420,9 @@ export default function Overview({
             <DollarSign size={16} className="text-muted-foreground" />
           </div>
           <div className="mt-4 md:mt-6">
-            <h3 className="text-xl md:text-3xl font-display font-bold text-foreground font-mono leading-none">
+            <h2 className="text-xl md:text-3xl font-display font-bold text-foreground font-mono leading-none">
               {(revenueToday / 1000).toLocaleString()}<span className="text-xs font-normal text-muted-foreground">{t('overview.kIDR')}</span>
-            </h3>
+            </h2>
             <p className="text-[10px] md:text-xs text-muted-foreground font-sans mt-1">
               {t('overview.confirmedServices')}
             </p>

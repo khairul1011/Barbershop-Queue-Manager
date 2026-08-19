@@ -89,6 +89,7 @@ export default function AppSidebar({ activeTab, setActiveTab, pendingRequestsCou
               onClick={toggleSidebar}
               className="w-8 h-8 min-w-0 min-h-0 hover:bg-accent text-muted-foreground hover:text-foreground shrink-0"
               id="desktop-collapse-btn"
+              aria-label={t('sidebar.collapse')}
             >
               <ChevronLeft size={16} />
             </Button>
@@ -101,6 +102,7 @@ export default function AppSidebar({ activeTab, setActiveTab, pendingRequestsCou
             onClick={toggleSidebar}
             className="mx-auto w-8 h-8 min-w-0 min-h-0 hover:bg-accent text-muted-foreground hover:text-foreground"
             id="desktop-expand-btn"
+            aria-label={t('sidebar.expand')}
           >
             <ChevronRight size={16} />
           </Button>
