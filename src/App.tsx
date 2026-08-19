@@ -570,7 +570,7 @@ export default function App() {
       await updateBarberStatus(id, status);
       const name = barbers.find(b => b.id === id)?.name || 'Kapster';
       const statusLabel = status === 'active' ? 'AKTIF' : status === 'break' ? 'ISTIRAHAT' : 'OFF';
-      triggerToast(`${name} sekarang ditandai [${statusLabel}].`, status === 'active' ? 'success' : 'info', 'Duty Swapped');
+      triggerToast(`${name} sekarang berstatus ${statusLabel}.`, status === 'active' ? 'success' : 'info', 'Duty Swapped');
     } catch (err) {
       triggerToast(`Gagal memperbarui status kapster.`, 'error', 'Update Failed');
     }
