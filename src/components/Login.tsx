@@ -153,6 +153,7 @@ export default function Login({ shopName, logoUrl }: LoginProps) {
                   autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  className="bg-zinc-950 border-zinc-800 text-white placeholder:text-zinc-500"
                 />
               </div>
               <div className="grid gap-2">
@@ -175,6 +176,7 @@ export default function Login({ shopName, logoUrl }: LoginProps) {
                   autoComplete={isSignUp ? 'new-password' : 'current-password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  className="bg-zinc-950 border-zinc-800 text-white"
                 />
               </div>
 
@@ -182,7 +184,12 @@ export default function Login({ shopName, logoUrl }: LoginProps) {
               {infoMessage && <p className="text-xs font-medium text-emerald-400">{infoMessage}</p>}
 
               <div className="flex flex-col gap-2">
-                <Button type="submit" disabled={loading || googleLoading} className="w-full" id="login-submit-btn">
+                <Button 
+                  type="submit" 
+                  disabled={loading || googleLoading} 
+                  className="w-full bg-amber-500 hover:bg-amber-600 text-zinc-950 font-bold" 
+                  id="login-submit-btn"
+                >
                   {loading ? 'Processing...' : (isSignUp ? 'Sign up' : 'Login')}
                 </Button>
                 <Button
