@@ -22,6 +22,7 @@ import { useTranslation } from '../i18n';
 import { SegmentedToggle, SegmentOption } from './ui/SegmentedToggle';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { compressImage } from '@/lib/imageCompression';
 
 interface SettingsProps {
   services: Service[];
@@ -90,34 +91,34 @@ export default function SettingsView({
     setNewServiceDuration(30);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 500 * 1024) {
-      alert('Peringatan: Ukuran file melebihi 500KB. Harap pilih gambar yang lebih kecil untuk menjaga kapasitas localStorage.');
+    if (file.size > 15 * 1024 * 1024) {
+      alert('Peringatan: Ukuran file terlalu besar (maks 15MB).');
       e.target.value = '';
       return;
     }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setBarberAvatar(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    try {
+      setBarberAvatar(await compressImage(file));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Gagal memproses gambar.');
+    }
   };
 
-  const handleShopLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleShopLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 500 * 1024) {
-      alert('Peringatan: Ukuran file melebihi 500KB. Harap pilih gambar yang lebih kecil.');
+    if (file.size > 15 * 1024 * 1024) {
+      alert('Peringatan: Ukuran file terlalu besar (maks 15MB).');
       e.target.value = '';
       return;
     }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setShopLogoInput(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    try {
+      setShopLogoInput(await compressImage(file));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Gagal memproses gambar.');
+    }
   };
 
   const handleShopProfileSubmit = (e: React.FormEvent) => {
@@ -309,7 +310,7 @@ export default function SettingsView({
                   />
                   <div className="sm:col-span-2">
                     <label className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono block mb-1">
-                      Upload Photo (Max 500KB)
+                      Upload Photo (otomatis dikompres)
                     </label>
                     <input
                       type="file"
@@ -488,7 +489,7 @@ export default function SettingsView({
               </div>
               <div className="flex-1 space-y-1.5">
                 <label className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono block">
-                  Logo Toko (Maks 500KB)
+                  Logo Toko (otomatis dikompres)
                 </label>
                 <input
                   type="file"
