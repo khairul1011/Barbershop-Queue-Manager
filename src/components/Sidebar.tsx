@@ -7,18 +7,16 @@ import {
   Settings,
   History,
   TrendingUp,
-  ChevronLeft,
-  ChevronRight,
 } from 'lucide-react';
 import { useTranslation } from '../i18n';
 import type { SidebarVariant, SidebarMode } from '../theme-settings';
-import { Button } from '@/components/ui/button';
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuBadge,
@@ -39,7 +37,7 @@ interface AppSidebarProps {
 
 export default function AppSidebar({ activeTab, setActiveTab, pendingRequestsCount, sidebarVariant, sidebarMode, shopName, logoUrl }: AppSidebarProps) {
   const { t } = useTranslation();
-  const { state, toggleSidebar, isMobile, setOpenMobile } = useSidebar();
+  const { state, isMobile, setOpenMobile } = useSidebar();
   const isCollapsed = state === 'collapsed';
 
   // Di mobile, sidebar SELALU harus lewat jalur Sheet drawer (offcanvas) --
@@ -65,52 +63,33 @@ export default function AppSidebar({ activeTab, setActiveTab, pendingRequestsCou
 
   return (
     <Sidebar collapsible={effectiveCollapsible} variant={sidebarVariant}>
-      <SidebarHeader className="border-b border-sidebar-border">
-        <div className={`flex items-center py-2 ${isCollapsed ? 'justify-center' : 'justify-between px-1'}`}>
+      <SidebarHeader>
+        <div className={`flex items-center mt-2 mb-4 ${isCollapsed ? 'justify-center' : 'px-2'}`}>
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center shadow-sm shrink-0 overflow-hidden">
+            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm shrink-0 overflow-hidden">
               {logoUrl ? (
                 <img src={logoUrl} alt="" className="w-full h-full object-cover" />
               ) : (
-                <span className="font-display font-bold text-primary-foreground text-lg">{shopName.charAt(0).toUpperCase()}</span>
+                <span className="font-display font-bold text-black text-sm">{shopName.charAt(0).toUpperCase()}</span>
               )}
             </div>
             {!isCollapsed && (
               <div className="flex flex-col min-w-0">
-                <span className="font-display font-bold tracking-wide text-foreground leading-tight truncate">{shopName.toUpperCase()}</span>
-                <span className="text-[10px] text-muted-foreground font-mono tracking-wider">QUEUE ENGINE</span>
+                <span className="font-sans font-medium tracking-wide text-white text-sm leading-none truncate">{shopName}</span>
+                <span className="text-[10px] text-muted-foreground font-sans mt-1">Queue Engine</span>
               </div>
             )}
           </div>
-          {!isCollapsed && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleSidebar}
-              className="w-8 h-8 min-w-0 min-h-0 hover:bg-accent text-muted-foreground hover:text-foreground shrink-0"
-              id="desktop-collapse-btn"
-              aria-label={t('sidebar.collapse')}
-            >
-              <ChevronLeft size={16} />
-            </Button>
-          )}
         </div>
-        {isCollapsed && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleSidebar}
-            className="mx-auto w-8 h-8 min-w-0 min-h-0 hover:bg-accent text-muted-foreground hover:text-foreground"
-            id="desktop-expand-btn"
-            aria-label={t('sidebar.expand')}
-          >
-            <ChevronRight size={16} />
-          </Button>
-        )}
       </SidebarHeader>
 
       <SidebarContent>
         <SidebarGroup>
+          {!isCollapsed && (
+            <SidebarGroupLabel className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground px-2 mb-1">
+              DASHBOARD & LAYOUTS
+            </SidebarGroupLabel>
+          )}
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => {
@@ -120,14 +99,14 @@ export default function AppSidebar({ activeTab, setActiveTab, pendingRequestsCou
                   <SidebarMenuItem key={item.id}>
                     <SidebarMenuButton
                       isActive={isActive}
-                      size="default"
-                      className="group-data-[collapsible=icon]:p-2!"
+                      size="sm"
+                      className="group-data-[collapsible=icon]:p-2! text-muted-foreground hover:text-sidebar-accent-foreground data-[active=true]:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-accent rounded-md px-3"
                       onClick={() => handleNav(item.id)}
                       tooltip={item.label}
                       id={`nav-item-${item.id}`}
                     >
-                      <Icon size={20} />
-                      <span className="font-sans font-medium text-[15px]">{item.label}</span>
+                      <Icon className="w-4 h-4 mr-2" />
+                      <span className="font-sans text-xs">{item.label}</span>
                     </SidebarMenuButton>
                     {!!item.badge && item.badge > 0 && (
                       <SidebarMenuBadge className="bg-primary text-primary-foreground rounded-full animate-pulse font-semibold">
@@ -142,7 +121,7 @@ export default function AppSidebar({ activeTab, setActiveTab, pendingRequestsCou
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border">
+      <SidebarFooter>
         {!isCollapsed ? (
           <div className="bg-card border border-border p-3 rounded-lg flex items-center gap-3">
             <TrendingUp size={16} className="text-teal-400 shrink-0" />
