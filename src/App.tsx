@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabaseClient';
 import Login from './components/Login';
@@ -9,6 +9,7 @@ import { useSupabaseRequests } from './hooks/useSupabaseRequests';
 import { useSupabaseBusinessHours } from './hooks/useSupabaseBusinessHours';
 import AppSidebar from './components/Sidebar';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from './components/ui/sidebar';
+import { Popover, PopoverTrigger, PopoverContent } from './components/ui/popover';
 import Overview from './components/Overview';
 import Schedule from './components/Schedule';
 import Requests from './components/Requests';
@@ -119,6 +120,19 @@ export default function App() {
       setCurrentTime(new Date());
     }, 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Header search: ⌘K / Ctrl+K focuses the field so the kbd hint isn't decorative
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const handleShortcut = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleShortcut);
+    return () => window.removeEventListener('keydown', handleShortcut);
   }, []);
 
   // Daily reset is no longer needed since stats are calculated directly from Supabase completed_at timestamps
@@ -812,7 +826,12 @@ export default function App() {
         logoUrl={businessHours.logoUrl}
       />
 
-      <SidebarInset className="z-10 min-w-0 bg-transparent">
+      <SidebarInset className={cn(
+        "z-10 min-w-0 flex flex-col",
+        sidebarVariant === 'inset' 
+          ? "md:bg-[#0f0f0f] md:border md:border-white/5 md:rounded-[2rem] md:shadow-2xl overflow-hidden" 
+          : "bg-background"
+      )}>
 
         {/* MOBILE TOP BAR — h-[64px] is load-bearing: Schedule.tsx sticky offsets are hardcoded to match */}
         <div className="md:hidden flex items-center justify-between bg-background border-b border-border px-5 h-[64px] sticky top-0 z-40 flex-shrink-0">
@@ -832,6 +851,7 @@ export default function App() {
               <button
                 onClick={() => setActiveTab('requests')}
                 className="relative p-2 text-foreground hover:bg-accent rounded-lg transition-all cursor-pointer"
+                aria-label={`${t('sidebar.requests')} (${pendingRequestsCount})`}
                 id="mobile-requests-badge-btn"
               >
                 <MessageSquare size={20} />
@@ -844,6 +864,7 @@ export default function App() {
               onClick={() => supabase.auth.signOut()}
               className="p-2 text-muted-foreground hover:text-destructive hover:bg-accent rounded-lg transition-colors cursor-pointer"
               title="Keluar"
+              aria-label="Keluar"
               id="mobile-logout-btn"
             >
               <LogOut size={18} />
@@ -855,28 +876,39 @@ export default function App() {
         <div className="flex-1 flex flex-col min-w-0 z-10 relative overflow-y-auto">
 
         {/* TOP INTEGRATION BAR (Desktop only - mobile has its own top bar above) */}
-        <header className="hidden md:flex items-start sticky top-0 z-50 flex-shrink-0 min-h-[66px] px-6 pt-3">
-          <div className="w-full flex items-center justify-between bg-card border border-border rounded-xl px-6 py-2 shadow-sm">
+        <header className="hidden md:flex items-start sticky top-0 z-50 flex-shrink-0 min-h-[66px] px-6 pt-3 backdrop-blur-md">
+          <div className="w-full flex items-center justify-between bg-card border border-border rounded-xl px-6 py-2">
 
-          {/* Left: Quick search mockup */}
-          <div className="hidden lg:flex items-center gap-2.5 bg-background border border-border rounded-lg px-3.5 py-2 w-72">
-            <Search size={15} className="text-muted-foreground" />
-            <input
-              type="text"
-              placeholder={t('header.searchPlaceholder')}
-              className="bg-transparent text-xs text-foreground focus:outline-none w-full placeholder-muted-foreground"
-              id="global-search-input"
+          {/* Left: Sidebar toggle + quick search mockup */}
+          <div className="flex items-center gap-4">
+            <SidebarTrigger
+              className="w-8 h-8 min-w-0 min-h-0 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent [&>svg]:size-5"
+              id="desktop-header-sidebar-toggle"
             />
-          </div>
-          <div className="sm:hidden text-foreground font-mono text-xs font-semibold uppercase tracking-wider">
-            {activeTab === 'overview' ? t('header.dashboard') : activeTab.toUpperCase()}
+            <div className="hidden lg:block w-px h-4 bg-border" />
+            <div className="hidden lg:flex items-center gap-1.5 h-9 rounded-md px-3 text-muted-foreground hover:bg-accent focus-within:bg-accent transition-colors">
+              <Search size={16} className="text-muted-foreground shrink-0" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder={t('header.searchPlaceholder')}
+                className="bg-transparent text-sm text-foreground focus:outline-none placeholder-muted-foreground w-44"
+                id="global-search-input"
+              />
+              <kbd className="hidden xl:flex h-5 items-center justify-center rounded-sm bg-muted px-1 font-mono text-xs font-medium text-muted-foreground">
+                ⌘K
+              </kbd>
+            </div>
+            <div className="lg:hidden text-foreground font-mono text-xs font-semibold uppercase tracking-wider">
+              {activeTab === 'overview' ? t('header.dashboard') : activeTab.toUpperCase()}
+            </div>
           </div>
 
           {/* Right: Date, Ticking clock, Quick Actions */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5">
 
             {/* Live Clock Widget */}
-            <div className="flex items-center gap-2 text-xs md:text-sm font-sans text-muted-foreground bg-background border border-border rounded-lg px-3 py-2">
+            <div className="hidden sm:flex items-center gap-2 h-9 px-3 text-xs md:text-sm font-sans text-muted-foreground">
               <Clock size={14} className="text-muted-foreground" />
               <span className="font-mono text-muted-foreground">
                 <span className="hidden lg:inline">
@@ -884,12 +916,7 @@ export default function App() {
                   <span className="text-muted-foreground/60 mx-1.5">•</span>
                 </span>
                 <span className="text-foreground font-bold">
-                  <span className="sm:hidden">
-                    {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                  <span className="hidden sm:inline">
-                    {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                  </span>
+                  {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                 </span>
               </span>
             </div>
@@ -900,32 +927,45 @@ export default function App() {
             {/* Quick Notification Ring Mock */}
             <button
               onClick={() => triggerToast("Semua kursi aktif beroperasi optimal.", "info", "System Scan")}
-              className="relative p-2 bg-background border border-border hover:bg-accent hover:text-foreground rounded-lg transition-all cursor-pointer"
+              className="relative w-9 h-9 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-all cursor-pointer"
               title="System Notifications"
+              aria-label="Notifikasi sistem"
               id="topbar-notif-btn"
             >
-              <Bell size={16} className="text-muted-foreground" />
+              <Bell size={16} />
               <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-primary" />
             </button>
 
             {/* User Barber Operator Hub Profile */}
-            <div className="hidden lg:flex items-center gap-2 pl-2 border-l border-border">
-              <div className="w-8 h-8 rounded-lg bg-accent border border-border flex items-center justify-center text-foreground font-bold font-mono text-xs">
-                HQ
-              </div>
-              <div className="text-left">
-                <span className="text-xs font-semibold text-foreground block">{t('header.hqOperator')}</span>
-                <span className="text-[9px] text-muted-foreground font-mono tracking-wider uppercase block">{businessHours.shopName}</span>
-              </div>
-              <button
-                onClick={() => supabase.auth.signOut()}
-                className="p-2 text-muted-foreground hover:text-destructive hover:bg-accent rounded-lg transition-colors cursor-pointer"
-                title="Keluar"
-                id="logout-btn"
-              >
-                <LogOut size={15} />
-              </button>
-            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  className="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-accent transition-all cursor-pointer"
+                  aria-label={`Menu akun — ${t('header.hqOperator')}`}
+                  id="header-profile-btn"
+                >
+                  <span className="w-8 h-8 rounded-full bg-accent border border-border flex items-center justify-center text-foreground font-bold font-mono text-xs">
+                    HQ
+                  </span>
+                  <span className="absolute bottom-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-card" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-52 p-2">
+                <div className="px-2 py-1.5">
+                  <p className="text-sm font-semibold text-foreground">{t('header.hqOperator')}</p>
+                  <p className="text-[10px] text-muted-foreground font-mono tracking-wider uppercase">{businessHours.shopName}</p>
+                </div>
+                <div className="h-px bg-border my-1" />
+                <button
+                  onClick={() => supabase.auth.signOut()}
+                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-muted-foreground hover:text-destructive hover:bg-accent transition-colors cursor-pointer"
+                  id="logout-btn"
+                >
+                  <LogOut size={15} />
+                  Keluar
+                </button>
+              </PopoverContent>
+            </Popover>
           </div>
           </div>
         </header>
@@ -951,6 +991,16 @@ export default function App() {
             </motion.div>
           </AnimatePresence>
         </main>
+
+        {/* PAGE FOOTER */}
+        <footer className={cn(
+          'w-full mx-auto px-5 md:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground flex-shrink-0',
+          contentLayout === 'compact' ? 'max-w-5xl' : 'max-w-7xl'
+        )}>
+          <p>
+            © {new Date().getFullYear()} <span className="text-foreground/80">{businessHours.shopName}</span> — Sistem Antrian Barbershop
+          </p>
+        </footer>
         </div>
       </SidebarInset>
 
