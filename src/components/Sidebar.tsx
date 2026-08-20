@@ -99,7 +99,7 @@ export default function AppSidebar({ activeTab, setActiveTab, pendingRequestsCou
                   <SidebarMenuItem key={item.id}>
                     <SidebarMenuButton
                       isActive={isActive}
-                      className="group-data-[collapsible=icon]:p-2! h-11 text-zinc-300 hover:text-white data-[active=true]:text-white data-[active=true]:bg-[#1f1f1f] rounded-xl px-4 font-normal data-[active=true]:font-medium transition-all"
+                      className="group-data-[collapsible=icon]:p-2! h-11 text-zinc-300 hover:text-white data-[active=true]:text-white data-[active=true]:bg-[#262626] rounded-xl px-4 font-normal data-[active=true]:font-medium transition-all"
                       onClick={() => handleNav(item.id)}
                       tooltip={item.label}
                       id={`nav-item-${item.id}`}
@@ -122,7 +122,7 @@ export default function AppSidebar({ activeTab, setActiveTab, pendingRequestsCou
 
       <SidebarFooter>
         {!isCollapsed ? (
-          <div className="bg-[#1f1f1f] border border-white/5 p-3 rounded-xl flex items-center gap-3 mx-2 mb-2">
+          <div className="bg-[#262626] border border-white/5 p-3 rounded-xl flex items-center gap-3 mx-2 mb-2">
             <TrendingUp size={16} className="text-teal-400 shrink-0" />
             <div>
               <p className="text-xs text-zinc-400 font-sans">{t('sidebar.queueEfficiency')}</p>

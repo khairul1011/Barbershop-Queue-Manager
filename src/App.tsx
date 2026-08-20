@@ -829,7 +829,7 @@ export default function App() {
       <SidebarInset className={cn(
         "z-10 min-w-0 flex flex-col",
         sidebarVariant === 'inset' 
-          ? "md:bg-[#0f0f0f] md:border md:border-white/5 md:rounded-[2rem] md:shadow-2xl overflow-hidden" 
+          ? "md:bg-[#171717] md:border md:border-white/10 md:rounded-[2rem] md:shadow-2xl overflow-hidden" 
           : "bg-background"
       )}>
 
