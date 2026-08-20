@@ -64,19 +64,19 @@ export default function AppSidebar({ activeTab, setActiveTab, pendingRequestsCou
   return (
     <Sidebar collapsible={effectiveCollapsible} variant={sidebarVariant}>
       <SidebarHeader>
-        <div className={`flex items-center mt-2 mb-4 ${isCollapsed ? 'justify-center' : 'px-2'}`}>
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm shrink-0 overflow-hidden">
+        <div className={`flex items-center mt-3 mb-6 ${isCollapsed ? 'justify-center' : 'px-4'}`}>
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm shrink-0 overflow-hidden">
               {logoUrl ? (
                 <img src={logoUrl} alt="" className="w-full h-full object-cover" />
               ) : (
-                <span className="font-display font-bold text-black text-sm">{shopName.charAt(0).toUpperCase()}</span>
+                <span className="font-display font-bold text-black text-xl">{shopName.charAt(0).toUpperCase()}</span>
               )}
             </div>
             {!isCollapsed && (
               <div className="flex flex-col min-w-0">
-                <span className="font-sans font-medium tracking-wide text-white text-sm leading-none truncate">{shopName}</span>
-                <span className="text-[10px] text-muted-foreground font-sans mt-1">Queue Engine</span>
+                <span className="font-sans font-medium tracking-wide text-white text-lg leading-tight truncate">{shopName}</span>
+                <span className="text-[13px] text-muted-foreground font-sans mt-0.5">Queue Engine</span>
               </div>
             )}
           </div>
@@ -86,7 +86,7 @@ export default function AppSidebar({ activeTab, setActiveTab, pendingRequestsCou
       <SidebarContent>
         <SidebarGroup>
           {!isCollapsed && (
-            <SidebarGroupLabel className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground px-2 mb-1">
+            <SidebarGroupLabel className="text-xs font-medium tracking-[0.1em] uppercase text-muted-foreground px-4 mb-2">
               DASHBOARD & LAYOUTS
             </SidebarGroupLabel>
           )}
@@ -99,14 +99,13 @@ export default function AppSidebar({ activeTab, setActiveTab, pendingRequestsCou
                   <SidebarMenuItem key={item.id}>
                     <SidebarMenuButton
                       isActive={isActive}
-                      size="sm"
-                      className="group-data-[collapsible=icon]:p-2! text-muted-foreground hover:text-sidebar-accent-foreground data-[active=true]:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-accent rounded-md px-3"
+                      className="group-data-[collapsible=icon]:p-2! h-11 text-muted-foreground hover:text-sidebar-accent-foreground data-[active=true]:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-accent rounded-xl px-4 font-normal data-[active=true]:font-medium transition-all"
                       onClick={() => handleNav(item.id)}
                       tooltip={item.label}
                       id={`nav-item-${item.id}`}
                     >
-                      <Icon className="w-4 h-4 mr-2" />
-                      <span className="font-sans text-xs">{item.label}</span>
+                      <Icon className="w-[18px] h-[18px] mr-3 shrink-0" />
+                      <span className="font-sans text-[15px]">{item.label}</span>
                     </SidebarMenuButton>
                     {!!item.badge && item.badge > 0 && (
                       <SidebarMenuBadge className="bg-primary text-primary-foreground rounded-full animate-pulse font-semibold">
