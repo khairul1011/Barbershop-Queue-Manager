@@ -76,7 +76,7 @@ export default function AppSidebar({ activeTab, setActiveTab, pendingRequestsCou
             {!isCollapsed && (
               <div className="flex flex-col min-w-0">
                 <span className="font-sans font-medium tracking-wide text-white text-lg leading-tight truncate">{shopName}</span>
-                <span className="text-[13px] text-muted-foreground font-sans mt-0.5">Queue Engine</span>
+                <span className="text-[13px] text-zinc-400 font-sans mt-0.5">Queue Engine</span>
               </div>
             )}
           </div>
@@ -86,7 +86,7 @@ export default function AppSidebar({ activeTab, setActiveTab, pendingRequestsCou
       <SidebarContent>
         <SidebarGroup>
           {!isCollapsed && (
-            <SidebarGroupLabel className="text-xs font-medium tracking-[0.1em] uppercase text-muted-foreground px-4 mb-2">
+            <SidebarGroupLabel className="text-xs font-medium tracking-[0.1em] uppercase text-zinc-500 px-4 mb-2">
               DASHBOARD & LAYOUTS
             </SidebarGroupLabel>
           )}
@@ -99,7 +99,7 @@ export default function AppSidebar({ activeTab, setActiveTab, pendingRequestsCou
                   <SidebarMenuItem key={item.id}>
                     <SidebarMenuButton
                       isActive={isActive}
-                      className="group-data-[collapsible=icon]:p-2! h-11 text-muted-foreground hover:text-sidebar-accent-foreground data-[active=true]:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-accent rounded-xl px-4 font-normal data-[active=true]:font-medium transition-all"
+                      className="group-data-[collapsible=icon]:p-2! h-11 text-zinc-300 hover:text-white data-[active=true]:text-white data-[active=true]:bg-[#1f1f1f] rounded-xl px-4 font-normal data-[active=true]:font-medium transition-all"
                       onClick={() => handleNav(item.id)}
                       tooltip={item.label}
                       id={`nav-item-${item.id}`}
@@ -122,11 +122,11 @@ export default function AppSidebar({ activeTab, setActiveTab, pendingRequestsCou
 
       <SidebarFooter>
         {!isCollapsed ? (
-          <div className="bg-card border border-border p-3 rounded-lg flex items-center gap-3">
+          <div className="bg-[#1f1f1f] border border-white/5 p-3 rounded-xl flex items-center gap-3 mx-2 mb-2">
             <TrendingUp size={16} className="text-teal-400 shrink-0" />
             <div>
-              <p className="text-xs text-muted-foreground font-sans">{t('sidebar.queueEfficiency')}</p>
-              <p className="text-sm font-bold text-foreground font-mono">94.2% <span className="text-[10px] text-teal-400 font-normal">+1.4%</span></p>
+              <p className="text-xs text-zinc-400 font-sans">{t('sidebar.queueEfficiency')}</p>
+              <p className="text-sm font-medium text-white font-mono mt-0.5">94.2% <span className="text-[10px] text-teal-400/80 font-normal ml-1">+1.4%</span></p>
             </div>
           </div>
         ) : (
