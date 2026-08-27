@@ -241,6 +241,19 @@ client.on('ready', () => {
 });
 client.on('message', msg => console.log('[RAW EVENT]', msg.from, msg.type, msg.body));
 
+// whatsapp-web.js bisa kehilangan koneksi ke WhatsApp secara diam-diam
+// (HP offline lama, WiFi VPS sempat putus, atau sesi Puppeteer internal
+// nge-stuck) tanpa proses Node-nya sendiri crash — PM2 tetap lihat proses
+// "online" padahal bot udah nggak nerima pesan sama sekali. Insiden nyata:
+// bot diam total 3 hari (24-27 Agustus 2026) tanpa satupun error ter-log,
+// cuma ketahuan karena customer komplain nggak dibales. Exit eksplisit di
+// sini biar PM2 (autorestart default-nya ON) yang re-launch proses dari
+// nol dengan sesi Puppeteer baru, alih-alih diem tanpa jejak kayak kejadian itu.
+client.on('disconnected', (reason) => {
+  console.log('[DISCONNECTED]', reason, '- keluar biar PM2 restart proses ini.');
+  process.exit(1);
+});
+
 // Resolve nomor telepon asli dari sebuah WA ID (bisa berupa @c.us atau @lid).
 // contact.number/msg.getContact() cuma andalkan cache lokal, jadi untuk kontak
 // yang belum pernah "dikenal" sebelumnya (khususnya kontak ber-@lid), dia
