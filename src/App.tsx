@@ -828,8 +828,8 @@ export default function App() {
 
       <SidebarInset className={cn(
         "z-10 min-w-0 flex flex-col",
-        sidebarVariant === 'inset' 
-          ? "md:bg-[#171717] md:border md:border-white/10 md:rounded-[2rem] md:shadow-2xl overflow-hidden" 
+        sidebarVariant === 'inset'
+          ? "md:bg-background md:rounded-[2rem] md:shadow-2xl"
           : "bg-background"
       )}>
 
@@ -872,8 +872,14 @@ export default function App() {
           </div>
         </div>
 
-        {/* MAIN VIEW AREA — scrolls independently on desktop; on mobile fills remaining height */}
-        <div className="flex-1 flex flex-col min-w-0 z-10 relative overflow-y-auto">
+        {/* MAIN VIEW AREA — scrolls independently on desktop; on mobile fills remaining height.
+            Rounds+clips its OWN corners (matching SidebarInset's md:rounded-[2rem]) rather than
+            relying on an ancestor's overflow-hidden — SidebarInset itself must stay unclipped or
+            it breaks position:sticky for elements deep inside Schedule.tsx (see CLAUDE.md). */}
+        <div className={cn(
+          "flex-1 flex flex-col min-w-0 z-10 relative overflow-y-auto",
+          sidebarVariant === 'inset' && "md:rounded-[2rem]"
+        )}>
 
         {/* TOP INTEGRATION BAR (Desktop only - mobile has its own top bar above) */}
         <header className="hidden md:flex items-start sticky top-0 z-50 flex-shrink-0 min-h-[66px] px-6 pt-3 backdrop-blur-md">

@@ -99,13 +99,14 @@ export default function AppSidebar({ activeTab, setActiveTab, pendingRequestsCou
                   <SidebarMenuItem key={item.id}>
                     <SidebarMenuButton
                       isActive={isActive}
-                      className="group-data-[collapsible=icon]:p-2! h-11 text-zinc-300 hover:text-white data-[active=true]:text-white data-[active=true]:bg-[#262626] rounded-xl px-4 font-normal data-[active=true]:font-medium transition-all"
+                      className="group-data-[collapsible=icon]:p-2! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:mx-auto h-11 text-zinc-300 hover:text-white data-[active=true]:text-white data-[active=true]:bg-[#262626] rounded-xl px-4 font-normal data-[active=true]:font-medium transition-all"
                       onClick={() => handleNav(item.id)}
                       tooltip={item.label}
+                      aria-label={item.label}
                       id={`nav-item-${item.id}`}
                     >
-                      <Icon className="w-[18px] h-[18px] mr-3 shrink-0" />
-                      <span className="font-sans text-[15px]">{item.label}</span>
+                      <Icon className="w-[18px] h-[18px] mr-3 group-data-[collapsible=icon]:mr-0 shrink-0" />
+                      <span className="font-sans text-[15px] group-data-[collapsible=icon]:hidden">{item.label}</span>
                     </SidebarMenuButton>
                     {!!item.badge && item.badge > 0 && (
                       <SidebarMenuBadge className="bg-primary text-primary-foreground rounded-full animate-pulse font-semibold">

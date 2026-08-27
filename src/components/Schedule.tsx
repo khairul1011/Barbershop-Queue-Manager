@@ -472,7 +472,7 @@ export default function Schedule({
             <Badge variant="blue" className="text-[10px] px-2 py-0.5">{t('status.Completed')}</Badge>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <div className="flex items-center gap-2 px-3 h-[42px] bg-background border border-border rounded-lg">
               <Filter size={14} className="text-muted-foreground" />
               <Select value={filterBarberId} onValueChange={setFilterBarberId}>
@@ -543,7 +543,7 @@ export default function Schedule({
             </div>
 
             {/* Mobile Barber Tabs */}
-            <div className="flex lg:hidden border-b border-border overflow-x-auto scrollbar-none bg-card sticky top-[64px] md:top-[66px] z-30">
+            <div className="flex lg:hidden border-b border-border overflow-x-auto scrollbar-none bg-card">
               {activeBarbers.map((b, idx) => (
                 <Button
                   variant="ghost"

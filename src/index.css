@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
+@import "tw-animate-css";
 
 @theme {
   --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
@@ -30,7 +31,7 @@
 
   /* Sidebar tokens — aliased to the base chrome tokens above (BarberFlow's sidebar
      intentionally matches the rest of the app's chrome, no separate sub-theme). */
-  --color-sidebar: var(--color-background);
+  --color-sidebar: var(--color-card);
   --color-sidebar-foreground: var(--color-foreground);
   --color-sidebar-primary: var(--color-primary);
   --color-sidebar-primary-foreground: var(--color-primary-foreground);
