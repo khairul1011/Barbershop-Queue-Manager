@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { WhatsAppRequest } from '../types';
-import { MessageSquare, Calendar, Clock, Scissors, UserCheck, ShieldCheck, Check, X, Edit3, Trash, Phone, CornerDownRight, Save } from 'lucide-react';
+import { MessageSquare, Calendar, Clock, Scissors, UserCheck, ShieldCheck, Check, X, Edit3, Trash, Phone, CornerDownRight, Save, Wallet } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BentoCard } from './ui/BentoCard';
+import { Badge } from '@/components/ui/badge';
 import { useTranslation } from '../i18n';
 import { Button } from '@/components/ui/button';
+import { getPaymentStatusVariant } from '../lib/paymentStatus';
 
 interface RequestsProps {
   requests: WhatsAppRequest[];
@@ -26,7 +28,7 @@ export default function Requests({
   const { t } = useTranslation();
   // Local state to track which card is currently being edited
   const [editingId, setEditingId] = useState<string | null>(null);
-  
+
   // Local edit values — only the sender name is editable. Day/time/service
   // come straight from what the customer actually said and get sent back to
   // them as confirmation on approve, so staff can't quietly reassign a
@@ -53,7 +55,181 @@ export default function Requests({
     setEditingId(null);
   };
 
-  const pendingRequests = requests.filter(r => r.status === 'pending');
+  // Gerbang DP: booking baru kelihatan buat di-approve/reject setelah
+  // pembayarannya beres. 'expired'/'failed' sengaja disembunyikan dari
+  // dua-duanya untuk v1 — tetap ada di database, cuma nggak bikin noise
+  // di dashboard.
+  const awaitingPayment = requests.filter(r => r.status === 'pending' && r.paymentStatus === 'unpaid');
+  const pendingRequests = requests.filter(r => r.status === 'pending' && r.paymentStatus === 'paid');
+
+  // Kartu request WhatsApp — dipakai dua kali (menunggu bayar & menunggu
+  // approval) dengan actions yang beda, biar nggak duplikat ~120 baris JSX.
+  const renderRequestCard = (req: WhatsAppRequest, showApprovalActions: boolean) => {
+    const isEditing = showApprovalActions && editingId === req.id;
+
+    return (
+      <motion.div
+        key={req.id}
+        layout
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, x: -50 }}
+      >
+        <BentoCard
+          variant="default"
+          badge={{ label: t('requests.incomingWA'), color: 'emerald' }}
+          tags={[req.extractedDay, req.extractedTime, req.extractedService]}
+          actions={
+            showApprovalActions ? (
+              <div className="flex items-center gap-2">
+                {isEditing ? (
+                  <>
+                    <Button
+                      variant="default"
+                      onClick={() => saveEdit(req.id)}
+                      className="flex-1 font-bold"
+                      id={`save-btn-${req.id}`}
+                    >
+                      <Save size={13} className="mr-1.5" />
+                      {t('requests.saveChanges')}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => setEditingId(null)}
+                      id={`cancel-edit-btn-${req.id}`}
+                    >
+                      {t('requests.cancel')}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    {/* Approve Button */}
+                    <Button
+                      variant="default"
+                      onClick={() => onApprove(req.id)}
+                      className="flex-1 font-bold"
+                      id={`approve-btn-${req.id}`}
+                    >
+                      <Check size={14} className="mr-1" />
+                      {t('requests.approveBook')}
+                    </Button>
+
+                    {/* Edit Button */}
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => startEdit(req)}
+                      title={t('requests.editSenderName')}
+                      id={`edit-btn-${req.id}`}
+                    >
+                      <Edit3 size={14} />
+                    </Button>
+
+                    {/* Reject Button */}
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      onClick={() => onReject(req.id)}
+                      title={t('requests.rejectRequest')}
+                      id={`reject-btn-${req.id}`}
+                    >
+                      <X size={14} />
+                    </Button>
+                  </>
+                )}
+              </div>
+            ) : undefined
+          }
+        >
+          <div className="space-y-4">
+            {/* Card top: WhatsApp Logo & Sender info */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-muted text-muted-foreground flex items-center justify-center font-bold">
+                  <MessageSquare size={18} />
+                </div>
+                <div>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="bg-background border border-border rounded px-2 py-0.5 text-sm text-foreground focus:outline-none"
+                      id={`edit-sendername-${req.id}`}
+                    />
+                  ) : (
+                    <h4 className="text-[15px] font-bold text-foreground font-sans">{req.senderName}</h4>
+                  )}
+                  <p className="text-xs text-muted-foreground font-mono flex items-center gap-1 mt-0.5">
+                    <Phone size={10} />
+                    <span>{req.senderPhone}</span>
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-mono text-muted-foreground/70 font-medium">
+                {formatReceivedTime(req.receivedTime)}
+              </span>
+            </div>
+
+            {!showApprovalActions && req.dpAmount != null && (
+              <Badge variant={getPaymentStatusVariant(req.paymentStatus)} className="gap-1.5 font-sans w-fit">
+                <Wallet size={12} />
+                DP Rp{req.dpAmount.toLocaleString('id-ID')} — {t('requests.waitingDp')}
+              </Badge>
+            )}
+
+            {/* Quoted original message (WhatsApp vibe) */}
+            <div className="bg-background border-l-2 border-muted-foreground/30 rounded-r-lg p-3 text-xs text-muted-foreground font-sans italic leading-relaxed">
+              "{req.message}"
+            </div>
+
+            {/* Extracted Booking Slots Frame */}
+            <div className="bg-background border border-border rounded-lg p-3.5 space-y-3">
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono font-bold flex items-center gap-1.5">
+                <ShieldCheck size={12} />
+                {t('requests.aiExtractedIntent')}
+              </span>
+
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                {/* Day */}
+                <div className="flex items-center gap-1.5">
+                  <Calendar size={13} className="text-muted-foreground shrink-0" />
+                  <span className="text-foreground font-sans font-medium">{req.extractedDay}</span>
+                </div>
+                {/* Time */}
+                <div className="flex items-center gap-1.5">
+                  <Clock size={13} className="text-muted-foreground shrink-0" />
+                  <span className="text-foreground font-mono">{req.extractedTime}</span>
+                </div>
+                {/* Service */}
+                <div className="flex items-center gap-1.5 col-span-1 truncate">
+                  <Scissors size={13} className="text-muted-foreground shrink-0" />
+                  <span className="text-foreground font-sans truncate">{req.extractedService}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </BentoCard>
+      </motion.div>
+    );
+  };
+
+  const emptyState = (icon: React.ReactNode, title: string, desc: string) => (
+    <motion.div
+      layout
+      className="col-span-full py-16 flex flex-col items-center text-center justify-center text-muted-foreground space-y-3"
+    >
+      <div className="w-14 h-14 rounded-full bg-card border border-border flex items-center justify-center text-muted-foreground">
+        {icon}
+      </div>
+      <div>
+        <h4 className="text-base font-bold text-foreground font-sans">{title}</h4>
+        <p className="text-xs text-muted-foreground mt-1 max-w-sm font-sans mx-auto">
+          {desc}
+        </p>
+      </div>
+    </motion.div>
+  );
 
   return (
     <div className="space-y-6">
@@ -81,167 +257,37 @@ export default function Requests({
           <p className="text-sm font-sans">Memuat data dari server...</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-        <AnimatePresence mode="popLayout">
-          {pendingRequests.length > 0 ? (
-            pendingRequests.map((req) => {
-              const isEditing = editingId === req.id;
+        <>
+          {/* Section 1: awaiting DP payment — nothing for barber to act on yet */}
+          <div className="space-y-3">
+            <h2 className="text-sm font-bold text-foreground font-sans uppercase tracking-wide flex items-center gap-2">
+              <Wallet size={14} className="text-muted-foreground" />
+              {t('requests.awaitingPayment')}
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+              <AnimatePresence mode="popLayout">
+                {awaitingPayment.length > 0
+                  ? awaitingPayment.map((req) => renderRequestCard(req, false))
+                  : emptyState(<Wallet size={26} />, t('requests.noAwaitingPayment'), t('requests.noAwaitingPaymentDesc'))}
+              </AnimatePresence>
+            </div>
+          </div>
 
-              return (
-                <motion.div
-                  key={req.id}
-                  layout
-                  initial={{ opacity: 0, scale: 0.98 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, x: -50 }}
-                >
-                  <BentoCard
-                    variant="default"
-                    badge={{ label: t('requests.incomingWA'), color: 'emerald' }}
-                    tags={[req.extractedDay, req.extractedTime, req.extractedService]}
-                    actions={
-                      <div className="flex items-center gap-2">
-                        {isEditing ? (
-                          <>
-                            <Button
-                              variant="default"
-                              onClick={() => saveEdit(req.id)}
-                              className="flex-1 font-bold"
-                              id={`save-btn-${req.id}`}
-                            >
-                              <Save size={13} className="mr-1.5" />
-                              {t('requests.saveChanges')}
-                            </Button>
-                            <Button
-                              variant="secondary"
-                              onClick={() => setEditingId(null)}
-                              id={`cancel-edit-btn-${req.id}`}
-                            >
-                              {t('requests.cancel')}
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            {/* Approve Button */}
-                            <Button
-                              variant="default"
-                              onClick={() => onApprove(req.id)}
-                              className="flex-1 font-bold"
-                              id={`approve-btn-${req.id}`}
-                            >
-                              <Check size={14} className="mr-1" />
-                              {t('requests.approveBook')}
-                            </Button>
-
-                            {/* Edit Button */}
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => startEdit(req)}
-                              title={t('requests.editSenderName')}
-                              id={`edit-btn-${req.id}`}
-                            >
-                              <Edit3 size={14} />
-                            </Button>
-  
-                            {/* Reject Button */}
-                            <Button
-                              variant="destructive"
-                              size="icon"
-                              onClick={() => onReject(req.id)}
-                              title={t('requests.rejectRequest')}
-                              id={`reject-btn-${req.id}`}
-                            >
-                              <X size={14} />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    }
-                  >
-                    <div className="space-y-4">
-                      {/* Card top: WhatsApp Logo & Sender info */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-muted text-muted-foreground flex items-center justify-center font-bold">
-                            <MessageSquare size={18} />
-                          </div>
-                          <div>
-                            {isEditing ? (
-                              <input
-                                type="text"
-                                value={editName}
-                                onChange={(e) => setEditName(e.target.value)}
-                                className="bg-background border border-border rounded px-2 py-0.5 text-sm text-foreground focus:outline-none"
-                                id={`edit-sendername-${req.id}`}
-                              />
-                            ) : (
-                              <h4 className="text-[15px] font-bold text-foreground font-sans">{req.senderName}</h4>
-                            )}
-                            <p className="text-xs text-muted-foreground font-mono flex items-center gap-1 mt-0.5">
-                              <Phone size={10} />
-                              <span>{req.senderPhone}</span>
-                            </p>
-                          </div>
-                        </div>
-                        <span className="text-xs font-mono text-muted-foreground/70 font-medium">
-                          {formatReceivedTime(req.receivedTime)}
-                        </span>
-                      </div>
-
-                      {/* Quoted original message (WhatsApp vibe) */}
-                      <div className="bg-background border-l-2 border-muted-foreground/30 rounded-r-lg p-3 text-xs text-muted-foreground font-sans italic leading-relaxed">
-                        "{req.message}"
-                      </div>
-
-                      {/* Extracted Booking Slots Frame */}
-                      <div className="bg-background border border-border rounded-lg p-3.5 space-y-3">
-                        <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-mono font-bold flex items-center gap-1.5">
-                          <ShieldCheck size={12} />
-                          {t('requests.aiExtractedIntent')}
-                        </span>
-  
-                        <div className="grid grid-cols-3 gap-2 text-xs">
-                          {/* Day */}
-                          <div className="flex items-center gap-1.5">
-                            <Calendar size={13} className="text-muted-foreground shrink-0" />
-                            <span className="text-foreground font-sans font-medium">{req.extractedDay}</span>
-                          </div>
-                          {/* Time */}
-                          <div className="flex items-center gap-1.5">
-                            <Clock size={13} className="text-muted-foreground shrink-0" />
-                            <span className="text-foreground font-mono">{req.extractedTime}</span>
-                          </div>
-                          {/* Service */}
-                          <div className="flex items-center gap-1.5 col-span-1 truncate">
-                            <Scissors size={13} className="text-muted-foreground shrink-0" />
-                            <span className="text-foreground font-sans truncate">{req.extractedService}</span>
-                          </div>
-                        </div>
-                        </div>
-                    </div>
-                  </BentoCard>
-                </motion.div>
-                );
-              })
-            ) : (
-              <motion.div
-                layout
-                className="col-span-full py-16 flex flex-col items-center text-center justify-center text-muted-foreground space-y-3"
-              >
-                <div className="w-14 h-14 rounded-full bg-card border border-border flex items-center justify-center text-muted-foreground">
-                  <ShieldCheck size={26} />
-                </div>
-              <div>
-                <h4 className="text-base font-bold text-foreground font-sans">{t('requests.noPending')}</h4>
-                <p className="text-xs text-muted-foreground mt-1 max-w-sm font-sans mx-auto">
-                  {t('requests.noPendingDesc')}
-                </p>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+          {/* Section 2: DP paid, waiting on barber's own approve/reject decision */}
+          <div className="space-y-3">
+            <h2 className="text-sm font-bold text-foreground font-sans uppercase tracking-wide flex items-center gap-2">
+              <ShieldCheck size={14} className="text-muted-foreground" />
+              {t('requests.pendingApproval')}
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+              <AnimatePresence mode="popLayout">
+                {pendingRequests.length > 0
+                  ? pendingRequests.map((req) => renderRequestCard(req, true))
+                  : emptyState(<ShieldCheck size={26} />, t('requests.noPending'), t('requests.noPendingDesc'))}
+              </AnimatePresence>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

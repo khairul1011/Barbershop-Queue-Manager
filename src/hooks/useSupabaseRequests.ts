@@ -31,7 +31,10 @@ export function useSupabaseRequests() {
           extractedService: parts[0],
           extractedBarber: parts[1] || null,
           status: row.status as RequestStatus,
-          receivedTime: row.received_at
+          receivedTime: row.received_at,
+          paymentStatus: row.payment_status,
+          dpAmount: row.dp_amount,
+          paymentExpiresAt: row.payment_expires_at
         };
       });
       

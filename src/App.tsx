@@ -783,7 +783,7 @@ export default function App() {
     }
   };
 
-  const pendingRequestsCount = requests.filter(r => r.status === 'pending').length;
+  const pendingRequestsCount = requests.filter(r => r.status === 'pending' && r.paymentStatus === 'paid').length;
 
   if (authLoading) {
     return (

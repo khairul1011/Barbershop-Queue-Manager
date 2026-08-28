@@ -86,6 +86,11 @@ export const en = {
   'requests.service': 'Service',
   'requests.noPending': 'No Pending WhatsApp Requests',
   'requests.noPendingDesc': 'Nice work! All incoming WhatsApp queue bookings are approved or addressed.',
+  'requests.awaitingPayment': 'Awaiting Payment',
+  'requests.pendingApproval': 'Pending Approval',
+  'requests.noAwaitingPayment': 'Nobody Awaiting Payment',
+  'requests.noAwaitingPaymentDesc': 'No customers currently paying their booking DP.',
+  'requests.waitingDp': 'Awaiting DP',
 
   // Schedule
   'schedule.hqSubtitle': 'Hourly slot scheduler Board. Seamlessly manage walk-ins and active queues.',

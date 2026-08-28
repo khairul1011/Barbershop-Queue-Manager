@@ -86,6 +86,11 @@ export const id = {
   'requests.service': 'Layanan',
   'requests.noPending': 'Tidak Ada Permintaan WhatsApp',
   'requests.noPendingDesc': 'Bagus! Semua permintaan booking WhatsApp sudah disetujui atau diproses.',
+  'requests.awaitingPayment': 'Menunggu Pembayaran',
+  'requests.pendingApproval': 'Menunggu Persetujuan',
+  'requests.noAwaitingPayment': 'Tidak Ada yang Menunggu Bayar',
+  'requests.noAwaitingPaymentDesc': 'Belum ada customer yang lagi proses bayar DP booking.',
+  'requests.waitingDp': 'Menunggu Bayar',
 
   // Schedule
   'schedule.hqSubtitle': 'Papan jadwal per jam. Atur pelanggan walk-in dan antrian aktif dengan mudah.',

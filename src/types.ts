@@ -18,6 +18,11 @@ export interface QueueEntry {
 
 export type RequestStatus = 'pending' | 'approved' | 'rejected';
 
+// Gerbang DP terpisah dari RequestStatus di atas — payment_status ngatur
+// KAPAN sebuah request kelihatan buat di-approve/reject, RequestStatus
+// tetap murni keputusan barber, nggak berubah sama sekali.
+export type PaymentStatus = 'unpaid' | 'paid' | 'expired' | 'failed';
+
 export interface WhatsAppRequest {
   id: string;
   senderName: string;
@@ -29,6 +34,9 @@ export interface WhatsAppRequest {
   extractedService: string;
   extractedBarber?: string | null;
   status: RequestStatus;
+  paymentStatus: PaymentStatus;
+  dpAmount: number | null;
+  paymentExpiresAt: string | null;
 }
 
 export interface Barber {
