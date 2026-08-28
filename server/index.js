@@ -1,8 +1,16 @@
 require('dotenv').config();
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const crypto = require('crypto');
+const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
+// Nama beda dari `qrcode` (qrcode-terminal, di atas, buat QR login WA di
+// terminal) -- package ini (`qrcode` di npm, diimpor sebagai QRCode) yang
+// generate gambar PNG buat QR pembayaran yang dikirim ke customer.
+const QRCode = require('qrcode');
+const express = require('express');
 const { parseBookingMessage } = require('./gemini');
 const supabase = require('./supabaseClient');
+const { getServicePrice, calculateDp } = require('./priceLookup');
+const { createQrisPaymentRequest, verifyCallbackToken, extractWebhookPayload } = require('./xenditClient');
 
 const conversationState = new Map();
 const chatHistory = new Map();
@@ -64,6 +72,22 @@ async function sendMessageWithDelay(chatId, text) {
   await new Promise(resolve => setTimeout(resolve, computeNaturalDelay(text)));
 
   await client.sendMessage(chatId, text);
+}
+
+// Sama seperti sendMessageWithDelay, tapi buat kirim media (gambar QR
+// pembayaran) dengan caption teks -- pertama kali bot ini kirim media,
+// bukan cuma teks.
+async function sendMediaWithDelay(chatId, media, caption) {
+  try {
+    const chat = await client.getChatById(chatId);
+    await chat.sendStateTyping();
+  } catch (err) {
+    // Non-fatal — lanjut tanpa indikator typing kalau gagal ambil chat.
+  }
+
+  await new Promise(resolve => setTimeout(resolve, computeNaturalDelay(caption || '')));
+
+  await client.sendMessage(chatId, media, { caption });
 }
 
 const API_URL = process.env.API_URL || 'http://localhost:3001';
@@ -544,16 +568,23 @@ client.on('message', async msg => {
             return;
           }
 
-          // Customer konfirmasi & jadwal masih aman — simpan ke Supabase
+          // Customer konfirmasi & jadwal masih aman — simpan ke Supabase,
+          // lalu (kalau harga servis ketemu) minta DP 50% lewat QRIS
+          // sebelum booking-nya kelihatan di dashboard buat di-approve.
           const finalKapster = assignedBarber || merged.kapster;
           try {
-            console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
-            await replyAndSaveHistory(msg, `Sip kak! Booking sudah lengkap:\n\nHari: ${merged.hari}\nJam: ${merged.jam}\nServis: ${merged.servis}\nKapster: ${finalKapster}\nNama: ${merged.nama}\n\nTerima kasih, ditunggu kedatangannya!`);
+            const realPhone = await resolveRealPhone(msg.from);
+            const finalService = `${merged.servis}|BARBER:${finalKapster}`;
 
-            try {
-              const realPhone = await resolveRealPhone(msg.from);
-              
-              const finalService = `${merged.servis}|BARBER:${finalKapster}`;
+            const price = await getServicePrice(merged.servis);
+
+            if (price == null) {
+              // Harga servis nggak ketemu — fail OPEN, jangan blokir booking
+              // cuma gara-gara lookup harga gagal. Balik ke perilaku lama
+              // (insert langsung, nggak ada DP).
+              console.error('[DP SKIP] harga servis tidak ditemukan untuk', merged.servis, '— booking diproses tanpa DP.');
+              await replyAndSaveHistory(msg, `Sip kak! Booking sudah lengkap:\n\nHari: ${merged.hari}\nJam: ${merged.jam}\nServis: ${merged.servis}\nKapster: ${finalKapster}\nNama: ${merged.nama}\n\nTerima kasih, ditunggu kedatangannya!`);
+
               const { error } = await supabase.from('whatsapp_requests').insert({
                 sender_name: merged.nama,
                 sender_phone: realPhone,
@@ -564,10 +595,63 @@ client.on('message', async msg => {
                 extracted_service: finalService,
                 is_booking_intent: true
               });
-              if (error) throw error;
-              console.log('[DB SAVED] booking tersimpan ke database untuk', msg.from);
+              if (error) console.error('[DB SAVE ERROR]', error.message);
+              else console.log('[DB SAVED] booking tersimpan ke database untuk', msg.from, '(tanpa DP)');
+
+              conversationState.delete(msg.from);
+              return;
+            }
+
+            const dpAmount = calculateDp(price);
+            const referenceId = `wa-${crypto.randomUUID()}`;
+            const paymentExpiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+
+            // Insert DULU (status awal 'unpaid') supaya dashboard langsung
+            // bisa nunjukin booking ini sebagai "menunggu pembayaran",
+            // sebelum QR-nya bahkan sempat dikirim.
+            const { data: insertedRow, error: insertError } = await supabase
+              .from('whatsapp_requests')
+              .insert({
+                sender_name: merged.nama,
+                sender_phone: realPhone,
+                sender_wa_id: msg.from,
+                raw_message: msg.body,
+                extracted_day: merged.hari,
+                extracted_time: merged.jam,
+                extracted_service: finalService,
+                is_booking_intent: true,
+                payment_status: 'unpaid',
+                dp_amount: dpAmount,
+                xendit_reference_id: referenceId,
+                payment_expires_at: paymentExpiresAt
+              })
+              .select()
+              .single();
+
+            if (insertError || !insertedRow) {
+              console.error('[DB SAVE ERROR]', insertError && insertError.message);
+              await replyAndSaveHistory(msg, 'Waduh kak, ada gangguan pas nyimpen booking-nya. Boleh dicoba lagi sebentar lagi ya.');
+              conversationState.delete(msg.from);
+              return;
+            }
+            console.log('[DB SAVED] booking (unpaid) tersimpan ke database untuk', msg.from);
+
+            try {
+              const { qrString } = await createQrisPaymentRequest({ referenceId, amount: dpAmount });
+              const qrPngBase64 = await QRCode.toDataURL(qrString).then(dataUrl => dataUrl.split(',')[1]);
+              const media = new MessageMedia('image/png', qrPngBase64);
+              const caption = `Hampir selesai kak! Tinggal bayar DP Rp${dpAmount.toLocaleString('id-ID')} (50% dari total) lewat QRIS di atas, scan pakai e-wallet/m-banking apa aja ya. Slot ditahan 30 menit — kalau lewat, booking otomatis batal dan kakak perlu booking ulang.`;
+
+              await sendMediaWithDelay(msg.from, media, caption);
+              console.log('[QR SENT] QR pembayaran DP terkirim ke', msg.from);
             } catch (err) {
-              console.error('[DB SAVE ERROR]', err.message);
+              console.error('[XENDIT ERROR]', err.message, '| reference:', referenceId);
+              await supabase.from('whatsapp_requests').update({ payment_status: 'failed' }).eq('id', insertedRow.id);
+              try {
+                await replyAndSaveHistory(msg, 'Waduh kak, ada gangguan pas nyiapin pembayaran DP-nya. Boleh dicoba booking ulang beberapa saat lagi ya.');
+              } catch (replyErr) {
+                console.error('[REPLY ERROR]', replyErr.message, '| target:', msg.from);
+              }
             }
 
             conversationState.delete(msg.from);
@@ -628,6 +712,85 @@ client.on('message', async msg => {
   } else {
     console.log('[GEMINI SKIPPED/FAILED] Gagal parsing pesan ini.');
   }
+});
+
+// Sweep tiap menit: booking yang statusnya masih 'unpaid' tapi udah lewat
+// batas waktu (payment_expires_at) otomatis ditandai 'expired' -- slot
+// dilepas, nggak nyangkut nunggu bayar selamanya. Baris expired TETAP
+// disimpan (bukan dihapus) buat catatan, cuma disembunyikan dari dashboard
+// di sisi frontend.
+setInterval(async () => {
+  const { error } = await supabase
+    .from('whatsapp_requests')
+    .update({ payment_status: 'expired' })
+    .eq('payment_status', 'unpaid')
+    .lt('payment_expires_at', new Date().toISOString());
+  if (error) console.error('[EXPIRY SWEEP ERROR]', error.message);
+}, 60 * 1000);
+
+// Webhook Xendit -- server HTTP kecil yang nebeng di proses Node yang sama
+// (bukan proses PM2 terpisah), diakses publik lewat Cloudflare Tunnel yang
+// nunjuk ke localhost:3002 di VPS. SENGAJA cuma 1 route, di-bind ke
+// 127.0.0.1 doang (nggak bisa diakses langsung dari luar VPS kecuali lewat
+// tunnel), dan verifikasi token adalah baris PERTAMA sebelum nyentuh apapun
+// lain -- proyek ini pernah kena insiden API yang lupa dikasih otentikasi,
+// endpoint ini didesain sejak awal buat nggak ngulang itu (lihat PROJECT.md).
+const webhookApp = express();
+webhookApp.use(express.json());
+
+webhookApp.post('/webhooks/xendit', async (req, res) => {
+  const token = req.header('x-callback-token');
+  if (!verifyCallbackToken(token)) {
+    console.error('[WEBHOOK REJECTED] x-callback-token tidak valid.');
+    return res.status(401).end();
+  }
+
+  // CATATAN VERIFIKASI: lihat komentar di server/xenditClient.js soal
+  // bentuk payload webhook yang belum 100% pasti dari dokumentasi publik.
+  // Log body mentah di sini pas webhook asli pertama masuk buat konfirmasi.
+  console.log('[WEBHOOK RECEIVED]', JSON.stringify(req.body));
+
+  const { referenceId, isSucceeded } = extractWebhookPayload(req.body);
+  if (!referenceId || !isSucceeded) {
+    return res.status(200).end();
+  }
+
+  const { data: row, error: fetchError } = await supabase
+    .from('whatsapp_requests')
+    .select('*')
+    .eq('xendit_reference_id', referenceId)
+    .maybeSingle();
+
+  if (fetchError || !row) {
+    console.error('[WEBHOOK] reference_id tidak dikenali:', referenceId);
+    return res.status(200).end();
+  }
+  if (row.payment_status === 'paid') {
+    // Idempotency guard -- webhook Xendit bisa di-retry, ini aman diproses ulang.
+    return res.status(200).end();
+  }
+
+  await supabase
+    .from('whatsapp_requests')
+    .update({ payment_status: 'paid', dp_paid_at: new Date().toISOString() })
+    .eq('id', row.id);
+  console.log('[PAYMENT CONFIRMED]', row.sender_wa_id, '| reference:', referenceId);
+
+  if (!row.payment_notified && row.sender_wa_id) {
+    try {
+      const text = `Sip kak ${row.sender_name || ''}! Pembayaran DP kamu udah kami terima. Booking-nya udah dikonfirmasi, ditunggu kedatangannya ya!`;
+      await sendMessageWithDelay(row.sender_wa_id, text);
+      await supabase.from('whatsapp_requests').update({ payment_notified: true }).eq('id', row.id);
+    } catch (err) {
+      console.error('[PAYMENT NOTIFY ERROR]', err.message, '| id:', row.id);
+    }
+  }
+
+  res.status(200).end();
+});
+
+webhookApp.listen(process.env.WEBHOOK_PORT || 3002, '127.0.0.1', () => {
+  console.log('[WEBHOOK SERVER] listening on 127.0.0.1:', process.env.WEBHOOK_PORT || 3002);
 });
 
 client.initialize();
