@@ -94,7 +94,8 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
       setElapsedSeconds(0);
       setIsTimerRunning(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Sengaja cuma depend ke id/startedAt, bukan seluruh objek session --
+  // biar nggak re-sync timer tiap field lain di session berubah.
   }, [session?.id, session?.startedAt]);
 
   const formatTime = (totalSeconds: number) => {

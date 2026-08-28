@@ -51,19 +51,23 @@ function computeNaturalDelay(text) {
   return Math.min(baseDelay + typingDelay, 7000);
 }
 
-async function replyAndSaveHistory(msg, text) {
-  // Balasan "natural": tunjukin indikator sedang mengetik dan tunggu jeda
-  // acak sebelum benar-benar mengirim, supaya nggak kelihatan seperti bot
-  // yang balas instan.
+// Balasan "natural": tunjukin indikator sedang mengetik dan tunggu jeda
+// acak sebelum benar-benar mengirim, supaya nggak kelihatan seperti bot
+// yang balas instan. `getChat` dibungkus try/catch di sini (bukan cuma
+// sendStateTyping-nya) karena pengambilan chat itu sendiri bisa gagal --
+// tetap fail-open, lanjut kirim pesan tanpa indikator typing.
+async function waitWithTypingIndicator(getChat, textForDelay) {
   try {
-    const chat = await msg.getChat();
+    const chat = await getChat();
     await chat.sendStateTyping();
   } catch (err) {
     // Non-fatal — lanjut tanpa indikator typing kalau gagal ambil chat.
   }
+  await new Promise(resolve => setTimeout(resolve, computeNaturalDelay(textForDelay)));
+}
 
-  await new Promise(resolve => setTimeout(resolve, computeNaturalDelay(text)));
-
+async function replyAndSaveHistory(msg, text) {
+  await waitWithTypingIndicator(() => msg.getChat(), text);
   await msg.reply(text);
   if (!chatHistory.has(msg.from)) chatHistory.set(msg.from, []);
   const history = chatHistory.get(msg.from);
@@ -76,15 +80,7 @@ async function replyAndSaveHistory(msg, text) {
 // approve/reject. Butuh chatId eksplisit karena nggak ada objek `msg` untuk
 // dibalas.
 async function sendMessageWithDelay(chatId, text) {
-  try {
-    const chat = await client.getChatById(chatId);
-    await chat.sendStateTyping();
-  } catch (err) {
-    // Non-fatal — lanjut tanpa indikator typing kalau gagal ambil chat.
-  }
-
-  await new Promise(resolve => setTimeout(resolve, computeNaturalDelay(text)));
-
+  await waitWithTypingIndicator(() => client.getChatById(chatId), text);
   await client.sendMessage(chatId, text);
 }
 
@@ -92,19 +88,9 @@ async function sendMessageWithDelay(chatId, text) {
 // pembayaran) dengan caption teks -- pertama kali bot ini kirim media,
 // bukan cuma teks.
 async function sendMediaWithDelay(chatId, media, caption) {
-  try {
-    const chat = await client.getChatById(chatId);
-    await chat.sendStateTyping();
-  } catch (err) {
-    // Non-fatal — lanjut tanpa indikator typing kalau gagal ambil chat.
-  }
-
-  await new Promise(resolve => setTimeout(resolve, computeNaturalDelay(caption || '')));
-
+  await waitWithTypingIndicator(() => client.getChatById(chatId), caption || '');
   await client.sendMessage(chatId, media, { caption });
 }
-
-const API_URL = process.env.API_URL || 'http://localhost:3001';
 
 function getTargetDateStr(dayStr) {
   const d = (dayStr || '').toLowerCase();
