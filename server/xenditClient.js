@@ -7,27 +7,26 @@ const XENDIT_API_BASE = 'https://api.xendit.co';
 // "QR Codes" API yang lama). Auth Basic pakai secret key sebagai username,
 // password kosong (pola standar Xendit).
 //
-// CATATAN VERIFIKASI: bentuk request body ini udah dicek ulang lewat
-// dokumentasi resmi SDK Node Xendit (docs/PaymentRequest.md) jadi cukup
-// yakin bener. Bentuk RESPONSE-nya (di mana persis QR string-nya) kurang
-// pasti dari riset via web search doang -- makanya extractQrString() di
-// bawah nyoba beberapa kemungkinan path sekaligus. Begitu API key beneran
-// udah ada, tes panggilan ini SEKALI lewat curl/log dulu (lihat §5 fase
-// verifikasi di rencana), console.log(JSON.stringify(response.data)) penuh,
-// baru kalau ternyata extractQrString() salah tebak, tinggal tambah 1 baris
-// di situ -- bukan nulis ulang fungsi ini.
+// TERVERIFIKASI lewat panggilan curl langsung ke sandbox (bukan tebakan
+// lagi). API-nya butuh snake_case murni di body request -- SDK resmi Xendit
+// (Node/PHP) pakai camelCase di kode, tapi itu di-convert ke snake_case oleh
+// SDK-nya sendiri sebelum dikirim lewat HTTP. Kode ini pakai axios polos
+// (sengaja, biar minim dependency), jadi field HARUS ditulis snake_case
+// dari awal -- versi camelCase sebelumnya gagal dengan error dari Xendit:
+// "Only one of 'payment_method' or 'payment_method_id' should be present"
+// (field paymentMethod camelCase-nya nggak dikenali sama sekali).
 async function createQrisPaymentRequest({ referenceId, amount }) {
   const response = await axios.post(
     `${XENDIT_API_BASE}/payment_requests`,
     {
-      referenceId,
+      reference_id: referenceId,
       amount,
       currency: 'IDR',
       country: 'ID',
-      paymentMethod: {
+      payment_method: {
         type: 'QR_CODE',
-        qrCode: { channelCode: 'QRIS' },
-        reusability: 'ONE_TIME_USE'
+        reusability: 'ONE_TIME_USE',
+        qr_code: { channel_code: 'QRIS' }
       }
     },
     {
@@ -43,11 +42,18 @@ async function createQrisPaymentRequest({ referenceId, amount }) {
   return { id: response.data.id, qrString };
 }
 
-// Coba beberapa kemungkinan lokasi QR string dalam response, karena
-// dokumentasi publik yang ditemukan nggak konsisten (beda produk Xendit
-// pakai struktur beda -- lihat catatan di atas).
+// Lokasi asli QR string, TERVERIFIKASI dari response curl sandbox:
+// data.payment_method.qr_code.channel_properties.qr_string
+// Cabang lain di bawah dipertahankan cuma sebagai jaring pengaman murah
+// (mis. kalau Xendit ubah bentuk response di masa depan), bukan karena
+// pernah kepake.
 function extractQrString(data) {
   if (!data) return null;
+
+  const channelProps = data.payment_method && data.payment_method.qr_code
+    && data.payment_method.qr_code.channel_properties;
+  if (channelProps && channelProps.qr_string) return channelProps.qr_string;
+
   if (data.qr_string) return data.qr_string;
   if (data.qrString) return data.qrString;
 
