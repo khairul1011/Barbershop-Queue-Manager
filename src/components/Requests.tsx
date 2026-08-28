@@ -3,10 +3,8 @@ import { WhatsAppRequest } from '../types';
 import { MessageSquare, Calendar, Clock, Scissors, UserCheck, ShieldCheck, Check, X, Edit3, Trash, Phone, CornerDownRight, Save, Wallet } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BentoCard } from './ui/BentoCard';
-import { Badge } from '@/components/ui/badge';
 import { useTranslation } from '../i18n';
 import { Button } from '@/components/ui/button';
-import { getPaymentStatusVariant } from '../lib/paymentStatus';
 
 interface RequestsProps {
   requests: WhatsAppRequest[];
@@ -172,10 +170,15 @@ export default function Requests({
             </div>
 
             {!showApprovalActions && req.dpAmount != null && (
-              <Badge variant={getPaymentStatusVariant(req.paymentStatus)} className="gap-1.5 font-sans w-fit">
-                <Wallet size={12} />
-                DP Rp{req.dpAmount.toLocaleString('id-ID')} — {t('requests.waitingDp')}
-              </Badge>
+              <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-3.5 flex items-center justify-between">
+                <span className="text-[10px] text-amber-500 uppercase tracking-wider font-mono font-bold flex items-center gap-1.5">
+                  <Wallet size={12} />
+                  {t('requests.waitingDp')}
+                </span>
+                <span className="text-xl font-bold text-foreground font-sans">
+                  Rp{req.dpAmount.toLocaleString('id-ID')}
+                </span>
+              </div>
             )}
 
             {/* Quoted original message (WhatsApp vibe) */}
@@ -259,7 +262,7 @@ export default function Requests({
       ) : (
         <>
           {/* Section 1: awaiting DP payment — nothing for barber to act on yet */}
-          <div className="space-y-3">
+          <div className="bg-card border border-border rounded-xl p-5 md:p-6 space-y-4">
             <h2 className="text-sm font-bold text-foreground font-sans uppercase tracking-wide flex items-center gap-2">
               <Wallet size={14} className="text-muted-foreground" />
               {t('requests.awaitingPayment')}
@@ -274,7 +277,7 @@ export default function Requests({
           </div>
 
           {/* Section 2: DP paid, waiting on barber's own approve/reject decision */}
-          <div className="space-y-3">
+          <div className="bg-card border border-border rounded-xl p-5 md:p-6 space-y-4">
             <h2 className="text-sm font-bold text-foreground font-sans uppercase tracking-wide flex items-center gap-2">
               <ShieldCheck size={14} className="text-muted-foreground" />
               {t('requests.pendingApproval')}
