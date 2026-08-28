@@ -80,23 +80,28 @@ function verifyCallbackToken(headerValue) {
   return crypto.timingSafeEqual(a, b);
 }
 
-// TERVERIFIKASI lewat contoh payload asli dari tombol "Tes dan simpan" di
-// Xendit Dashboard (bukan tebakan dari dokumentasi lagi). Bentuk aslinya:
-// { event: "payment.capture", data: { reference_id, status: "SUCCEEDED", ... } }
-// untuk pembayaran berhasil, dan { event: "payment_request.expiry",
-// data: { reference_id, status: "EXPIRED", ... } } untuk QR yang kedaluwarsa
-// di sisi Xendit sendiri (independen dari sweep 30-menit kita sendiri di
-// index.js). Field selalu dibungkus di `data`, bukan flat di root -- cabang
-// flat di bawah dipertahankan cuma sebagai jaring pengaman murah, bukan
-// karena masih dipakai.
+// TERVERIFIKASI lewat webhook ASLI (bukan sample generik "Tes dan simpan"
+// lagi -- itu ternyata pakai data dummy yang menyesatkan). Event yang beneran
+// terpicu saat QRIS lunas adalah "payment.succeeded", bentuknya:
+// { event: "payment.succeeded", data: { reference_id, payment_request_id,
+// status: "SUCCEEDED", ... } }.
+//
+// JEBAKAN PENTING: `data.reference_id` di event ini BUKAN reference_id yang
+// kita generate sendiri pas bikin payment request (`wa-xxxx`) -- itu
+// reference_id milik payment_method di dalamnya (UUID acak dari Xendit,
+// beda tiap kali, nggak ada hubungannya sama kita). Field yang BENERAN cocok
+// buat dikorelasikan balik ke baris kita adalah `data.payment_request_id`,
+// yang nilainya sama persis dengan `id` yang dibalikin createQrisPaymentRequest()
+// pas bikin QR -- makanya id itu WAJIB disimpan ke kolom xendit_qr_id pas
+// insert (lihat index.js), bukan cuma xendit_reference_id.
 function extractWebhookPayload(body) {
-  if (!body) return { referenceId: null, isSucceeded: false };
+  if (!body) return { paymentRequestId: null, isSucceeded: false };
   const flat = body.data && typeof body.data === 'object' ? body.data : body;
-  const referenceId = flat.reference_id || flat.referenceId || null;
+  const paymentRequestId = flat.payment_request_id || flat.paymentRequestId || null;
   const status = flat.status || '';
   const event = body.event || '';
   const isSucceeded = status === 'SUCCEEDED' || event.endsWith('.succeeded');
-  return { referenceId, isSucceeded };
+  return { paymentRequestId, isSucceeded };
 }
 
 module.exports = { createQrisPaymentRequest, verifyCallbackToken, extractWebhookPayload };

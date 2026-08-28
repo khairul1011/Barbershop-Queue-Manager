@@ -637,7 +637,15 @@ client.on('message', async msg => {
             console.log('[DB SAVED] booking (unpaid) tersimpan ke database untuk', msg.from);
 
             try {
-              const { qrString } = await createQrisPaymentRequest({ referenceId, amount: dpAmount });
+              const { id: xenditQrId, qrString } = await createQrisPaymentRequest({ referenceId, amount: dpAmount });
+              // xendit_qr_id (id payment request) disimpan di sini karena
+              // itu yang beneran dipakai buat cocokin webhook nanti --
+              // webhook `payment.succeeded` bawa `data.reference_id` milik
+              // payment_method di dalamnya (bukan reference_id kita), yang
+              // cocok cuma `data.payment_request_id`. Lihat catatan di
+              // xenditClient.js.
+              await supabase.from('whatsapp_requests').update({ xendit_qr_id: xenditQrId }).eq('id', insertedRow.id);
+
               const qrPngBase64 = await QRCode.toDataURL(qrString).then(dataUrl => dataUrl.split(',')[1]);
               const media = new MessageMedia('image/png', qrPngBase64);
               const caption = `Hampir selesai kak! Tinggal bayar DP Rp${dpAmount.toLocaleString('id-ID')} (50% dari total) lewat QRIS di atas, scan pakai e-wallet/m-banking apa aja ya. Slot ditahan 30 menit — kalau lewat, booking otomatis batal dan kakak perlu booking ulang.`;
@@ -748,24 +756,21 @@ webhookApp.post('/webhooks/xendit', async (req, res) => {
     return res.status(401).end();
   }
 
-  // CATATAN VERIFIKASI: lihat komentar di server/xenditClient.js soal
-  // bentuk payload webhook yang belum 100% pasti dari dokumentasi publik.
-  // Log body mentah di sini pas webhook asli pertama masuk buat konfirmasi.
   console.log('[WEBHOOK RECEIVED]', JSON.stringify(req.body));
 
-  const { referenceId, isSucceeded } = extractWebhookPayload(req.body);
-  if (!referenceId || !isSucceeded) {
+  const { paymentRequestId, isSucceeded } = extractWebhookPayload(req.body);
+  if (!paymentRequestId || !isSucceeded) {
     return res.status(200).end();
   }
 
   const { data: row, error: fetchError } = await supabase
     .from('whatsapp_requests')
     .select('*')
-    .eq('xendit_reference_id', referenceId)
+    .eq('xendit_qr_id', paymentRequestId)
     .maybeSingle();
 
   if (fetchError || !row) {
-    console.error('[WEBHOOK] reference_id tidak dikenali:', referenceId);
+    console.error('[WEBHOOK] payment_request_id tidak dikenali:', paymentRequestId);
     return res.status(200).end();
   }
   if (row.payment_status === 'paid') {
@@ -777,7 +782,7 @@ webhookApp.post('/webhooks/xendit', async (req, res) => {
     .from('whatsapp_requests')
     .update({ payment_status: 'paid', dp_paid_at: new Date().toISOString() })
     .eq('id', row.id);
-  console.log('[PAYMENT CONFIRMED]', row.sender_wa_id, '| reference:', referenceId);
+  console.log('[PAYMENT CONFIRMED]', row.sender_wa_id, '| payment_request_id:', paymentRequestId);
 
   if (!row.payment_notified && row.sender_wa_id) {
     try {
