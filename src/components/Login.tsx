@@ -5,6 +5,16 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DotPattern } from '@/components/ui/dot-pattern';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel
+} from '@/components/ui/alert-dialog';
 
 interface LoginProps {
   shopName: string;
@@ -17,6 +27,7 @@ export default function Login({ shopName, logoUrl }: LoginProps) {
   const [error, setError] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +42,11 @@ export default function Login({ shopName, logoUrl }: LoginProps) {
     }
   };
 
-  const handleForgotPassword = async (e: React.MouseEvent) => {
+  // Cuma validasi + buka dialog konfirmasi -- BUKAN kirim email langsung.
+  // Sebelumnya klik ini langsung nembak resetPasswordForEmail() tanpa
+  // konfirmasi sama sekali, jadi kalau kolom email kepencet nggak sengaja
+  // ikutan kepencet, email reset password langsung terkirim tanpa disadari.
+  const handleForgotPasswordClick = (e: React.MouseEvent) => {
     e.preventDefault();
     setError(null);
     setInfoMessage(null);
@@ -39,6 +54,12 @@ export default function Login({ shopName, logoUrl }: LoginProps) {
       setError('Masukkan email Anda terlebih dahulu untuk mereset password.');
       return;
     }
+    setShowResetConfirm(true);
+  };
+
+  // Beneran kirim email reset -- cuma dipanggil setelah user konfirmasi di dialog.
+  const confirmResetPassword = async () => {
+    setShowResetConfirm(false);
     setLoading(true);
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: window.location.origin,
@@ -103,7 +124,7 @@ export default function Login({ shopName, logoUrl }: LoginProps) {
                   <Label htmlFor="password">Password</Label>
                   <button
                     type="button"
-                    onClick={handleForgotPassword}
+                    onClick={handleForgotPasswordClick}
                     className="ml-auto inline-block text-sm text-muted-foreground underline-offset-4 hover:underline hover:text-foreground cursor-pointer"
                   >
                     Forgot your password?
@@ -137,6 +158,21 @@ export default function Login({ shopName, logoUrl }: LoginProps) {
           </form>
         </CardContent>
       </Card>
+
+      <AlertDialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset password?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tautan reset password akan dikirim ke <span className="font-medium text-foreground">{email}</span>. Lanjutkan?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmResetPassword}>Kirim Tautan Reset</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
