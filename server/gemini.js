@@ -114,19 +114,9 @@ Tugasmu:
         }
       });
 
-      let raw = response.text.trim();
-      
       // Menghapus backtick markdown jika Gemini tetap menambahkannya
-      if (raw.startsWith('\`\`\`json')) {
-        raw = raw.replace(/^\`\`\`json/, '');
-      }
-      if (raw.startsWith('\`\`\`')) {
-        raw = raw.replace(/^\`\`\`/, '');
-      }
-      if (raw.endsWith('\`\`\`')) {
-        raw = raw.replace(/\`\`\`$/, '');
-      }
-      
+      const raw = response.text.trim().replace(/^\`\`\`(?:json)?\s*/, '').replace(/\`\`\`\s*$/, '');
+
       return JSON.parse(raw.trim());
     } catch (err) {
       console.warn('[FALLBACK]', currentModel, '-> mencoba model berikutnya. Sebab:', err.message);

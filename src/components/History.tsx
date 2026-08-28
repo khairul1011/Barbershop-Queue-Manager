@@ -15,12 +15,20 @@ import { useTranslation } from '../i18n';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
 import { Calendar as CalendarIcon, X, LayoutGrid, List } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DataPagination } from '@/components/ui/DataPagination';
 
 const PAGE_SIZE = 9;
+
+// 'yyyy-MM-dd' berbasis tanggal LOKAL, bukan toISOString() (UTC) -- bug yang
+// sama yang udah diwaspadai di useSupabaseQueue.ts (getLocalDateString).
+function toDateKey(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
 interface HistoryProps {
   completedEntries: QueueEntry[];
@@ -46,7 +54,7 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
     const matchesSearch = item.customerName.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           item.service.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesBarber = selectedBarberFilter === t('history.allBarbers') || item.barber === selectedBarberFilter;
-    const matchesDate = !selectedDateFilter || item.scheduledDate === format(selectedDateFilter, "yyyy-MM-dd");
+    const matchesDate = !selectedDateFilter || item.scheduledDate === toDateKey(selectedDateFilter);
     return matchesSearch && matchesBarber && matchesDate;
   });
 
@@ -114,7 +122,7 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
               >
                 <CalendarIcon size={16} className="text-muted-foreground shrink-0" />
                 <span className="truncate">
-                  {selectedDateFilter ? format(selectedDateFilter, "PP") : "Semua Tanggal"}
+                  {selectedDateFilter ? selectedDateFilter.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : "Semua Tanggal"}
                 </span>
               </button>
             </PopoverTrigger>
