@@ -646,6 +646,9 @@ client.on('message', async msg => {
               console.log('[QR SENT] QR pembayaran DP terkirim ke', msg.from);
             } catch (err) {
               console.error('[XENDIT ERROR]', err.message, '| reference:', referenceId);
+              if (err.response && err.response.data) {
+                console.error('[XENDIT ERROR DETAIL]', JSON.stringify(err.response.data));
+              }
               await supabase.from('whatsapp_requests').update({ payment_status: 'failed' }).eq('id', insertedRow.id);
               try {
                 await replyAndSaveHistory(msg, 'Waduh kak, ada gangguan pas nyiapin pembayaran DP-nya. Boleh dicoba booking ulang beberapa saat lagi ya.');
