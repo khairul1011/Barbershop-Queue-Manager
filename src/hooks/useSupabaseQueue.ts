@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { QueueEntry, Barber, Service, QueueStatus } from '../types';
 
@@ -49,16 +49,24 @@ function mapStatusFromSupabase(status: string): QueueStatus {
 }
 
 export function useSupabaseQueue(barbers: Barber[], services: Service[]) {
-  const [queue, setQueue] = useState<QueueEntry[]>([]);
-  const [servingSessions, setServingSessions] = useState<Record<string, QueueEntry | null>>({});
-  const [completedEntries, setCompletedEntries] = useState<QueueEntry[]>([]);
-  
+  // Baris MENTAH dari Supabase (belum di-mapping ke QueueEntry) -- barbers/services
+  // dipisah jadi useMemo di bawah, BUKAN dependency di sini. Sebelumnya
+  // fetchQueueEntries punya [barbers, services] sebagai dependency useCallback,
+  // jadi tiap salah satu dari dua hook lain itu selesai fetch sendiri-sendiri
+  // (referensi array-nya berubah), SELURUH query queue_entries di-fetch ULANG
+  // dari Supabase -- padahal cuma butuh dipetakan ulang pakai nama yang baru
+  // datang, bukan ambil data baru. Hasilnya: 3x fetch redundan (mount awal +
+  // begitu barbers resolve + begitu services resolve) = 6 request queue_entries
+  // per page load (kekonfirmasi lewat DevTools Network user). Sekarang fetch
+  // cuma sekali di mount, pemetaan nama dihitung ulang murni di client lewat
+  // useMemo kalau barbers/services berubah -- tanpa network call tambahan.
+  const [activeRowsRaw, setActiveRowsRaw] = useState<any[]>([]);
+  const [completedRowsRaw, setCompletedRowsRaw] = useState<any[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
   const fetchQueueEntries = useCallback(async () => {
-    // Membutuhkan barbers dan services untuk pemetaan, jadi tunggu sampai tidak kosong
-    // Tapi bisa jadi memang kosong di awal jika belum ada.
     try {
       setLoading(true);
       setError(null);
@@ -102,109 +110,110 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[]) {
       if (activeRes.error) throw activeRes.error;
       if (completedRes.error) throw completedRes.error;
 
-      const activeRows = activeRes.data || [];
-      const completedRows = completedRes.data || [];
-
-      // Temporary groups to calculate queue numbers for 'Estimated' status
-      const estimatedCountPerDayBarber: Record<string, number> = {};
-
-      const mapRowToEntry = (row: any): QueueEntry => {
-        const barberObj = barbers.find(b => b.id === row.barber_id);
-        const barberName = barberObj ? barberObj.name : 'Unknown Barber';
-
-        const serviceObj = services.find(s => s.id === row.service_id);
-        const serviceName = serviceObj ? serviceObj.name : 'Unknown Service';
-        const durationMinutes = serviceObj ? serviceObj.duration : 30;
-
-        const dateObj = new Date(row.scheduled_date + 'T00:00:00'); // force local midnight
-        const dayAbbr = dateObj.toLocaleDateString('en-US', { weekday: 'short' }) as DayType;
-
-        let timeRange = '';
-        if (row.scheduled_time) {
-            const startH = parseInt(row.scheduled_time.split(':')[0]);
-            const startM = parseInt(row.scheduled_time.split(':')[1]);
-            const startTotalMinutes = startH * 60 + startM;
-            const endTotalMinutes = startTotalMinutes + durationMinutes;
-            const endH = Math.floor(endTotalMinutes / 60) % 24;
-            const endM = endTotalMinutes % 60;
-
-            const startStr = `${startH.toString().padStart(2, '0')}:${startM.toString().padStart(2, '0')}`;
-            const endStr = `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`;
-            timeRange = `~${startStr} - ${endStr}`;
-        } else if (row.started_at) {
-            const d = new Date(row.started_at);
-            const startH = d.getHours();
-            const startM = d.getMinutes();
-            const startTotalMinutes = startH * 60 + startM;
-            const endTotalMinutes = startTotalMinutes + durationMinutes;
-            const endH = Math.floor(endTotalMinutes / 60) % 24;
-            const endM = endTotalMinutes % 60;
-
-            const startStr = `${startH.toString().padStart(2, '0')}:${startM.toString().padStart(2, '0')}`;
-            const endStr = `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`;
-            timeRange = `~${startStr} - ${endStr}`;
-        } else {
-            timeRange = '~--:-- - --:--';
-        }
-
-        const frontendStatus = mapStatusFromSupabase(row.status);
-        let queueNumber: number | undefined = undefined;
-
-        if (frontendStatus === 'Estimated') {
-            const key = `${row.scheduled_date}_${row.barber_id}`;
-            if (!estimatedCountPerDayBarber[key]) estimatedCountPerDayBarber[key] = 0;
-            estimatedCountPerDayBarber[key]++;
-            queueNumber = estimatedCountPerDayBarber[key];
-        }
-
-        return {
-          id: row.id,
-          customerName: row.customer_name,
-          status: frontendStatus,
-          timeRange,
-          queueNumber,
-          day: dayAbbr,
-          scheduledDate: row.scheduled_date,
-          service: serviceName,
-          barber: barberName,
-          phone: row.phone || '',
-          durationMinutes,
-          startedAt: row.started_at || undefined,
-          completedAt: row.completed_at || undefined,
-        };
-      };
-
-      // Partisi entri aktif: sesi berjalan (started_at terisi) vs antrian menunggu.
-      const newQueue: QueueEntry[] = [];
-      const newServingSessions: Record<string, QueueEntry | null> = {};
-
-      activeRows.forEach((row: any) => {
-        const entry = mapRowToEntry(row);
-        if (row.started_at) {
-          newServingSessions[row.barber_id] = entry;
-        } else {
-          newQueue.push(entry);
-        }
-      });
-
-      // Semua row dari Query B sudah pasti selesai (completed_at terisi) — langsung jadi riwayat.
-      const newCompletedEntries: QueueEntry[] = completedRows.map(mapRowToEntry);
-
-      setQueue(newQueue);
-      setServingSessions(newServingSessions);
-      setCompletedEntries(newCompletedEntries);
-
+      setActiveRowsRaw(activeRes.data || []);
+      setCompletedRowsRaw(completedRes.data || []);
     } catch (err) {
       console.error('Error fetching queue entries:', err);
       setError(err instanceof Error ? err : new Error(String(err)));
     } finally {
       setLoading(false);
     }
-  }, [barbers, services]);
+  }, []);
 
   useEffect(() => {
     fetchQueueEntries();
   }, [fetchQueueEntries]);
+
+  // Pemetaan baris mentah -> QueueEntry, dihitung ulang di client (bukan
+  // fetch baru) tiap kali barbers/services/raw rows berubah.
+  const { queue, servingSessions, completedEntries } = useMemo(() => {
+    // Temporary groups to calculate queue numbers for 'Estimated' status
+    const estimatedCountPerDayBarber: Record<string, number> = {};
+
+    const mapRowToEntry = (row: any): QueueEntry => {
+      const barberObj = barbers.find(b => b.id === row.barber_id);
+      const barberName = barberObj ? barberObj.name : 'Unknown Barber';
+
+      const serviceObj = services.find(s => s.id === row.service_id);
+      const serviceName = serviceObj ? serviceObj.name : 'Unknown Service';
+      const durationMinutes = serviceObj ? serviceObj.duration : 30;
+
+      const dateObj = new Date(row.scheduled_date + 'T00:00:00'); // force local midnight
+      const dayAbbr = dateObj.toLocaleDateString('en-US', { weekday: 'short' }) as DayType;
+
+      let timeRange = '';
+      if (row.scheduled_time) {
+          const startH = parseInt(row.scheduled_time.split(':')[0]);
+          const startM = parseInt(row.scheduled_time.split(':')[1]);
+          const startTotalMinutes = startH * 60 + startM;
+          const endTotalMinutes = startTotalMinutes + durationMinutes;
+          const endH = Math.floor(endTotalMinutes / 60) % 24;
+          const endM = endTotalMinutes % 60;
+
+          const startStr = `${startH.toString().padStart(2, '0')}:${startM.toString().padStart(2, '0')}`;
+          const endStr = `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`;
+          timeRange = `~${startStr} - ${endStr}`;
+      } else if (row.started_at) {
+          const d = new Date(row.started_at);
+          const startH = d.getHours();
+          const startM = d.getMinutes();
+          const startTotalMinutes = startH * 60 + startM;
+          const endTotalMinutes = startTotalMinutes + durationMinutes;
+          const endH = Math.floor(endTotalMinutes / 60) % 24;
+          const endM = endTotalMinutes % 60;
+
+          const startStr = `${startH.toString().padStart(2, '0')}:${startM.toString().padStart(2, '0')}`;
+          const endStr = `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`;
+          timeRange = `~${startStr} - ${endStr}`;
+      } else {
+          timeRange = '~--:-- - --:--';
+      }
+
+      const frontendStatus = mapStatusFromSupabase(row.status);
+      let queueNumber: number | undefined = undefined;
+
+      if (frontendStatus === 'Estimated') {
+          const key = `${row.scheduled_date}_${row.barber_id}`;
+          if (!estimatedCountPerDayBarber[key]) estimatedCountPerDayBarber[key] = 0;
+          estimatedCountPerDayBarber[key]++;
+          queueNumber = estimatedCountPerDayBarber[key];
+      }
+
+      return {
+        id: row.id,
+        customerName: row.customer_name,
+        status: frontendStatus,
+        timeRange,
+        queueNumber,
+        day: dayAbbr,
+        scheduledDate: row.scheduled_date,
+        service: serviceName,
+        barber: barberName,
+        phone: row.phone || '',
+        durationMinutes,
+        startedAt: row.started_at || undefined,
+        completedAt: row.completed_at || undefined,
+      };
+    };
+
+    // Partisi entri aktif: sesi berjalan (started_at terisi) vs antrian menunggu.
+    const newQueue: QueueEntry[] = [];
+    const newServingSessions: Record<string, QueueEntry | null> = {};
+
+    activeRowsRaw.forEach((row: any) => {
+      const entry = mapRowToEntry(row);
+      if (row.started_at) {
+        newServingSessions[row.barber_id] = entry;
+      } else {
+        newQueue.push(entry);
+      }
+    });
+
+    // Semua row dari Query B sudah pasti selesai (completed_at terisi) — langsung jadi riwayat.
+    const newCompletedEntries: QueueEntry[] = completedRowsRaw.map(mapRowToEntry);
+
+    return { queue: newQueue, servingSessions: newServingSessions, completedEntries: newCompletedEntries };
+  }, [activeRowsRaw, completedRowsRaw, barbers, services]);
 
   // CREATE
   const addQueueEntry = async (entry: Partial<QueueEntry> & { barberId: string, serviceId: string, scheduledTime?: string }) => {

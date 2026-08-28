@@ -76,10 +76,34 @@ export default function App() {
 
   // Core App States
   const { requests, loading: requestsLoading, error: requestsError, approveRequest, rejectRequest, updateRequestDetails, refreshRequests } = useSupabaseRequests();
-  const { barbers, loading: barbersLoading, error: barbersError, addBarber, editBarber, removeBarber, updateBarberStatus } = useSupabaseBarbers();
-  const { services, loading: servicesLoading, error: servicesError, addService, updateService, removeService } = useSupabaseServices();
-  const { queue, servingSessions, completedEntries, loading: queueLoading, error: queueError, addQueueEntry, updateQueueEntryStatus, serveQueueEntry, completeServingSession, removeQueueEntry, startQuickWalkIn } = useSupabaseQueue(barbers, services);
-  const { businessHours, updateBusinessHours, updateShopProfile } = useSupabaseBusinessHours();
+  const { barbers, loading: barbersLoading, error: barbersError, addBarber, editBarber, removeBarber, updateBarberStatus, refreshBarbers } = useSupabaseBarbers();
+  const { services, loading: servicesLoading, error: servicesError, addService, updateService, removeService, refreshServices } = useSupabaseServices();
+  const { queue, servingSessions, completedEntries, loading: queueLoading, error: queueError, addQueueEntry, updateQueueEntryStatus, serveQueueEntry, completeServingSession, removeQueueEntry, startQuickWalkIn, refreshQueue } = useSupabaseQueue(barbers, services);
+  const { businessHours, updateBusinessHours, updateShopProfile, refreshBusinessHours } = useSupabaseBusinessHours();
+
+  // Semua hook data di atas fetch SEKALI doang pas komponen ini pertama kali
+  // mount -- dan itu kejadian SEBELUM user login (hook-nya tetap jalan
+  // walaupun yang di-render masih <Login/>, soalnya React tetap manggil
+  // semua hook di atas duluan sebelum return bersyarat di bawah). Karena RLS
+  // database ini dibatasi cuma `authenticated`, fetch pertama itu balik
+  // kosong. Nggak ada satupun hook yang otomatis refetch begitu user beneran
+  // login -- makanya dashboard kelihatan kosong sampai di-reload manual
+  // (reload = fetch kejadian ULANG, kali ini session-nya udah ada). Effect
+  // ini nembak ulang semua refresh pas session baru aja kepasang (login
+  // sukses), pakai ref biar cuma sekali pas transisi null->ada, bukan tiap
+  // kali object session berubah referensi (mis. token auto-refresh).
+  const hadSessionRef = useRef(false);
+  useEffect(() => {
+    const justLoggedIn = !hadSessionRef.current && !!session;
+    hadSessionRef.current = !!session;
+    if (justLoggedIn) {
+      refreshRequests();
+      refreshBarbers();
+      refreshServices();
+      refreshQueue();
+      refreshBusinessHours();
+    }
+  }, [session, refreshRequests, refreshBarbers, refreshServices, refreshQueue, refreshBusinessHours]);
 
   // Stats Counters (derived from Supabase data)
 
