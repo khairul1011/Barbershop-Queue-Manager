@@ -29,6 +29,20 @@ function randomBetween(min, max) {
   return min + Math.random() * (max - min);
 }
 
+// Lock global sederhana buat serialize "cek ketersediaan -> insert booking".
+// Tanpa ini, dua customer beda yang confirm ("ya") nyaris bersamaan bisa
+// sama-sama lolos checkAvailability() SEBELUM salah satu sempat ke-insert
+// baris ke whatsapp_requests -- jadi dua-duanya ke-assign kapster yang sama
+// walau minta jam yang sama (harusnya customer kedua diarahin ke kapster
+// lain yang kosong). Insiden nyata yang bikin ini ditambahin. Cukup lock
+// in-memory (bukan DB lock) karena bot ini satu proses Node tunggal.
+let bookingLock = Promise.resolve();
+function withBookingLock(fn) {
+  const run = bookingLock.then(fn, fn);
+  bookingLock = run.then(() => {}, () => {}); // error di satu booking jangan macetin antrian booking berikutnya
+  return run;
+}
+
 // Jeda "natural" sebelum kirim pesan — dasar 1.5-3 detik + tambahan mengikuti
 // panjang teks (mirip kecepatan ngetik manusia), dibatasi maksimal ~7 detik.
 function computeNaturalDelay(text) {
@@ -555,87 +569,101 @@ client.on('message', async msg => {
       } else if (oldState.awaitingConfirmation === true) {
         // (b) Semua terisi & sedang menunggu konfirmasi
         if (isKonfirmasi) {
-          // CEK KETERSEDIAAN ULANG SAAT KONFIRMASI (BISA JADI SUDAH DIAMBIL ORANG SAAT MENUNGGU BALASAN)
-          const { conflict, msg: conflictMsg, assignedBarber } = await checkAvailability(merged.hari, merged.jam, merged.kapster);
-          if (conflict) {
-            conversationState.set(msg.from, { ...merged, jam: null, kapster: null, awaitingConfirmation: false, lastUpdated: Date.now() });
-            try {
-              console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
-              await replyAndSaveHistory(msg, `Waduh kak, barusan saja jadwalnya diambil orang lain. ${conflictMsg}`);
-            } catch (err) {
-              console.error('[REPLY ERROR]', err.message, '| target:', msg.from);
-            }
-            return;
-          }
-
-          // Customer konfirmasi & jadwal masih aman — simpan ke Supabase,
-          // lalu (kalau harga servis ketemu) minta DP 50% lewat QRIS
-          // sebelum booking-nya kelihatan di dashboard buat di-approve.
-          const finalKapster = assignedBarber || merged.kapster;
           try {
-            const realPhone = await resolveRealPhone(msg.from);
-            const finalService = `${merged.servis}|BARBER:${finalKapster}`;
+            // CEK KETERSEDIAAN + INSERT dibungkus withBookingLock supaya
+            // atomik terhadap customer LAIN yang confirm bersamaan -- tanpa
+            // ini, dua booking bisa lolos checkAvailability() bareng
+            // sebelum salah satu sempat ke-insert, jadi ke-assign kapster
+            // yang sama. Semua langkah SETELAH insert (kirim balasan,
+            // generate QR Xendit) sengaja di LUAR lock -- baris itu udah
+            // kesimpen, customer berikutnya yang checkAvailability() bakal
+            // lihat baris ini dengan benar walau QR-nya masih diproses.
+            const lockResult = await withBookingLock(async () => {
+              const { conflict, msg: conflictMsg, assignedBarber } = await checkAvailability(merged.hari, merged.jam, merged.kapster);
+              if (conflict) {
+                return { outcome: 'conflict', conflictMsg };
+              }
 
-            const price = await getServicePrice(merged.servis);
+              const finalKapster = assignedBarber || merged.kapster;
+              const realPhone = await resolveRealPhone(msg.from);
+              const finalService = `${merged.servis}|BARBER:${finalKapster}`;
+              const price = await getServicePrice(merged.servis);
 
-            if (price == null) {
-              // Harga servis nggak ketemu — fail OPEN, jangan blokir booking
-              // cuma gara-gara lookup harga gagal. Balik ke perilaku lama
-              // (insert langsung, nggak ada DP).
-              console.error('[DP SKIP] harga servis tidak ditemukan untuk', merged.servis, '— booking diproses tanpa DP.');
-              await replyAndSaveHistory(msg, `Sip kak! Booking sudah lengkap:\n\nHari: ${merged.hari}\nJam: ${merged.jam}\nServis: ${merged.servis}\nKapster: ${finalKapster}\nNama: ${merged.nama}\n\nTerima kasih, ditunggu kedatangannya!`);
+              if (price == null) {
+                // Harga servis nggak ketemu — fail OPEN, jangan blokir booking
+                // cuma gara-gara lookup harga gagal. Balik ke perilaku lama
+                // (insert langsung, nggak ada DP).
+                console.error('[DP SKIP] harga servis tidak ditemukan untuk', merged.servis, '— booking diproses tanpa DP.');
+                const { error } = await supabase.from('whatsapp_requests').insert({
+                  sender_name: merged.nama,
+                  sender_phone: realPhone,
+                  sender_wa_id: msg.from,
+                  raw_message: msg.body,
+                  extracted_day: merged.hari,
+                  extracted_time: merged.jam,
+                  extracted_service: finalService,
+                  is_booking_intent: true
+                });
+                if (error) console.error('[DB SAVE ERROR]', error.message);
+                else console.log('[DB SAVED] booking tersimpan ke database untuk', msg.from, '(tanpa DP)');
+                return { outcome: 'noDp', finalKapster };
+              }
 
-              const { error } = await supabase.from('whatsapp_requests').insert({
-                sender_name: merged.nama,
-                sender_phone: realPhone,
-                sender_wa_id: msg.from,
-                raw_message: msg.body,
-                extracted_day: merged.hari,
-                extracted_time: merged.jam,
-                extracted_service: finalService,
-                is_booking_intent: true
-              });
-              if (error) console.error('[DB SAVE ERROR]', error.message);
-              else console.log('[DB SAVED] booking tersimpan ke database untuk', msg.from, '(tanpa DP)');
+              const dpAmount = calculateDp(price);
+              const referenceId = `wa-${crypto.randomUUID()}`;
+              const paymentExpiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
-              conversationState.delete(msg.from);
+              // Insert DULU (status awal 'unpaid') supaya dashboard langsung
+              // bisa nunjukin booking ini sebagai "menunggu pembayaran",
+              // sebelum QR-nya bahkan sempat dikirim.
+              const { data: insertedRow, error: insertError } = await supabase
+                .from('whatsapp_requests')
+                .insert({
+                  sender_name: merged.nama,
+                  sender_phone: realPhone,
+                  sender_wa_id: msg.from,
+                  raw_message: msg.body,
+                  extracted_day: merged.hari,
+                  extracted_time: merged.jam,
+                  extracted_service: finalService,
+                  is_booking_intent: true,
+                  payment_status: 'unpaid',
+                  dp_amount: dpAmount,
+                  xendit_reference_id: referenceId,
+                  payment_expires_at: paymentExpiresAt
+                })
+                .select()
+                .single();
+
+              if (insertError || !insertedRow) {
+                console.error('[DB SAVE ERROR]', insertError && insertError.message);
+                return { outcome: 'insertError' };
+              }
+              console.log('[DB SAVED] booking (unpaid) tersimpan ke database untuk', msg.from);
+              return { outcome: 'dp', insertedRow, dpAmount, referenceId };
+            });
+
+            if (lockResult.outcome === 'conflict') {
+              conversationState.set(msg.from, { ...merged, jam: null, kapster: null, awaitingConfirmation: false, lastUpdated: Date.now() });
+              console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
+              await replyAndSaveHistory(msg, `Waduh kak, barusan saja jadwalnya diambil orang lain. ${lockResult.conflictMsg}`);
               return;
             }
 
-            const dpAmount = calculateDp(price);
-            const referenceId = `wa-${crypto.randomUUID()}`;
-            const paymentExpiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
-
-            // Insert DULU (status awal 'unpaid') supaya dashboard langsung
-            // bisa nunjukin booking ini sebagai "menunggu pembayaran",
-            // sebelum QR-nya bahkan sempat dikirim.
-            const { data: insertedRow, error: insertError } = await supabase
-              .from('whatsapp_requests')
-              .insert({
-                sender_name: merged.nama,
-                sender_phone: realPhone,
-                sender_wa_id: msg.from,
-                raw_message: msg.body,
-                extracted_day: merged.hari,
-                extracted_time: merged.jam,
-                extracted_service: finalService,
-                is_booking_intent: true,
-                payment_status: 'unpaid',
-                dp_amount: dpAmount,
-                xendit_reference_id: referenceId,
-                payment_expires_at: paymentExpiresAt
-              })
-              .select()
-              .single();
-
-            if (insertError || !insertedRow) {
-              console.error('[DB SAVE ERROR]', insertError && insertError.message);
+            if (lockResult.outcome === 'insertError') {
               await replyAndSaveHistory(msg, 'Waduh kak, ada gangguan pas nyimpen booking-nya. Boleh dicoba lagi sebentar lagi ya.');
               conversationState.delete(msg.from);
               return;
             }
-            console.log('[DB SAVED] booking (unpaid) tersimpan ke database untuk', msg.from);
 
+            if (lockResult.outcome === 'noDp') {
+              await replyAndSaveHistory(msg, `Sip kak! Booking sudah lengkap:\n\nHari: ${merged.hari}\nJam: ${merged.jam}\nServis: ${merged.servis}\nKapster: ${lockResult.finalKapster}\nNama: ${merged.nama}\n\nTerima kasih, ditunggu kedatangannya!`);
+              conversationState.delete(msg.from);
+              return;
+            }
+
+            // outcome === 'dp'
+            const { insertedRow, dpAmount, referenceId } = lockResult;
             try {
               const { id: xenditQrId, qrString } = await createQrisPaymentRequest({ referenceId, amount: dpAmount });
               // xendit_qr_id (id payment request) disimpan di sini karena
