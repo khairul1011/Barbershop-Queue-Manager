@@ -136,6 +136,20 @@ function getTargetDateStr(dayStr) {
   return `${y}-${m}-${dd}`;
 }
 
+// Insiden nyata: customer udah bilang "besok", terus balas lagi cuma soal
+// jam ("jam 5?") -- Gemini di-panggil ULANG buat parse pesan itu (semua
+// pesan selalu di-Gemini-in), dan kadang "ngarang" hari (mis. balikin
+// "hari ini") walau pesannya nggak nyebut hari sama sekali. Kalau dipercaya
+// langsung, itu nimpa hari yang udah BENER kesimpen dari turn sebelumnya --
+// pola yang sama kayak bug kapster yang udah dibenerin duluan. Guard ini
+// nolak update `hari` kecuali pesan ASLI customer beneran nyebut kata
+// terkait hari -- sama kata kuncinya kayak getTargetDateStr() di atas.
+const DAY_KEYWORDS = ['besok', 'lusa', 'hari ini', 'senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu'];
+function mentionsDay(text) {
+  const t = (text || '').toLowerCase();
+  return DAY_KEYWORDS.some(k => t.includes(k));
+}
+
 async function checkAvailability(hariStr, jamStr, kapsterStr) {
   const dateStr = getTargetDateStr(hariStr);
   const { data: queue } = await supabase.from('queue_entries')
@@ -499,7 +513,7 @@ client.on('message', async msg => {
       
       const merged = {
         nama: parsedData.nama ?? oldState.nama,
-        hari: parsedData.hari ?? oldState.hari,
+        hari: mentionsDay(msg.body) ? (parsedData.hari ?? oldState.hari) : oldState.hari,
         jam: parsedData.jam ?? oldState.jam,
         servis: parsedData.servis ?? oldState.servis,
         kapster: parsedData.kapster ?? oldState.kapster
@@ -523,7 +537,7 @@ client.on('message', async msg => {
       
       const merged = {
         nama: parsedData.nama ?? oldState.nama,
-        hari: parsedData.hari ?? oldState.hari,
+        hari: mentionsDay(msg.body) ? (parsedData.hari ?? oldState.hari) : oldState.hari,
         jam: parsedData.jam ?? oldState.jam,
         servis: parsedData.servis ?? oldState.servis,
         kapster: parsedData.kapster ?? oldState.kapster
