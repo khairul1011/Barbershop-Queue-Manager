@@ -564,13 +564,23 @@ client.on('message', async msg => {
             // generate QR Xendit) sengaja di LUAR lock -- baris itu udah
             // kesimpen, customer berikutnya yang checkAvailability() bakal
             // lihat baris ini dengan benar walau QR-nya masih diproses.
+            // Pakai oldState.kapster (bukan merged.kapster) buat cek+simpan --
+            // insiden nyata: customer balas "ya" doang, tapi Gemini di-panggil
+            // ULANG buat parse pesan itu (semua pesan selalu di-Gemini-in) dan
+            // "ngarang" nama kapster dari daftar di system prompt walau "ya"
+            // jelas nggak nyebut siapapun. Kalau dipakai merged.kapster,
+            // karangan itu nimpa kapster yang udah BENER ditentuin & ditampilin
+            // di ringkasan konfirmasi sebelumnya, bikin dua customer beda
+            // ke-assign kapster yang sama walau checkAvailability() jalan
+            // sempurna. oldState.kapster = persis apa yang customer udah liat
+            // & setujui, satu-satunya sumber kebenaran pas "ya" doang.
             const lockResult = await withBookingLock(async () => {
-              const { conflict, msg: conflictMsg, assignedBarber } = await checkAvailability(merged.hari, merged.jam, merged.kapster);
+              const { conflict, msg: conflictMsg, assignedBarber } = await checkAvailability(merged.hari, merged.jam, oldState.kapster);
               if (conflict) {
                 return { outcome: 'conflict', conflictMsg };
               }
 
-              const finalKapster = assignedBarber || merged.kapster;
+              const finalKapster = assignedBarber || oldState.kapster;
               const realPhone = await resolveRealPhone(msg.from);
               const finalService = `${merged.servis}|BARBER:${finalKapster}`;
               const price = await getServicePrice(merged.servis);
