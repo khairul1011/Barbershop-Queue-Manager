@@ -923,6 +923,7 @@ webhookApp.get('/demo/api/list', async (req, res) => {
     .from('whatsapp_requests')
     .select('id, sender_name, dp_amount, extracted_day, extracted_time, extracted_service')
     .eq('payment_status', 'unpaid')
+    .not('xendit_qr_id', 'is', null) // buang booking lama pra-fitur DP (payment_status default 'unpaid' tapi nggak pernah ada QR)
     .order('received_at', { ascending: false })
     .limit(10);
 
