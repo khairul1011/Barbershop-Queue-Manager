@@ -827,14 +827,21 @@ webhookApp.get('/demo', (req, res) => {
   #passGate input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #334155; background: #1e293b; color: #f1f5f9; font-size: 16px; margin-bottom: 10px; }
   #passGate button { width: 100%; padding: 12px; border-radius: 10px; border: none; background: #22c55e; color: #052e16; font-weight: 700; font-size: 15px; }
   #app { max-width: 420px; margin: 0 auto; display: none; }
+  #scanBtn { width: 100%; padding: 16px; border-radius: 14px; border: none; background: #22c55e; color: #052e16; font-weight: 800; font-size: 16px; margin-bottom: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; }
   .card { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 16px; margin-bottom: 12px; }
   .card .name { font-weight: 700; font-size: 15px; }
   .card .meta { font-size: 12px; color: #94a3b8; margin-top: 2px; }
   .card .amount { font-size: 22px; font-weight: 800; color: #22c55e; margin: 10px 0; }
-  .card button { width: 100%; padding: 12px; border-radius: 10px; border: none; background: #22c55e; color: #052e16; font-weight: 700; font-size: 14px; }
+  .card button { width: 100%; padding: 12px; border-radius: 10px; border: none; background: #334155; color: #f1f5f9; font-weight: 700; font-size: 13px; }
   .card button:disabled { background: #334155; color: #94a3b8; }
   .card button.done { background: #16a34a; color: white; }
-  .empty { text-align: center; color: #64748b; font-size: 13px; margin-top: 60px; }
+  .empty { text-align: center; color: #64748b; font-size: 13px; margin-top: 20px; }
+  #scanOverlay { display: none; position: fixed; inset: 0; background: #000; z-index: 50; flex-direction: column; align-items: center; justify-content: center; }
+  #scanOverlay.active { display: flex; }
+  #scanVideo { width: 100%; max-width: 480px; }
+  #scanFrame { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 240px; height: 240px; border: 3px solid #22c55e; border-radius: 16px; box-shadow: 0 0 0 2000px rgba(0,0,0,0.5); }
+  #scanStatus { position: absolute; bottom: 90px; color: #fff; font-size: 14px; text-align: center; padding: 0 20px; }
+  #scanCancel { position: absolute; bottom: 30px; padding: 12px 28px; border-radius: 999px; border: none; background: #334155; color: #fff; font-weight: 700; }
 </style>
 </head>
 <body>
@@ -850,12 +857,24 @@ webhookApp.get('/demo', (req, res) => {
   </div>
 
   <div id="app">
+    <button id="scanBtn" onclick="startScan()">📷 Scan QR untuk Bayar</button>
     <div id="list"></div>
   </div>
 
+  <div id="scanOverlay">
+    <video id="scanVideo" playsinline autoplay muted></video>
+    <div id="scanFrame"></div>
+    <div id="scanStatus">Arahin kamera ke QR pembayaran</div>
+    <button id="scanCancel" onclick="stopScan()">Batal</button>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script>
   const params = new URLSearchParams(location.search);
   let kode = params.get('kode') || '';
+  let currentRows = [];
+  let scanStream = null;
+  let scanRAF = null;
 
   function unlock() {
     kode = document.getElementById('passInput').value.trim();
@@ -871,8 +890,8 @@ webhookApp.get('/demo', (req, res) => {
     }
     document.getElementById('passGate').style.display = 'none';
     document.getElementById('app').style.display = 'block';
-    const rows = await res.json();
-    render(rows);
+    currentRows = await res.json();
+    render(currentRows);
   }
 
   function render(rows) {
@@ -886,14 +905,13 @@ webhookApp.get('/demo', (req, res) => {
         <div class="name">\${r.sender_name}</div>
         <div class="meta">\${r.extracted_day}, \${r.extracted_time} -- \${(r.extracted_service || '').split('|')[0]}</div>
         <div class="amount">Rp\${Number(r.dp_amount).toLocaleString('id-ID')}</div>
-        <button onclick="pay('\${r.id}', this)">Bayar Sekarang</button>
+        <button onclick="pay('\${r.id}', this)">Tandai lunas manual</button>
       </div>
     \`).join('');
   }
 
   async function pay(id, btn) {
-    btn.disabled = true;
-    btn.textContent = 'Memproses...';
+    if (btn) { btn.disabled = true; btn.textContent = 'Memproses...'; }
     try {
       const res = await fetch('/demo/api/pay', {
         method: 'POST',
@@ -901,11 +919,70 @@ webhookApp.get('/demo', (req, res) => {
         body: JSON.stringify({ id, kode })
       });
       if (!res.ok) throw new Error('gagal');
-      btn.textContent = '✓ Berhasil dibayar';
-      btn.classList.add('done');
+      if (btn) { btn.textContent = '✓ Berhasil dibayar'; btn.classList.add('done'); }
+      return true;
     } catch (err) {
-      btn.textContent = 'Gagal, coba lagi';
-      btn.disabled = false;
+      if (btn) { btn.textContent = 'Gagal, coba lagi'; btn.disabled = false; }
+      return false;
+    }
+  }
+
+  // QR sungguhan dari Xendit Test Mode isinya placeholder generik (bukan
+  // data unik per booking) -- jadi "scan" di sini nggak bener-bener baca isi
+  // QR-nya buat nentuin booking, cukup pakai keberhasilan deteksi QR APAPUN
+  // sebagai trigger buat bayar booking ter-anyar yang masih nunggu.
+  function startScan() {
+    document.getElementById('scanOverlay').classList.add('active');
+    document.getElementById('scanStatus').textContent = 'Arahin kamera ke QR pembayaran';
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      .then(stream => {
+        scanStream = stream;
+        const video = document.getElementById('scanVideo');
+        video.srcObject = stream;
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const tick = () => {
+          if (!scanStream) return;
+          if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height);
+            if (code) {
+              onScanSuccess();
+              return;
+            }
+          }
+          scanRAF = requestAnimationFrame(tick);
+        };
+        scanRAF = requestAnimationFrame(tick);
+      })
+      .catch(() => {
+        document.getElementById('scanStatus').textContent = 'Nggak bisa akses kamera -- izinkan akses kamera di browser.';
+      });
+  }
+
+  function stopScan() {
+    if (scanRAF) cancelAnimationFrame(scanRAF);
+    if (scanStream) scanStream.getTracks().forEach(t => t.stop());
+    scanStream = null;
+    document.getElementById('scanOverlay').classList.remove('active');
+  }
+
+  async function onScanSuccess() {
+    document.getElementById('scanStatus').textContent = 'QR terdeteksi, memproses pembayaran...';
+    if (currentRows.length === 0) {
+      document.getElementById('scanStatus').textContent = 'Nggak ada booking yang perlu dibayar.';
+      setTimeout(stopScan, 1500);
+      return;
+    }
+    const ok = await pay(currentRows[0].id, null);
+    stopScan();
+    if (ok) {
+      tryLoad();
+    } else {
+      alert('Gagal memproses pembayaran, coba lagi.');
     }
   }
 
