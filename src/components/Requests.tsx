@@ -262,7 +262,7 @@ export default function Requests({
       ) : (
         <>
           {/* Section 1: awaiting DP payment — nothing for barber to act on yet */}
-          <div className="bg-card border border-border rounded-xl p-5 md:p-6 space-y-4">
+          <div className="bg-background border border-border rounded-xl p-5 md:p-6 space-y-4">
             <h2 className="text-sm font-bold text-foreground font-sans uppercase tracking-wide flex items-center gap-2">
               <Wallet size={14} className="text-muted-foreground" />
               {t('requests.awaitingPayment')}
@@ -277,7 +277,7 @@ export default function Requests({
           </div>
 
           {/* Section 2: DP paid, waiting on barber's own approve/reject decision */}
-          <div className="bg-card border border-border rounded-xl p-5 md:p-6 space-y-4">
+          <div className="bg-background border border-border rounded-xl p-5 md:p-6 space-y-4">
             <h2 className="text-sm font-bold text-foreground font-sans uppercase tracking-wide flex items-center gap-2">
               <ShieldCheck size={14} className="text-muted-foreground" />
               {t('requests.pendingApproval')}
