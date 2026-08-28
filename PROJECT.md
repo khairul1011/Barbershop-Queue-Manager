@@ -50,7 +50,7 @@ Proyek ini adalah **experiment pribadi** (bukan produk komersial saat ini), diba
 ## 3. Non-Goals (Sengaja Tidak Dikerjakan Dulu)
 
 - Integrasi Instagram DM (approval Meta terlalu berat untuk tahap experiment; booking IG tetap dicatat manual).
-- Sistem pembayaran/invoicing.
+- ~~Sistem pembayaran/invoicing.~~ **Update:** direvisi — DP 50% via QRIS (Xendit) sedang dikerjakan, lihat §🟡 Sedang Berjalan di Bagian 2. Bukan invoicing penuh, cuma gerbang pembayaran di depan alur booking WA untuk cegah no-show.
 - Multi-cabang / multi-tenant.
 - Native mobile app (cukup web responsive, diakses dari browser HP).
 
@@ -153,6 +153,29 @@ Lihat [Bagian 2 — Known Issues](#bagian-2--known-issues) untuk detail teknis d
 # Bagian 2 — Known Issues
 
 Dokumen ini mencatat gap teknis yang ditemukan saat review kode per commit terakhir di `main`. Urutkan berdasarkan prioritas sebelum project ini dipakai lebih dari sekadar demo.
+
+---
+
+## 🟡 Sedang Berjalan (Belum Live)
+
+### Gerbang DP 50% via QRIS (Xendit) sebelum booking WA masuk Requests
+**File:** `server/index.js`, `server/xenditClient.js` (baru), `server/priceLookup.js` (baru), `src/components/Requests.tsx`, `src/hooks/useSupabaseRequests.ts`, `src/types.ts`, `src/lib/paymentStatus.ts` (baru). Tabel `whatsapp_requests` dapet kolom baru (`payment_status` enum `unpaid|paid|expired|failed`, `dp_amount`, `xendit_reference_id`, `xendit_qr_id`, `payment_expires_at`, `dp_paid_at`, `payment_notified`).
+
+**Kenapa:** barbernya minta customer bayar DP 50% dulu sebelum booking dianggap pasti, buat nekan risiko no-show/telat. Bukan sistem invoicing penuh — cuma satu gerbang pembayaran di depan alur approve/reject yang udah ada (yang tetap nggak berubah sama sekali).
+
+**Cara kerja:** customer selesai isi data booking di WA → bot hitung DP 50% dari harga servis → generate QRIS lewat Xendit (**mode Test/Sandbox**, bukan uang asli) → kirim gambar QR ke customer + langsung `INSERT` ke `whatsapp_requests` dengan `payment_status: 'unpaid'` (jadi kelihatan di dashboard sebagai "Menunggu Pembayaran", walau belum bisa di-approve). Begitu Xendit kirim webhook konfirmasi bayar (`POST /webhooks/xendit`, di-verifikasi pakai `x-callback-token`), baris itu di-update `payment_status: 'paid'` dan baru "naik kelas" ke section "Menunggu Persetujuan" (alur approve/reject lama). Booking yang nggak dibayar dalam 30 menit otomatis ditandai `expired` (disembunyikan dari dashboard, tetap ada di database).
+
+**Webhook endpoint** — dijalanin nebeng di proses bot yang sama (`pm2` app `barberflow-wa`, bukan proses terpisah), listen di `127.0.0.1:3002` (env `WEBHOOK_PORT`), diakses publik lewat **Cloudflare Tunnel** (`https://wa-webhook.takhtabarber.shop/webhooks/xendit`) — bukan buka port langsung ke VPS. Satu-satunya route, token-checked di baris pertama sebelum nyentuh apapun lain. Ini didesain sengaja hati-hati karena proyek ini pernah kena insiden API yang lupa dikasih otentikasi (lihat entri "Kode mati: REST API Express..." di bawah) — **kalau nanti mau nyentuh file ini, jangan tambah route baru tanpa mikir ulang soal otentikasinya.**
+
+**Status implementasi (per sesi terakhir):**
+- ✅ Kode backend & frontend selesai ditulis, `tsc --noEmit` bersih, sintaks backend udah dicek.
+- ✅ Migrasi Supabase udah diterapkan ke database asli.
+- ✅ Domain `takhtabarber.shop` udah dibeli (Niagahoster/Hostinger), udah ditambahin sebagai zone di Cloudflare, nameserver domain udah diganti ke `brenna.ns.cloudflare.com` / `dakota.ns.cloudflare.com` — **lagi nunggu propagasi** (Cloudflare bilang normalnya 1-2 jam, maksimal 24 jam; dicek berkala lewat `dig NS takhtabarber.shop`, per sesi terakhir masih nunjuk ke nameserver lama).
+- ✅ Akun Xendit Test Mode udah dibuat, Secret Key mode Test & Verification Token webhook udah didapat (nilai asli cuma ada di `server/.env` VPS nanti — belum dipasang, VPS masih pakai kode lama sampai tunnel siap).
+- ✅ URL webhook (`https://wa-webhook.takhtabarber.shop/webhooks/xendit`) udah didaftarin di Xendit Dashboard untuk dua event Payment Request v3 (`payment.capture` & `payment_request.expiry`). Tes kirim dari Xendit gagal `ENOTFOUND` — **wajar**, karena domainnya belum aktif; Xendit auto-retry webhook yang gagal jadi nggak perlu didaftar ulang begitu tunnel-nya hidup.
+- ✅ **Bentuk payload webhook Xendit sekarang TERKONFIRMASI** (bukan tebakan lagi) — didapat langsung dari contoh payload asli di fitur "Tes dan simpan" Xendit Dashboard. Bentuknya: `{ event: "payment.capture", data: { reference_id, status: "SUCCEEDED", ... } }` untuk sukses, `{ event: "payment_request.expiry", data: { reference_id, status: "EXPIRED", ... } }` untuk kedaluwarsa di sisi Xendit sendiri. Kode `extractWebhookPayload()` di `xenditClient.js` udah dicek cocok persis tanpa perlu diubah — komentar "belum pasti"-nya udah diupdate jadi "terverifikasi".
+- ⏳ Bentuk response saat **bikin** QR (`POST /payment_requests`, lokasi field QR string-nya) masih belum dikonfirmasi — beda dari webhook yang udah dikonfirmasi di atas. Kode di `xenditClient.js` (`extractQrString()`) masih defensif (nyoba beberapa kemungkinan field), baru bisa dipastikan pas tes end-to-end pertama.
+- ⏳ **Belum live-tested end-to-end** — sisa langkah: tunggu propagasi domain kelar → setup Cloudflare Tunnel di VPS → pasang env vars asli di `server/.env` VPS → (minta izin user) deploy kode → tes webhook isolasi via curl → tes booking WA asli pakai simulator pembayaran Xendit.
 
 ---
 
