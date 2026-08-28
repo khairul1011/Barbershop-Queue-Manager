@@ -48,7 +48,8 @@ function mapStatusFromSupabase(status: string): QueueStatus {
   }
 }
 
-export function useSupabaseQueue(barbers: Barber[], services: Service[]) {
+// `enabled` — lihat catatan yang sama di useSupabaseBarbers.ts.
+export function useSupabaseQueue(barbers: Barber[], services: Service[], enabled: boolean) {
   // Baris MENTAH dari Supabase (belum di-mapping ke QueueEntry) -- barbers/services
   // dipisah jadi useMemo di bawah, BUKAN dependency di sini. Sebelumnya
   // fetchQueueEntries punya [barbers, services] sebagai dependency useCallback,
@@ -121,8 +122,9 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[]) {
   }, []);
 
   useEffect(() => {
+    if (!enabled) return;
     fetchQueueEntries();
-  }, [fetchQueueEntries]);
+  }, [enabled, fetchQueueEntries]);
 
   // Pemetaan baris mentah -> QueueEntry, dihitung ulang di client (bukan
   // fetch baru) tiap kali barbers/services/raw rows berubah.

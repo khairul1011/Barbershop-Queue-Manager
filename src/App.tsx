@@ -74,36 +74,25 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Core App States
-  const { requests, loading: requestsLoading, error: requestsError, approveRequest, rejectRequest, updateRequestDetails, refreshRequests } = useSupabaseRequests();
-  const { barbers, loading: barbersLoading, error: barbersError, addBarber, editBarber, removeBarber, updateBarberStatus, refreshBarbers } = useSupabaseBarbers();
-  const { services, loading: servicesLoading, error: servicesError, addService, updateService, removeService, refreshServices } = useSupabaseServices();
-  const { queue, servingSessions, completedEntries, loading: queueLoading, error: queueError, addQueueEntry, updateQueueEntryStatus, serveQueueEntry, completeServingSession, removeQueueEntry, startQuickWalkIn, refreshQueue } = useSupabaseQueue(barbers, services);
-  const { businessHours, updateBusinessHours, updateShopProfile, refreshBusinessHours } = useSupabaseBusinessHours();
+  // Gerbang buat semua hook data di bawah yang tabelnya authenticated-only
+  // lewat RLS (whatsapp_requests, barbers, services, queue_entries) -- baru
+  // `true` setelah authLoading kelar DAN session beneran ada. Sebelumnya
+  // hook-hook ini fetch langsung pas mount tanpa nunggu ini, sering kejadian
+  // SEBELUM user login (hook tetap jalan walau yang di-render masih
+  // <Login/>, React tetap manggil semua hook di atas duluan sebelum return
+  // bersyarat di bawah) -- fetch itu balik kosong/diblokir RLS, dan nggak
+  // pernah refetch otomatis begitu user beneran login, jadi dashboard
+  // kelihatan kosong sampai di-reload manual. `business_hours` SENGAJA
+  // dikecualikan dari gerbang ini -- tabel itu punya policy `anon` terpisah
+  // karena nama toko/logo harus kebaca di halaman Login sebelum auth.
+  const dataReady = !authLoading && !!session;
 
-  // Semua hook data di atas fetch SEKALI doang pas komponen ini pertama kali
-  // mount -- dan itu kejadian SEBELUM user login (hook-nya tetap jalan
-  // walaupun yang di-render masih <Login/>, soalnya React tetap manggil
-  // semua hook di atas duluan sebelum return bersyarat di bawah). Karena RLS
-  // database ini dibatasi cuma `authenticated`, fetch pertama itu balik
-  // kosong. Nggak ada satupun hook yang otomatis refetch begitu user beneran
-  // login -- makanya dashboard kelihatan kosong sampai di-reload manual
-  // (reload = fetch kejadian ULANG, kali ini session-nya udah ada). Effect
-  // ini nembak ulang semua refresh pas session baru aja kepasang (login
-  // sukses), pakai ref biar cuma sekali pas transisi null->ada, bukan tiap
-  // kali object session berubah referensi (mis. token auto-refresh).
-  const hadSessionRef = useRef(false);
-  useEffect(() => {
-    const justLoggedIn = !hadSessionRef.current && !!session;
-    hadSessionRef.current = !!session;
-    if (justLoggedIn) {
-      refreshRequests();
-      refreshBarbers();
-      refreshServices();
-      refreshQueue();
-      refreshBusinessHours();
-    }
-  }, [session, refreshRequests, refreshBarbers, refreshServices, refreshQueue, refreshBusinessHours]);
+  // Core App States
+  const { requests, loading: requestsLoading, error: requestsError, approveRequest, rejectRequest, updateRequestDetails, refreshRequests } = useSupabaseRequests(dataReady);
+  const { barbers, loading: barbersLoading, error: barbersError, addBarber, editBarber, removeBarber, updateBarberStatus } = useSupabaseBarbers(dataReady);
+  const { services, loading: servicesLoading, error: servicesError, addService, updateService, removeService } = useSupabaseServices(dataReady);
+  const { queue, servingSessions, completedEntries, loading: queueLoading, error: queueError, addQueueEntry, updateQueueEntryStatus, serveQueueEntry, completeServingSession, removeQueueEntry, startQuickWalkIn } = useSupabaseQueue(barbers, services, dataReady);
+  const { businessHours, updateBusinessHours, updateShopProfile } = useSupabaseBusinessHours();
 
   // Stats Counters (derived from Supabase data)
 

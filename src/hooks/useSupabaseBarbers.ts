@@ -2,7 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Barber } from '../types';
 
-export function useSupabaseBarbers() {
+// `enabled` — jangan fetch sampai status login (session) kepastian, dan cuma
+// fetch kalau beneran ada session. RLS tabel ini authenticated-only, jadi
+// fetch sebelum session ada cuma buang-buang request (balik kosong/diblokir).
+// Dulu fetch selalu jalan pas mount (sebelum tau ada session atau nggak),
+// nggak pernah refetch begitu user beneran login -- lihat App.tsx.
+export function useSupabaseBarbers(enabled: boolean) {
   const [barbers, setBarbers] = useState<Barber[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -38,8 +43,9 @@ export function useSupabaseBarbers() {
   }, []);
 
   useEffect(() => {
+    if (!enabled) return;
     fetchBarbers();
-  }, [fetchBarbers]);
+  }, [enabled, fetchBarbers]);
 
   const addBarber = async (newBarber: Omit<Barber, 'id'>) => {
     try {

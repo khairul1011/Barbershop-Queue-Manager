@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Service } from '../types';
 
-export function useSupabaseServices() {
+// `enabled` — lihat catatan yang sama di useSupabaseBarbers.ts.
+export function useSupabaseServices(enabled: boolean) {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -37,8 +38,9 @@ export function useSupabaseServices() {
   }, []);
 
   useEffect(() => {
+    if (!enabled) return;
     fetchServices();
-  }, [fetchServices]);
+  }, [enabled, fetchServices]);
 
   const addService = async (newSvc: Omit<Service, 'id'>) => {
     try {

@@ -2,7 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { WhatsAppRequest, RequestStatus } from '../types';
 
-export function useSupabaseRequests() {
+// `enabled` — lihat catatan yang sama di useSupabaseBarbers.ts. Realtime
+// subscription juga ikut ditahan, bukan cuma fetch awal -- nggak ada
+// gunanya subscribe sebelum authenticated.
+export function useSupabaseRequests(enabled: boolean) {
   const [requests, setRequests] = useState<WhatsAppRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -48,6 +51,7 @@ export function useSupabaseRequests() {
   }, []);
 
   useEffect(() => {
+    if (!enabled) return;
     fetchRequests();
 
     const channel = supabase
@@ -60,7 +64,7 @@ export function useSupabaseRequests() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchRequests]);
+  }, [enabled, fetchRequests]);
 
   const updateRequestStatus = async (id: string, status: RequestStatus) => {
     try {
