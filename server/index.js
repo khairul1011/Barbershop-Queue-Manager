@@ -10,7 +10,7 @@ const express = require('express');
 const { parseBookingMessage } = require('./gemini');
 const supabase = require('./supabaseClient');
 const { getServicePrice, calculateDp } = require('./priceLookup');
-const { createQrisPaymentRequest, verifyCallbackToken, extractWebhookPayload } = require('./xenditClient');
+const { createQrisPaymentRequest, verifyCallbackToken, extractWebhookPayload, verifyDemoPasscode, simulatePayment } = require('./xenditClient');
 
 const conversationState = new Map();
 const chatHistory = new Map();
@@ -795,6 +795,166 @@ webhookApp.post('/webhooks/xendit', async (req, res) => {
   }
 
   res.status(200).end();
+});
+
+// Halaman demo "kayak e-wallet" -- SENGAJA DIBUAT BUAT DEMO KE BARBER, bukan
+// bagian alur produk asli. Customer beneran tetap bayar lewat scan QRIS di
+// WhatsApp seperti biasa; halaman ini cuma jalan pintas biar demo bisa
+// dilakuin dari HP (tanpa laptop/terminal) buat mensimulasikan pembayaran
+// Test Mode, gantiin panggilan curl manual. Dilindungi passcode (DEMO_SECRET)
+// di query string -- bukan keamanan tingkat produksi, tapi cukup buat
+// nyegah akses sembarangan ke data test customer selama demo berlangsung.
+// Data yang kesentuh cuma booking sandbox (nggak ada uang asli).
+webhookApp.get('/demo', (req, res) => {
+  res.type('html').send(`<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>BarberFlow Pay</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+    min-height: 100vh; color: #f1f5f9; padding: 20px 16px 40px;
+  }
+  header { text-align: center; margin-bottom: 24px; }
+  header h1 { font-size: 20px; margin: 0 0 4px; }
+  header p { font-size: 12px; color: #94a3b8; margin: 0; }
+  .badge { display: inline-block; background: #f59e0b; color: #1e293b; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; margin-top: 8px; }
+  #passGate { max-width: 360px; margin: 60px auto 0; text-align: center; }
+  #passGate input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #334155; background: #1e293b; color: #f1f5f9; font-size: 16px; margin-bottom: 10px; }
+  #passGate button { width: 100%; padding: 12px; border-radius: 10px; border: none; background: #22c55e; color: #052e16; font-weight: 700; font-size: 15px; }
+  #app { max-width: 420px; margin: 0 auto; display: none; }
+  .card { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 16px; margin-bottom: 12px; }
+  .card .name { font-weight: 700; font-size: 15px; }
+  .card .meta { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+  .card .amount { font-size: 22px; font-weight: 800; color: #22c55e; margin: 10px 0; }
+  .card button { width: 100%; padding: 12px; border-radius: 10px; border: none; background: #22c55e; color: #052e16; font-weight: 700; font-size: 14px; }
+  .card button:disabled { background: #334155; color: #94a3b8; }
+  .card button.done { background: #16a34a; color: white; }
+  .empty { text-align: center; color: #64748b; font-size: 13px; margin-top: 60px; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>💳 BarberFlow Pay</h1>
+    <p>Simulasi pembayaran QRIS -- Xendit Test Mode</p>
+    <span class="badge">MODE TES · BUKAN UANG ASLI</span>
+  </header>
+
+  <div id="passGate">
+    <input id="passInput" type="text" placeholder="Masukin kode akses">
+    <button onclick="unlock()">Buka</button>
+  </div>
+
+  <div id="app">
+    <div id="list"></div>
+  </div>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  let kode = params.get('kode') || '';
+
+  function unlock() {
+    kode = document.getElementById('passInput').value.trim();
+    tryLoad();
+  }
+
+  async function tryLoad() {
+    const res = await fetch('/demo/api/list?kode=' + encodeURIComponent(kode));
+    if (res.status === 401) {
+      document.getElementById('passGate').style.display = 'block';
+      document.getElementById('app').style.display = 'none';
+      return;
+    }
+    document.getElementById('passGate').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    const rows = await res.json();
+    render(rows);
+  }
+
+  function render(rows) {
+    const list = document.getElementById('list');
+    if (rows.length === 0) {
+      list.innerHTML = '<div class="empty">Belum ada booking yang nunggu dibayar.<br>Kirim booking dulu lewat WhatsApp.</div>';
+      return;
+    }
+    list.innerHTML = rows.map(r => \`
+      <div class="card">
+        <div class="name">\${r.sender_name}</div>
+        <div class="meta">\${r.extracted_day}, \${r.extracted_time} -- \${(r.extracted_service || '').split('|')[0]}</div>
+        <div class="amount">Rp\${Number(r.dp_amount).toLocaleString('id-ID')}</div>
+        <button onclick="pay('\${r.id}', this)">Bayar Sekarang</button>
+      </div>
+    \`).join('');
+  }
+
+  async function pay(id, btn) {
+    btn.disabled = true;
+    btn.textContent = 'Memproses...';
+    try {
+      const res = await fetch('/demo/api/pay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, kode })
+      });
+      if (!res.ok) throw new Error('gagal');
+      btn.textContent = '✓ Berhasil dibayar';
+      btn.classList.add('done');
+    } catch (err) {
+      btn.textContent = 'Gagal, coba lagi';
+      btn.disabled = false;
+    }
+  }
+
+  tryLoad();
+  setInterval(tryLoad, 5000);
+</script>
+</body>
+</html>`);
+});
+
+webhookApp.get('/demo/api/list', async (req, res) => {
+  if (!verifyDemoPasscode(req.query.kode)) return res.status(401).json({ error: 'unauthorized' });
+
+  const { data, error } = await supabase
+    .from('whatsapp_requests')
+    .select('id, sender_name, dp_amount, extracted_day, extracted_time, extracted_service')
+    .eq('payment_status', 'unpaid')
+    .order('received_at', { ascending: false })
+    .limit(10);
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data || []);
+});
+
+webhookApp.post('/demo/api/pay', async (req, res) => {
+  const { id, kode } = req.body || {};
+  if (!verifyDemoPasscode(kode)) return res.status(401).json({ error: 'unauthorized' });
+  if (!id) return res.status(400).json({ error: 'id wajib diisi' });
+
+  const { data: row, error: fetchError } = await supabase
+    .from('whatsapp_requests')
+    .select('id, xendit_qr_id, dp_amount, payment_status')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (fetchError || !row || !row.xendit_qr_id) {
+    return res.status(404).json({ error: 'booking tidak ditemukan atau belum ada QR' });
+  }
+  if (row.payment_status !== 'unpaid') {
+    return res.status(409).json({ error: 'booking ini sudah tidak berstatus unpaid' });
+  }
+
+  try {
+    await simulatePayment({ paymentRequestId: row.xendit_qr_id, amount: row.dp_amount });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[DEMO SIMULATE ERROR]', err.message, '| id:', id);
+    res.status(502).json({ error: 'gagal memanggil Xendit' });
+  }
 });
 
 webhookApp.listen(process.env.WEBHOOK_PORT || 3002, '127.0.0.1', () => {

@@ -80,6 +80,34 @@ function verifyCallbackToken(headerValue) {
   return crypto.timingSafeEqual(a, b);
 }
 
+// Sama pola constant-time compare-nya, dipakai buat halaman demo
+// "/demo" (lihat index.js) -- bukan token Xendit, tapi passcode kita
+// sendiri buat ngelindungin data test customer dari akses sembarangan.
+function verifyDemoPasscode(value) {
+  const expected = process.env.DEMO_SECRET || '';
+  if (!value || !expected) return false;
+  const a = Buffer.from(String(value));
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
+// Simulasi pembayaran QRIS berhasil -- endpoint resmi Xendit khusus Test
+// Mode, dipakai buat halaman demo "/demo" (lihat index.js) supaya bisa
+// "bayar" dari HP tanpa laptop pas demo ke barber, gantiin manual curl.
+// TERVERIFIKASI lewat panggilan curl langsung ke sandbox. Header
+// `api-version` WAJIB, endpoint ini gagal tanpa itu.
+async function simulatePayment({ paymentRequestId, amount }) {
+  await axios.post(
+    `${XENDIT_API_BASE}/v3/payment_requests/${paymentRequestId}/simulate`,
+    { amount },
+    {
+      headers: { 'api-version': '2024-11-11' },
+      auth: { username: process.env.XENDIT_SECRET_KEY, password: '' }
+    }
+  );
+}
+
 // TERVERIFIKASI lewat webhook ASLI (bukan sample generik "Tes dan simpan"
 // lagi -- itu ternyata pakai data dummy yang menyesatkan). Event yang beneran
 // terpicu saat QRIS lunas adalah "payment.succeeded", bentuknya:
@@ -104,4 +132,4 @@ function extractWebhookPayload(body) {
   return { paymentRequestId, isSucceeded };
 }
 
-module.exports = { createQrisPaymentRequest, verifyCallbackToken, extractWebhookPayload };
+module.exports = { createQrisPaymentRequest, verifyCallbackToken, extractWebhookPayload, verifyDemoPasscode, simulatePayment };
