@@ -142,7 +142,14 @@ async function checkAvailability(hariStr, jamStr, kapsterStr) {
     .select('barber_id, scheduled_time, status')
     .eq('scheduled_date', dateStr);
     
-  const { data: barbers } = await supabase.from('barbers').select('id, name');
+  // archived=false WAJIB -- tanpa ini, kapster yang udah "dihapus" (archived,
+  // tapi barisnya tetap ada di DB) masih ke-hitung sebagai opsi valid di sini,
+  // jadi ambang "semua kapster penuh" nggak pernah kesentuh dan bot bisa
+  // nawarin/nyimpen nama kapster yang udah nggak ada ke customer. Filter ini
+  // harus sama persis kayak useSupabaseBarbers.ts di frontend (archived,
+  // BUKAN status -- status itu shift hari ini, beda konsep, kapster yang
+  // lagi off/break besok masih tetap valid buat dicek).
+  const { data: barbers } = await supabase.from('barbers').select('id, name').eq('archived', false);
   
   const { data: waReqs } = await supabase.from('whatsapp_requests')
     .select('extracted_day, extracted_time, extracted_service')
@@ -215,7 +222,11 @@ async function getShopName() {
 
 async function getBusinessContext() {
   try {
-    const { data: barbers } = await supabase.from('barbers').select('name, specialization, status').eq('status', 'active');
+    // archived=false ditambah di sini juga -- kapster yang udah "dihapus"
+    // ternyata status-nya tetap 'active' di DB (archived itu flag terpisah),
+    // jadi tanpa ini dia masih bocor ke daftar "Kapster aktif" yang dikirim
+    // ke Gemini, bikin AI ngira itu opsi kapster yang valid buat ditawarin.
+    const { data: barbers } = await supabase.from('barbers').select('name, specialization, status').eq('status', 'active').eq('archived', false);
     const { data: services } = await supabase.from('services').select('name, price, duration_minutes');
     const { data: hours } = await supabase.from('business_hours').select('open_hour, close_hour, shop_name').limit(1).single();
     const shopName = (hours && hours.shop_name) || DEFAULT_SHOP_NAME;
