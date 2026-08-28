@@ -92,15 +92,32 @@ async function sendMediaWithDelay(chatId, media, caption) {
   await client.sendMessage(chatId, media, { caption });
 }
 
+// Barbershop-nya operasional di WIB (UTC+7), tapi VPS jalan di UTC (`Etc/UTC`,
+// dikonfirmasi via timedatectl) -- pakai new Date() polos bikin "hari
+// ini"/"besok" MUNDUR 1 HARI selama ~7 jam tiap hari (17:00-23:59 UTC =
+// udah hari berikutnya di WIB). Insiden nyata: checkAvailability() ngecek
+// tanggal yang salah (dateStr versi UTC, sementara baris queue_entries
+// beneran kesimpen pakai tanggal versi WIB dari browser barber pas approve),
+// query queue_entries selalu nemu KOSONG di tanggal yang dicek, conflict
+// detection nggak pernah kena walau slot beneran udah penuh -- tiga customer
+// beda ke-assign kapster+jam yang sama persis tanpa satupun ketauan bentrok.
+// Fungsi ini balikin Date yang, kalau dibaca lewat method getUTC*, ngasih
+// tanggal-kalender WIB yang bener -- independen dari timezone proses
+// Node/VPS-nya sendiri. WIB nggak kenal DST, jadi offset tetap +7 jam aman
+// dipakai sepanjang tahun.
+function getWibNow() {
+  return new Date(Date.now() + 7 * 60 * 60 * 1000);
+}
+
 function getTargetDateStr(dayStr) {
   const d = (dayStr || '').toLowerCase();
-  const today = new Date();
-  
-  let targetIdx = today.getDay();
+  const today = getWibNow();
+
+  let targetIdx = today.getUTCDay();
   if (d.includes('besok')) {
-    targetIdx = (today.getDay() + 1) % 7;
+    targetIdx = (today.getUTCDay() + 1) % 7;
   } else if (d.includes('lusa')) {
-    targetIdx = (today.getDay() + 2) % 7;
+    targetIdx = (today.getUTCDay() + 2) % 7;
   } else if (d.includes('senin')) targetIdx = 1;
   else if (d.includes('selasa')) targetIdx = 2;
   else if (d.includes('rabu')) targetIdx = 3;
@@ -109,13 +126,13 @@ function getTargetDateStr(dayStr) {
   else if (d.includes('sabtu')) targetIdx = 6;
   else if (d.includes('minggu')) targetIdx = 0;
 
-  const diff = (targetIdx - today.getDay() + 7) % 7;
+  const diff = (targetIdx - today.getUTCDay() + 7) % 7;
   const target = new Date(today);
-  target.setDate(today.getDate() + diff);
-  
-  const y = target.getFullYear();
-  const m = String(target.getMonth() + 1).padStart(2, '0');
-  const dd = String(target.getDate()).padStart(2, '0');
+  target.setUTCDate(today.getUTCDate() + diff);
+
+  const y = target.getUTCFullYear();
+  const m = String(target.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(target.getUTCDate()).padStart(2, '0');
   return `${y}-${m}-${dd}`;
 }
 
@@ -219,10 +236,14 @@ async function getBusinessContext() {
       context += `Layanan: ${serviceList}.`;
     }
 
-    const today = new Date();
+    // Pakai getWibNow(), bukan new Date() polos -- bug timezone yang sama
+    // kayak di getTargetDateStr() (lihat komentar di situ) juga bisa bikin
+    // info "kapster libur hari ini/besok" salah tanggal selama VPS-nya
+    // masih "kemarin" versi UTC padahal udah hari berikutnya di WIB.
+    const today = getWibNow();
     const todayStr = today.toISOString().split('T')[0];
     const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setUTCDate(today.getUTCDate() + 1);
     const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
     const { data: timeOffs } = await supabase
