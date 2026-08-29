@@ -17,7 +17,7 @@ function getLocalDateString(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-// Hitung scheduled_date dari day abbreviation relatif ke minggu ini
+// Menghitung scheduled_date dari singkatan hari, relatif terhadap minggu ini.
 export function dayToDate(day: DayType): string {
   const today = new Date();
   const currentDayIdx = today.getDay(); // 0=Sun, 1=Mon, ...
@@ -48,19 +48,21 @@ function mapStatusFromSupabase(status: string): QueueStatus {
   }
 }
 
-// `enabled` — lihat catatan yang sama di useSupabaseBarbers.ts.
+// `enabled` — lihat catatan yang sama pada useSupabaseBarbers.ts.
 export function useSupabaseQueue(barbers: Barber[], services: Service[], enabled: boolean) {
-  // Baris MENTAH dari Supabase (belum di-mapping ke QueueEntry) -- barbers/services
-  // dipisah jadi useMemo di bawah, BUKAN dependency di sini. Sebelumnya
-  // fetchQueueEntries punya [barbers, services] sebagai dependency useCallback,
-  // jadi tiap salah satu dari dua hook lain itu selesai fetch sendiri-sendiri
-  // (referensi array-nya berubah), SELURUH query queue_entries di-fetch ULANG
-  // dari Supabase -- padahal cuma butuh dipetakan ulang pakai nama yang baru
-  // datang, bukan ambil data baru. Hasilnya: 3x fetch redundan (mount awal +
-  // begitu barbers resolve + begitu services resolve) = 6 request queue_entries
-  // per page load (kekonfirmasi lewat DevTools Network user). Sekarang fetch
-  // cuma sekali di mount, pemetaan nama dihitung ulang murni di client lewat
-  // useMemo kalau barbers/services berubah -- tanpa network call tambahan.
+  // Baris MENTAH dari Supabase (belum dipetakan ke QueueEntry) — barbers/services
+  // dipisahkan ke dalam useMemo di bawah, BUKAN sebagai dependency di sini. Sebelumnya,
+  // fetchQueueEntries memiliki [barbers, services] sebagai dependency useCallback,
+  // sehingga setiap kali salah satu dari kedua hook tersebut selesai melakukan fetch
+  // (referensi array-nya berubah), SELURUH query queue_entries akan di-fetch ULANG
+  // dari Supabase — padahal yang sebenarnya dibutuhkan hanyalah pemetaan ulang
+  // menggunakan nama yang baru diterima, bukan pengambilan data baru. Akibatnya
+  // terjadi 3 kali fetch redundan (saat mount awal, saat barbers selesai resolve,
+  // dan saat services selesai resolve) sehingga menghasilkan 6 request queue_entries
+  // per pemuatan halaman (dikonfirmasi melalui DevTools Network). Saat ini fetch
+  // hanya dilakukan sekali pada saat mount, dan pemetaan nama dihitung ulang secara
+  // murni di sisi client melalui useMemo apabila barbers/services berubah — tanpa
+  // adanya network call tambahan.
   const [activeRowsRaw, setActiveRowsRaw] = useState<any[]>([]);
   const [completedRowsRaw, setCompletedRowsRaw] = useState<any[]>([]);
 
@@ -78,8 +80,8 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[], enabled
       const to = new Date(today);
       to.setDate(today.getDate() + 7);
 
-      // FIX Bug #3: pakai getLocalDateString agar rentang fetch berbasis tanggal LOKAL (WIB)
-      // bukan toISOString() yang UTC-based — penting agar entry hari ini tidak keluar rentang
+      // FIX Bug #3: menggunakan getLocalDateString agar rentang fetch berbasis tanggal LOKAL (WIB),
+      // bukan toISOString() yang berbasis UTC — hal ini penting agar entry hari ini tidak keluar dari rentang.
       const fromStr = getLocalDateString(from);
       const toStr   = getLocalDateString(to);
 
@@ -126,8 +128,8 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[], enabled
     fetchQueueEntries();
   }, [enabled, fetchQueueEntries]);
 
-  // Pemetaan baris mentah -> QueueEntry, dihitung ulang di client (bukan
-  // fetch baru) tiap kali barbers/services/raw rows berubah.
+  // Pemetaan baris mentah -> QueueEntry, dihitung ulang di sisi client (bukan
+  // melalui fetch baru) setiap kali barbers/services/raw rows berubah.
   const { queue, servingSessions, completedEntries } = useMemo(() => {
     // Temporary groups to calculate queue numbers for 'Estimated' status
     const estimatedCountPerDayBarber: Record<string, number> = {};
@@ -246,12 +248,12 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[], enabled
         throw supabaseError;
       }
 
-      // Pisahkan penanganan error fetch agar tidak menggagalkan insert yang sudah sukses
+      // Memisahkan penanganan error fetch agar tidak menggagalkan insert yang sudah berhasil.
       try {
         await fetchQueueEntries();
       } catch (fetchErr) {
         console.error('fetchQueueEntries gagal dipanggil setelah insert sukses:', fetchErr);
-        // Kita JANGAN throw fetchErr agar toast sukses tetap muncul (karena data sudah masuk DB)
+        // fetchErr sengaja tidak di-throw agar toast sukses tetap muncul (karena data sudah tersimpan di DB).
       }
 
     } catch (err) {
@@ -285,7 +287,7 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[], enabled
   // SERVE NOW (Update started_at)
   const serveQueueEntry = async (id: string, barberId: string) => {
     try {
-      // Pastikan dari data lokal kursi kosong (sebagai guard pertama)
+      // Memastikan dari data lokal bahwa kursi kosong (sebagai guard pertama).
       if (servingSessions[barberId]) {
          throw new Error('SEAT_OCCUPIED_LOCAL');
       }
@@ -347,7 +349,7 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[], enabled
   const completeServingSession = async (barberId: string, serviceId?: string, customerName?: string, paymentMethod?: 'cash' | 'qris') => {
     try {
       const session = servingSessions[barberId];
-      if (!session) return; // tidak ada yg dikerjakan
+      if (!session) return; // tidak ada sesi yang sedang dikerjakan
 
       const updatePayload: any = {
         completed_at: new Date().toISOString(),

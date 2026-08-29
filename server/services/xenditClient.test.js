@@ -19,17 +19,17 @@ test('extractWebhookPayload korelasi pakai payment_request_id, bukan reference_i
   assert.equal(result.isSucceeded, true);
 });
 
-test('extractWebhookPayload nggak nganggep sukses kalau status bukan SUCCEEDED', () => {
+test('extractWebhookPayload tidak menganggap sukses apabila status bukan SUCCEEDED', () => {
   const payload = { event: 'payment.failed', data: { payment_request_id: 'pr-abc123', status: 'FAILED' } };
   assert.equal(extractWebhookPayload(payload).isSucceeded, false);
 });
 
-test('extractWebhookPayload aman buat body kosong/rusak', () => {
+test('extractWebhookPayload aman terhadap body yang kosong/rusak', () => {
   assert.deepEqual(extractWebhookPayload(null), { paymentRequestId: null, isSucceeded: false });
   assert.deepEqual(extractWebhookPayload({}), { paymentRequestId: null, isSucceeded: false });
 });
 
-test('verifyCallbackToken & verifyDemoPasscode nolak token yang salah/kosong', () => {
+test('verifyCallbackToken & verifyDemoPasscode menolak token yang salah/kosong', () => {
   process.env.XENDIT_CALLBACK_TOKEN = 'rahasia-123';
   process.env.DEMO_SECRET = 'demo-456';
 

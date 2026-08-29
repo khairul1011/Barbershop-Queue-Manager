@@ -93,8 +93,8 @@ export function useSupabaseServices(enabled: boolean) {
     }
   };
 
-  // Soft delete: layanan diarsipkan (archived = true), bukan dihapus
-  // permanen — layanan yang udah pernah dipakai di queue_entries nggak bisa
+  // Soft delete: layanan diarsipkan (archived = true), bukan dihapus secara
+  // permanen — layanan yang pernah digunakan pada queue_entries tidak dapat
   // di-hard-delete (foreign key constraint) tanpa merusak riwayat antrean lama.
   const removeService = async (id: string) => {
     try {

@@ -4,10 +4,10 @@ const QRCode = require('qrcode');
 const supabase = require('./supabaseClient');
 const { createQrisPaymentRequest, verifyCallbackToken, extractWebhookPayload, verifyDemoPasscode, simulatePayment } = require('./services/xenditClient');
 
-// Server webhook + halaman demo, nebeng di proses bot yang sama.
-// `sendMessageWithDelay` disuntik dari index.js (butuh `client` WhatsApp).
+// Server webhook dan halaman demo, berjalan pada proses bot yang sama.
+// `sendMessageWithDelay` disuntikkan dari index.js karena membutuhkan `client` WhatsApp.
 function startWebhookServer({ sendMessageWithDelay }) {
-  // Sweep tiap menit: booking 'unpaid' yang lewat payment_expires_at ditandai 'expired'.
+  // Sweep setiap menit: booking berstatus 'unpaid' yang telah melewati payment_expires_at ditandai 'expired'.
   setInterval(async () => {
     const { error } = await supabase
       .from('whatsapp_requests')
@@ -17,8 +17,8 @@ function startWebhookServer({ sendMessageWithDelay }) {
     if (error) console.error('[EXPIRY SWEEP ERROR]', error.message);
   }, 60 * 1000);
 
-  // Diakses publik lewat Cloudflare Tunnel -> localhost:3002. Bind ke
-  // 127.0.0.1 doang, verifikasi token di baris pertama tiap handler.
+  // Diakses publik melalui Cloudflare Tunnel -> localhost:3002. Server ini hanya
+  // di-bind ke 127.0.0.1, dan verifikasi token dilakukan pada baris pertama tiap handler.
   const webhookApp = express();
   webhookApp.use(express.json());
 
@@ -44,7 +44,7 @@ function startWebhookServer({ sendMessageWithDelay }) {
 
     if (!fetchError && row) {
       if (row.payment_status === 'paid') {
-        // Idempotency guard -- webhook Xendit bisa di-retry, ini aman diproses ulang.
+        // Idempotency guard — webhook Xendit dapat dikirim ulang (retry), dan ini aman diproses berulang kali.
         return res.status(200).end();
       }
 
@@ -67,7 +67,7 @@ function startWebhookServer({ sendMessageWithDelay }) {
       return res.status(200).end();
     }
 
-    // Bukan DP WhatsApp -- cek queue_entries (sisa bayar QRIS dari dashboard).
+    // Bukan pembayaran DP WhatsApp — periksa queue_entries (sisa pembayaran QRIS dari dashboard).
     const { data: qe } = await supabase
       .from('queue_entries')
       .select('id, payment_method')
@@ -84,8 +84,8 @@ function startWebhookServer({ sendMessageWithDelay }) {
     res.status(200).end();
   });
 
-  // QR pembayaran sisa buat dashboard (dialog "Selesaikan Sesi"). CORS
-  // dibatasi ke origin dashboard aja (DASHBOARD_ORIGINS, comma-separated).
+  // QR pembayaran sisa untuk dashboard (dialog "Selesaikan Sesi"). Akses CORS
+  // dibatasi hanya pada origin dashboard (DASHBOARD_ORIGINS, dipisahkan koma).
   const DASHBOARD_ORIGINS = (process.env.DASHBOARD_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
   function dashboardCors(req, res, next) {
     const origin = req.header('origin');
@@ -119,8 +119,9 @@ function startWebhookServer({ sendMessageWithDelay }) {
     }
   });
 
-  // Halaman demo "kayak e-wallet" buat simulasi bayar Test Mode (bukan alur
-  // produk asli). Dilindungi passcode DEMO_SECRET, cuma nyentuh data sandbox.
+  // Halaman demo yang menyerupai e-wallet, digunakan untuk simulasi pembayaran
+  // Test Mode (bukan bagian dari alur produk sebenarnya). Dilindungi passcode
+  // DEMO_SECRET, dan hanya menyentuh data sandbox.
   webhookApp.get('/demo', (req, res) => {
     res.type('html').send(`<!DOCTYPE html>
 <html lang="id">
@@ -243,7 +244,7 @@ function startWebhookServer({ sendMessageWithDelay }) {
     }
   }
 
-  // QR Test Mode isinya placeholder generik -- deteksi QR APAPUN cukup jadi trigger bayar.
+  // QR pada Test Mode berisi placeholder generik, sehingga deteksi QR apa pun sudah cukup sebagai trigger pembayaran.
   function startScan() {
     document.getElementById('scanOverlay').classList.add('active');
     document.getElementById('scanStatus').textContent = 'Arahin kamera ke QR pembayaran';
@@ -306,7 +307,7 @@ function startWebhookServer({ sendMessageWithDelay }) {
 </html>`);
   });
 
-  // List gabungan: DP WhatsApp + sisa bayar QRIS dashboard, dibedain field `type`.
+  // Daftar gabungan: DP WhatsApp dan sisa pembayaran QRIS dari dashboard, dibedakan melalui field `type`.
   webhookApp.get('/demo/api/list', async (req, res) => {
     if (!verifyDemoPasscode(req.query.kode)) return res.status(401).json({ error: 'unauthorized' });
 
@@ -314,7 +315,7 @@ function startWebhookServer({ sendMessageWithDelay }) {
       .from('whatsapp_requests')
       .select('id, sender_name, dp_amount, extracted_day, extracted_time, extracted_service')
       .eq('payment_status', 'unpaid')
-      .not('xendit_qr_id', 'is', null) // buang booking lama pra-fitur DP (payment_status default 'unpaid' tapi nggak pernah ada QR)
+      .not('xendit_qr_id', 'is', null) // mengecualikan booking lama pra-fitur DP (payment_status default 'unpaid' namun tidak pernah memiliki QR)
       .order('received_at', { ascending: false })
       .limit(10);
     if (waError) return res.status(500).json({ error: waError.message });

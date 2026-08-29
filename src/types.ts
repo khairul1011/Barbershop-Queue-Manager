@@ -14,17 +14,17 @@ export interface QueueEntry {
   durationMinutes: number;
   startedAt?: string;
   completedAt?: string;
-  paymentMethod?: 'cash' | 'qris' | null; // diisi pas "Selesaikan Sesi", nandain sisa pembayaran udah lunas
-  sourceRequestId?: string | null; // link balik ke whatsapp_requests kalau booking ini asalnya dari WA (buat hitung sisa bayar dikurangi DP)
-  paymentTransactionId?: string | null; // payment_request_id Xendit kalau sisa bayar lewat QRIS dashboard
-  paymentQrAmount?: number | null; // nominal yang beneran dibayar lewat QR itu (bisa beda dari harga penuh kalau ada DP)
+  paymentMethod?: 'cash' | 'qris' | null; // diisi saat "Selesaikan Sesi", menandakan sisa pembayaran telah lunas
+  sourceRequestId?: string | null; // referensi ke whatsapp_requests apabila booking berasal dari WA (untuk menghitung sisa pembayaran setelah dikurangi DP)
+  paymentTransactionId?: string | null; // payment_request_id Xendit apabila sisa pembayaran dilakukan melalui QRIS dashboard
+  paymentQrAmount?: number | null; // nominal yang benar-benar dibayarkan melalui QR tersebut (dapat berbeda dari harga penuh apabila terdapat DP)
 }
 
 export type RequestStatus = 'pending' | 'approved' | 'rejected';
 
-// Gerbang DP terpisah dari RequestStatus di atas — payment_status ngatur
-// KAPAN sebuah request kelihatan buat di-approve/reject, RequestStatus
-// tetap murni keputusan barber, nggak berubah sama sekali.
+// Gerbang DP terpisah dari RequestStatus di atas — payment_status menentukan
+// KAPAN sebuah request ditampilkan untuk di-approve/reject, sedangkan RequestStatus
+// tetap sepenuhnya merupakan keputusan barber dan tidak berubah sama sekali.
 export type PaymentStatus = 'unpaid' | 'paid' | 'expired' | 'failed';
 
 export interface WhatsAppRequest {

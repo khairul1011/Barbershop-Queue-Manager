@@ -2,7 +2,8 @@ const crypto = require('crypto');
 
 const XENDIT_API_BASE = 'https://api.xendit.co';
 
-// Pakai fetch bawaan Node (bukan axios). Bentuk error disamain kayak axios (err.response.data).
+// Menggunakan fetch bawaan Node (bukan axios). Struktur error disesuaikan dengan axios (err.response.data)
+// agar pemanggil yang sudah mengasumsikan bentuk tersebut tidak perlu diubah.
 async function xenditPost(path, body, extraHeaders) {
   const auth = Buffer.from(`${process.env.XENDIT_SECRET_KEY}:`).toString('base64');
   const response = await fetch(`${XENDIT_API_BASE}${path}`, {
@@ -19,8 +20,9 @@ async function xenditPost(path, body, extraHeaders) {
   return data;
 }
 
-// Bikin QR QRIS sekali-pakai lewat Payment Requests API. Body WAJIB snake_case murni
-// (bukan camelCase kayak SDK resmi) -- Xendit nolak field camelCase mentah-mentah.
+// Membuat QR QRIS sekali pakai melalui Payment Requests API. Body request wajib
+// menggunakan snake_case murni (bukan camelCase seperti pada SDK resmi) — Xendit
+// menolak field yang ditulis dalam camelCase.
 async function createQrisPaymentRequest({ referenceId, amount }) {
   const data = await xenditPost('/payment_requests', {
     reference_id: referenceId,
@@ -36,13 +38,13 @@ async function createQrisPaymentRequest({ referenceId, amount }) {
 
   const qrString = extractQrString(data);
   if (!qrString) {
-    throw new Error('Xendit response tidak mengandung QR string yang dikenali -- cek bentuk response.data terbaru dan update extractQrString().');
+    throw new Error('Xendit response tidak mengandung QR string yang dikenali. Periksa bentuk response.data terbaru dan perbarui extractQrString().');
   }
 
   return { id: data.id, qrString };
 }
 
-// Lokasi asli QR string, TERVERIFIKASI dari response curl sandbox.
+// Lokasi field QR string, telah diverifikasi melalui pengujian curl langsung ke sandbox.
 function extractQrString(data) {
   if (!data) return null;
   const channelProps = data.payment_method && data.payment_method.qr_code
@@ -50,7 +52,7 @@ function extractQrString(data) {
   return (channelProps && channelProps.qr_string) || null;
 }
 
-// Constant-time compare -- dipakai buat verifikasi token webhook & passcode demo.
+// Perbandingan constant-time, digunakan untuk verifikasi token webhook dan passcode halaman demo.
 function constantTimeEquals(value, expected) {
   if (!value || !expected) return false;
   const a = Buffer.from(String(value));
@@ -66,13 +68,15 @@ function verifyDemoPasscode(value) {
   return constantTimeEquals(value, process.env.DEMO_SECRET || '');
 }
 
-// Simulasi pembayaran QRIS sukses (Test Mode only), dipakai halaman /demo. Header api-version wajib.
+// Simulasi pembayaran QRIS berhasil (khusus Test Mode), digunakan oleh halaman /demo.
+// Header api-version bersifat wajib.
 async function simulatePayment({ paymentRequestId, amount }) {
   await xenditPost(`/v3/payment_requests/${paymentRequestId}/simulate`, { amount }, { 'api-version': '2024-11-11' });
 }
 
-// Event webhook asli: "payment.succeeded", nested di `data`. JEBAKAN:
-// `data.reference_id` BUKAN reference_id kita -- yang cocok buat korelasi cuma `data.payment_request_id`.
+// Event webhook yang sebenarnya adalah "payment.succeeded", nested di dalam `data`.
+// Perhatian: `data.reference_id` BUKAN reference_id yang kita buat sendiri — field
+// yang tepat untuk korelasi adalah `data.payment_request_id`.
 function extractWebhookPayload(body) {
   if (!body || !body.data) return { paymentRequestId: null, isSucceeded: false };
   const { payment_request_id: paymentRequestId, status } = body.data;

@@ -24,9 +24,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { supabase } from '../lib/supabaseClient';
 
-// Domain webhook backend (Cloudflare Tunnel -> VPS) yang sama dipakai buat
-// webhook Xendit & halaman demo -- lihat server/index.js. Nggak pernah
-// berubah, jadi hardcode di sini daripada nambah env var buat 1 nilai statis.
+// Domain webhook backend (Cloudflare Tunnel -> VPS) yang sama digunakan untuk
+// webhook Xendit dan halaman demo — lihat server/index.js. Nilainya tidak
+// pernah berubah, sehingga di-hardcode di sini alih-alih menambah env var
+// untuk satu nilai statis.
 const PAYMENT_BACKEND_URL = 'https://wa-webhook.takhtabarber.shop';
 
 interface OverviewProps {
@@ -70,15 +71,15 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
   const [completeCustomerName, setCompleteCustomerName] = useState('');
   const [completePaymentMethod, setCompletePaymentMethod] = useState<'cash' | 'qris'>('cash');
 
-  // Alur QR pembayaran SISA (dipakai kalau metode = QRIS): idle -> loading ->
-  // showing (nunggu customer scan, di-poll tiap 3 detik) -> error kalau gagal.
+  // Alur QR pembayaran SISA (digunakan apabila metode = QRIS): idle -> loading ->
+  // showing (menunggu customer melakukan scan, di-poll setiap 3 detik) -> error apabila gagal.
   const [qrStep, setQrStep] = useState<'idle' | 'loading' | 'showing' | 'error'>('idle');
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [remainingAmount, setRemainingAmount] = useState<number | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Konfirmasi ekstra buat Cash -- kejadian nyata: barber salah klik langsung
-  // ke tombol utama dan sesi kepenuhi seketika tanpa jeda buat batalin.
+  // Konfirmasi tambahan untuk metode Cash — pernah terjadi barber salah klik
+  // langsung pada tombol utama sehingga sesi langsung selesai tanpa ada jeda untuk membatalkan.
   const [cashConfirming, setCashConfirming] = useState(false);
 
   const stopPolling = () => {
@@ -88,8 +89,8 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
     }
   };
 
-  // Balik ke idle tiap kali metode bayar bukan QRIS lagi (termasuk pas dialog
-  // dibuka ulang -- handleDoneClick selalu reset ke 'cash').
+  // Kembali ke idle setiap kali metode bayar bukan QRIS lagi (termasuk saat dialog
+  // dibuka ulang — handleDoneClick selalu mereset ke 'cash').
   useEffect(() => {
     if (completePaymentMethod !== 'qris') {
       setQrStep('idle');
@@ -101,7 +102,7 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
 
   useEffect(() => stopPolling, []);
 
-  // Hitung detik yang sudah berlalu sejak sesi dimulai (bertahan setelah refresh)
+  // Menghitung detik yang telah berlalu sejak sesi dimulai (tetap konsisten setelah refresh).
   const getElapsedFromSession = (sess: typeof session) => {
     if (!sess?.startedAt) return 0;
     const diffMs = Date.now() - new Date(sess.startedAt).getTime();
@@ -125,15 +126,15 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
 
   useEffect(() => {
     if (session) {
-      // Sinkronisasi ulang ketika sesi berganti (panggil pelanggan baru)
+      // Melakukan sinkronisasi ulang ketika sesi berganti (memanggil pelanggan baru).
       setElapsedSeconds(getElapsedFromSession(session));
       setIsTimerRunning(true);
     } else {
       setElapsedSeconds(0);
       setIsTimerRunning(false);
     }
-  // Sengaja cuma depend ke id/startedAt, bukan seluruh objek session --
-  // biar nggak re-sync timer tiap field lain di session berubah.
+  // Sengaja hanya bergantung pada id/startedAt, bukan seluruh objek session,
+  // agar timer tidak ikut di-resinkronisasi setiap kali field lain pada session berubah.
   }, [session?.id, session?.startedAt]);
 
   const formatTime = (totalSeconds: number) => {
@@ -168,9 +169,9 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
     setShowCompleteDialog(false);
   };
 
-  // Hitung sisa yang harus dibayar: harga penuh layanan, dikurangi DP yang
-  // udah dibayar lewat WhatsApp kalau sesi ini asalnya dari booking WA
-  // (source_request_id) DAN DP-nya beneran udah lunas.
+  // Menghitung sisa yang harus dibayar: harga penuh layanan dikurangi DP yang
+  // telah dibayar melalui WhatsApp, apabila sesi ini berasal dari booking WA
+  // (source_request_id) DAN DP tersebut benar-benar sudah lunas.
   const computeRemainingAmount = async (): Promise<number> => {
     const fullPrice = services.find(s => s.id === completeServiceId)?.price || 0;
     if (!session?.sourceRequestId) return fullPrice;
@@ -207,8 +208,8 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
       setQrDataUrl(qrPngDataUrl);
       setQrStep('showing');
 
-      // Poll baris ini tiap 3 detik -- begitu webhook Xendit (server/index.js)
-      // nandain payment_method = 'qris', sesi otomatis di-selesaikan.
+      // Melakukan polling pada baris ini setiap 3 detik — begitu webhook Xendit
+      // (server/index.js) menandai payment_method = 'qris', sesi akan otomatis diselesaikan.
       stopPolling();
       pollRef.current = setInterval(async () => {
         const { data } = await supabase.from('queue_entries').select('payment_method').eq('id', session.id).maybeSingle();
@@ -464,13 +465,13 @@ export default function Overview({
 }: OverviewProps) {
   const { t } = useTranslation();
 
-  // Walk-in form modal
+  // Modal formulir walk-in.
   const [showWalkInModal, setShowWalkInModal] = useState(false);
   const [walkInName, setWalkInName] = useState('');
   const [walkInService, setWalkInService] = useState(services[0]?.name || '');
   const [walkInBarber, setWalkInBarber] = useState(barbers[0]?.name || '');
 
-  // Sync state dengan data yang baru di-load dari Supabase
+  // Menyinkronkan state dengan data yang baru dimuat dari Supabase.
   useEffect(() => {
     if (services.length > 0 && !walkInService) {
       setWalkInService(services[0].name);
@@ -487,7 +488,7 @@ export default function Overview({
     e.preventDefault();
     if (!walkInName.trim()) return;
 
-    // Safety net fallback sesuai kesepakatan
+    // Safety net fallback sesuai kesepakatan.
     const finalService = walkInService || services[0]?.name || '';
     const finalBarber = walkInBarber || barbers[0]?.name || '';
 
@@ -498,7 +499,7 @@ export default function Overview({
 
   const todayQueue = queue.filter(q => q.day === todayKey);
 
-  // Active seats calculation
+  // Perhitungan kursi yang sedang aktif.
   const activeBarberCount = barbers.filter(b => b.status === 'active').length || 1;
   const occupiedSeats = Object.values(servingSessions || {}).filter(Boolean).length;
   const estimatedWaitTime = Math.ceil(todayQueue.length / activeBarberCount) * 20 + (occupiedSeats > 0 ? 10 : 0);

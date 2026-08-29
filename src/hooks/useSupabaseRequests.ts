@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { WhatsAppRequest, RequestStatus } from '../types';
 
-// `enabled` — lihat catatan yang sama di useSupabaseBarbers.ts. Realtime
-// subscription juga ikut ditahan, bukan cuma fetch awal -- nggak ada
-// gunanya subscribe sebelum authenticated.
+// `enabled` — lihat catatan yang sama pada useSupabaseBarbers.ts. Realtime
+// subscription juga turut ditahan, bukan hanya fetch awal — tidak ada
+// gunanya melakukan subscribe sebelum pengguna terautentikasi.
 export function useSupabaseRequests(enabled: boolean) {
   const [requests, setRequests] = useState<WhatsAppRequest[]>([]);
   const [loading, setLoading] = useState(true);

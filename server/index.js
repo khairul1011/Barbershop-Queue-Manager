@@ -2,7 +2,7 @@ require('dotenv').config();
 const crypto = require('crypto');
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
-const QRCode = require('qrcode'); // beda dari qrcode-terminal di atas -- ini buat generate PNG QR pembayaran
+const QRCode = require('qrcode'); // berbeda dari qrcode-terminal di atas — package ini digunakan untuk menghasilkan PNG QR pembayaran
 const { parseBookingMessage } = require('./services/gemini');
 const supabase = require('./supabaseClient');
 const { getServicePrice, calculateDp } = require('./services/priceLookup');
@@ -13,10 +13,10 @@ const { startWebhookServer } = require('./webhookServer');
 const conversationState = new Map();
 const chatHistory = new Map();
 
-// Skip pesan yang timestamp-nya sebelum ini -- cegah replay pesan lama pas restart.
+// Pesan dengan timestamp sebelum nilai ini akan dilewati, untuk mencegah pesan lama diproses ulang saat restart.
 const BOT_START_TIME = Math.floor(Date.now() / 1000);
 
-// Safety net tambahan: cegah 1 pesan diproses dua kali.
+// Safety net tambahan: mencegah satu pesan diproses lebih dari sekali.
 const processedMessageIds = new Set();
 const MAX_TRACKED_MESSAGE_IDS = 500;
 
@@ -24,8 +24,9 @@ function randomBetween(min, max) {
   return min + Math.random() * (max - min);
 }
 
-// Lock in-memory buat serialize "cek ketersediaan -> insert booking" --
-// tanpa ini, 2 customer confirm bareng bisa ke-assign kapster yang sama.
+// Lock in-memory untuk menyerialisasi proses "periksa ketersediaan -> insert booking".
+// Tanpa lock ini, dua customer yang melakukan konfirmasi bersamaan berpotensi
+// dialokasikan ke kapster yang sama.
 let bookingLock = Promise.resolve();
 function withBookingLock(fn) {
   const run = bookingLock.then(fn, fn);
@@ -33,21 +34,22 @@ function withBookingLock(fn) {
   return run;
 }
 
-// Jeda "natural" sebelum kirim pesan — dasar 1.5-3 detik + tambahan mengikuti
-// panjang teks (mirip kecepatan ngetik manusia), dibatasi maksimal ~7 detik.
+// Menghitung jeda alami sebelum mengirim pesan — jeda dasar 1.5-3 detik ditambah
+// durasi yang mengikuti panjang teks (menyerupai kecepatan mengetik manusia),
+// dibatasi maksimal sekitar 7 detik.
 function computeNaturalDelay(text) {
   const baseDelay = randomBetween(1500, 3000);
   const typingDelay = text.length * 30;
   return Math.min(baseDelay + typingDelay, 7000);
 }
 
-// Tunjukin indikator "sedang mengetik" + jeda acak sebelum kirim, biar nggak kelihatan kayak bot.
+// Menampilkan indikator "sedang mengetik" dan jeda acak sebelum mengirim, agar tidak terlihat seperti balasan bot.
 async function waitWithTypingIndicator(getChat, textForDelay) {
   try {
     const chat = await getChat();
     await chat.sendStateTyping();
   } catch (err) {
-    // Non-fatal — lanjut tanpa indikator typing kalau gagal ambil chat.
+    // Bersifat non-fatal — tetap lanjut tanpa indikator typing apabila pengambilan chat gagal.
   }
   await new Promise(resolve => setTimeout(resolve, computeNaturalDelay(textForDelay)));
 }
@@ -61,20 +63,20 @@ async function replyAndSaveHistory(msg, text) {
   if (history.length > 6) history.shift();
 }
 
-// Sama kayak replyAndSaveHistory, tapi buat pesan yang diinisiasi bot sendiri (mis. notifikasi approve/reject).
+// Serupa dengan replyAndSaveHistory, namun untuk pesan yang diinisiasi oleh bot sendiri (misalnya notifikasi approve/reject).
 async function sendMessageWithDelay(chatId, text) {
   await waitWithTypingIndicator(() => client.getChatById(chatId), text);
   await client.sendMessage(chatId, text);
 }
 
-// Sama kayak sendMessageWithDelay, tapi buat kirim media (gambar QR) + caption.
+// Serupa dengan sendMessageWithDelay, namun untuk mengirim media (gambar QR) beserta caption.
 async function sendMediaWithDelay(chatId, media, caption) {
   await waitWithTypingIndicator(() => client.getChatById(chatId), caption || '');
   await client.sendMessage(chatId, media, { caption });
 }
 
 // getTargetDateStr/mentionsDay/checkAvailability/checkExistingBookingSameDay/
-// getShopName/getBusinessContext dipindah ke ./bookingDomain.js.
+// getShopName/getBusinessContext telah dipindahkan ke ./bookingDomain.js.
 
 const client = new Client({
   authStrategy: new LocalAuth(),
@@ -97,14 +99,15 @@ client.on('ready', () => {
 });
 client.on('message', msg => console.log('[RAW EVENT]', msg.from, msg.type, msg.body));
 
-// whatsapp-web.js bisa disconnect diam-diam tanpa proses Node crash --
-// exit eksplisit biar PM2 restart & bikin sesi Puppeteer baru.
+// whatsapp-web.js dapat terputus secara diam-diam tanpa membuat proses Node crash.
+// Exit secara eksplisit di sini agar PM2 melakukan restart dan membuat sesi Puppeteer baru.
 client.on('disconnected', (reason) => {
   console.log('[DISCONNECTED]', reason, '- keluar biar PM2 restart proses ini.');
   process.exit(1);
 });
 
-// Resolve nomor asli dari WA ID (@c.us atau @lid) -- query ulang ke server WA, fallback manual kalau gagal.
+// Meresolusi nomor asli dari WA ID (@c.us atau @lid) dengan melakukan query ulang ke
+// server WhatsApp, dengan fallback manual apabila query gagal.
 async function resolveRealPhone(waId) {
   try {
     const [result] = await client.getContactLidAndPhone(waId);
@@ -117,8 +120,8 @@ async function resolveRealPhone(waId) {
   return waId.replace('@c.us', '').replace('@lid', '');
 }
 
-// Kirim notifikasi approve/reject ke customer. Prioritaskan sender_wa_id
-// (ID chat asli) -- rekonstruksi manual dari sender_phone bisa gagal buat sebagian kontak.
+// Mengirim notifikasi approve/reject ke customer. sender_wa_id (ID chat asli)
+// diprioritaskan karena rekonstruksi manual dari sender_phone dapat gagal untuk sebagian kontak.
 async function notifyStatusChange(row) {
   if (!row.sender_wa_id && !row.sender_phone) {
     console.error('[NOTIFY SKIP] sender_wa_id & sender_phone kosong, tidak bisa kirim notifikasi | id:', row.id);
@@ -158,7 +161,7 @@ async function notifyStatusChange(row) {
   }
 }
 
-// Kirim ulang notifikasi approve/reject yang tertunda (mis. bot lagi mati pas kapster mutusin).
+// Mengirim ulang notifikasi approve/reject yang tertunda (misalnya karena bot sedang tidak aktif saat kapster memutuskan).
 async function catchUpNotifications() {
   const { data, error } = await supabase
     .from('whatsapp_requests')
@@ -178,16 +181,17 @@ async function catchUpNotifications() {
   }
 }
 
-// Dengerin approve/reject dari dashboard lewat Supabase Realtime, kirim notifikasi WA.
-// Idempotent lewat kolom status_notified (bukan state in-memory).
+// Mendengarkan perubahan approve/reject dari dashboard melalui Supabase Realtime,
+// lalu mengirim notifikasi WhatsApp. Bersifat idempotent melalui kolom
+// status_notified (bukan state in-memory).
 supabase
   .channel('whatsapp_requests_status')
   .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'whatsapp_requests' }, async payload => {
     const id = payload.new && payload.new.id;
     if (!id) return;
 
-    // Re-fetch row lengkap by ID, jangan percaya isi payload realtime mentah
-    // (bisa beda tergantung REPLICA IDENTITY config tabel).
+    // Melakukan re-fetch baris lengkap berdasarkan ID, karena isi payload realtime mentah
+    // tidak dapat sepenuhnya diandalkan (dapat berbeda tergantung konfigurasi REPLICA IDENTITY tabel).
     const { data: row, error } = await supabase
       .from('whatsapp_requests')
       .select('*')
@@ -206,7 +210,7 @@ supabase
   .subscribe();
 
 client.on('message', async msg => {
-  // Housekeeping: hapus state yang usianya lebih dari 30 menit
+  // Housekeeping: menghapus state percakapan yang berusia lebih dari 30 menit.
   const now = Date.now();
   for (const [key, state] of conversationState.entries()) {
     if (now - state.lastUpdated > 30 * 60 * 1000) {
@@ -214,24 +218,24 @@ client.on('message', async msg => {
     }
   }
 
-  // 1. Skip pesan dari bot/diri sendiri
+  // 1. Melewati pesan dari bot/diri sendiri
   if (msg.fromMe) return;
 
-  // 2. Skip pesan dari grup WhatsApp
+  // 2. Melewati pesan dari grup WhatsApp
   if (msg.from.endsWith('@g.us')) return;
 
-  // Skip update status WhatsApp
+  // Melewati update status WhatsApp
   if (msg.from === 'status@broadcast') return;
 
-  // Skip pesan yang timestamp-nya sebelum proses ini mulai jalan — ini
-  // mencegah pesan lama diproses & dibalas ulang saat whatsapp-web.js
-  // "membaca ulang" pesan terakhir pas sesi reconnect setelah restart.
+  // Melewati pesan dengan timestamp sebelum proses ini dimulai — mencegah pesan lama
+  // diproses dan dibalas ulang saat whatsapp-web.js membaca ulang pesan terakhir
+  // pada sesi reconnect setelah restart.
   if (msg.timestamp && msg.timestamp < BOT_START_TIME) {
     console.log('[SKIP STALE MESSAGE] pesan dari sebelum bot ini nyala, diabaikan:', msg.from);
     return;
   }
 
-  // Skip pesan yang ID-nya sudah pernah diproses (safety net tambahan).
+  // Melewati pesan yang ID-nya sudah pernah diproses (safety net tambahan).
   const msgId = msg.id && msg.id._serialized;
   if (msgId) {
     if (processedMessageIds.has(msgId)) {
@@ -245,7 +249,7 @@ client.on('message', async msg => {
     }
   }
 
-  // 3. Skip pesan yang terlalu pendek HANYA jika pengguna belum ada di state percakapan
+  // 3. Melewati pesan yang terlalu pendek, hanya apabila pengguna belum berada dalam state percakapan
   const GREETING_WORDS = ['halo', 'hallo', 'hai', 'hi', 'hey', 'min', 'bang', 'bg', 'kak', 'permisi', 'pagi', 'siang', 'sore', 'malam'];
   const bodyNormalized = (msg.body || '').trim().toLowerCase();
   const isGreeting = GREETING_WORDS.some(g => bodyNormalized === g || bodyNormalized.startsWith(g + ' ') || bodyNormalized.startsWith(g + ','));
@@ -260,7 +264,7 @@ client.on('message', async msg => {
   
   const historyStr = history.slice(0, -1).join('\n');
 
-  // Kirim ke Gemini untuk di-parsing
+  // Mengirim pesan ke Gemini untuk diparsing.
   const { context: businessContext, shopName } = await getBusinessContext();
   const parsedData = await parseBookingMessage(msg.body, businessContext, historyStr, shopName);
   
@@ -269,8 +273,9 @@ client.on('message', async msg => {
 
     const hasActiveState = conversationState.has(msg.from);
 
-    // [BUG FIX]: Intercept natural replies from Gemini even when in active state
-    // so questions like "jam berapa bukanya?" get answered naturally instead of repeating the missing field prompt.
+    // Menangani natural reply dari Gemini meskipun state percakapan sedang aktif,
+    // sehingga pertanyaan seperti "jam berapa bukanya?" dijawab secara natural,
+    // bukan diulang dengan prompt field yang belum lengkap.
     if (!parsedData.isBookingIntent && parsedData.naturalReply && hasActiveState) {
       const oldState = conversationState.get(msg.from) || { nama: null, hari: null, jam: null, servis: null, kapster: null };
       
@@ -314,15 +319,16 @@ client.on('message', async msg => {
       if (!merged.servis) missing.push('mau potong apa (misal: cukur, creambath)');
       if (!merged.nama) missing.push('atas nama siapa');
 
-      // (a) ada field kosong -> tanya. (b) udah lengkap + nunggu konfirmasi -> cek "ya"/"tidak".
-      // (c) udah lengkap, belum minta konfirmasi -> kirim ringkasan.
+      // (a) Terdapat field yang kosong -> tanyakan field tersebut. (b) Semua field lengkap dan
+      // sedang menunggu konfirmasi -> periksa jawaban "ya"/"tidak". (c) Semua field lengkap namun
+      // belum meminta konfirmasi -> kirim ringkasan.
 
       const KONFIRMASI_WORDS = ['ya', 'iya', 'benar', 'yes', 'oke', 'ok', 'betul', 'sip', 'siap'];
       const textNormalized = (msg.body || '').trim().toLowerCase();
       const isKonfirmasi = KONFIRMASI_WORDS.some(w => textNormalized === w || textNormalized.startsWith(w + ' ') || textNormalized.endsWith(' ' + w) || textNormalized.includes(' ' + w + ' '));
 
       if (missing.length > 0) {
-        // (a) Ada field kosong — tanya, reset awaitingConfirmation
+        // (a) Terdapat field yang kosong — menanyakan field tersebut, dan mereset awaitingConfirmation.
         let known = [];
         if (merged.hari) known.push(`hari ${merged.hari}`);
         if (merged.jam) known.push(`jam ${merged.jam}`);
@@ -347,12 +353,14 @@ client.on('message', async msg => {
         }
 
       } else if (oldState.awaitingConfirmation === true) {
-        // (b) Semua terisi & sedang menunggu konfirmasi
+        // (b) Semua field terisi dan sedang menunggu konfirmasi
         if (isKonfirmasi) {
           try {
-            // Cek+insert dibungkus lock biar atomik; kirim balasan/QR di LUAR lock.
-            // Pakai oldState.kapster (bukan merged.kapster) -- Gemini kadang ngarang
-            // nama kapster di follow-up "ya" doang, oldState = yang udah disetujui customer.
+            // Pemeriksaan ketersediaan dan proses insert dibungkus dalam lock agar bersifat
+            // atomik; pengiriman balasan/QR dilakukan DI LUAR lock. oldState.kapster (bukan
+            // merged.kapster) digunakan karena Gemini kadang menghasilkan nama kapster yang
+            // tidak sesuai pada follow-up berupa "ya" saja — oldState adalah nilai yang
+            // sudah disetujui oleh customer.
             const lockResult = await withBookingLock(async () => {
               const { conflict, msg: conflictMsg, assignedBarber } = await checkAvailability(merged.hari, merged.jam, oldState.kapster);
               if (conflict) {
@@ -365,7 +373,7 @@ client.on('message', async msg => {
               const price = await getServicePrice(merged.servis);
 
               if (price == null) {
-                // Harga nggak ketemu -- fail open, insert tanpa DP daripada blokir booking.
+                // Harga tidak ditemukan — fail open dengan melakukan insert tanpa DP, alih-alih memblokir booking.
                 console.error('[DP SKIP] harga servis tidak ditemukan untuk', merged.servis, '— booking diproses tanpa DP.');
                 const { error } = await supabase.from('whatsapp_requests').insert({
                   sender_name: merged.nama,
@@ -386,7 +394,7 @@ client.on('message', async msg => {
               const referenceId = `wa-${crypto.randomUUID()}`;
               const paymentExpiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
-              // Insert dulu (status 'unpaid') biar dashboard langsung nunjukin "menunggu pembayaran".
+              // Melakukan insert terlebih dahulu (status 'unpaid') agar dashboard segera menampilkan status "menunggu pembayaran".
               const { data: insertedRow, error: insertError } = await supabase
                 .from('whatsapp_requests')
                 .insert({
@@ -437,7 +445,7 @@ client.on('message', async msg => {
             const { insertedRow, dpAmount, referenceId } = lockResult;
             try {
               const { id: xenditQrId, qrString } = await createQrisPaymentRequest({ referenceId, amount: dpAmount });
-              // xendit_qr_id = payment_request_id, yang beneran dipakai webhook buat matching (lihat xenditClient.js).
+              // xendit_qr_id merupakan payment_request_id yang digunakan webhook untuk pencocokan (lihat xenditClient.js).
               await supabase.from('whatsapp_requests').update({ xendit_qr_id: xenditQrId }).eq('id', insertedRow.id);
 
               const qrPngBase64 = await QRCode.toDataURL(qrString).then(dataUrl => dataUrl.split(',')[1]);
@@ -464,10 +472,10 @@ client.on('message', async msg => {
             console.error('[REPLY ERROR]', err.message, '| target:', msg.from);
           }
         } else {
-          // Customer kirim sesuatu lain (kemungkinan koreksi) — reset & minta konfirmasi ulang
+          // Customer mengirimkan hal lain (kemungkinan koreksi data) — mereset state dan meminta konfirmasi ulang.
           console.log('[CONFIRM RESET] pesan bukan konfirmasi, kirim ringkasan ulang ke', msg.from);
-          
-          // Langsung jatuh ke cabang (c): kirim ringkasan & minta konfirmasi ulang
+
+          // Melanjutkan langsung ke cabang (c): mengirim ringkasan dan meminta konfirmasi ulang.
           conversationState.set(msg.from, { ...merged, awaitingConfirmation: true, lastUpdated: Date.now() });
           try {
             console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
@@ -481,12 +489,12 @@ client.on('message', async msg => {
           }
         }
       } else {
-        // (c) Semua terisi tapi belum pernah minta konfirmasi — kirim ringkasan & minta konfirmasi
-        
-        // CEK KETERSEDIAAN DULU
+        // (c) Semua field terisi namun belum pernah meminta konfirmasi — mengirim ringkasan dan meminta konfirmasi.
+
+        // Memeriksa ketersediaan terlebih dahulu.
         const { conflict, msg: conflictMsg, assignedBarber } = await checkAvailability(merged.hari, merged.jam, merged.kapster);
         if (conflict) {
-          // Ada bentrok, minta ubah data
+          // Terjadi bentrok jadwal — meminta customer mengubah data.
           conversationState.set(msg.from, { ...merged, jam: null, kapster: null, awaitingConfirmation: false, lastUpdated: Date.now() });
           try {
             console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
@@ -497,7 +505,7 @@ client.on('message', async msg => {
           return;
         }
 
-        // Simpan kapster yang ditugaskan ke state agar konsisten
+        // Menyimpan kapster yang ditugaskan ke dalam state agar konsisten.
         merged.kapster = assignedBarber;
         conversationState.set(msg.from, { ...merged, awaitingConfirmation: true, lastUpdated: Date.now() });
         try {
@@ -525,8 +533,8 @@ client.on('message', async msg => {
   }
 });
 
-// Server webhook + halaman demo (webhook Xendit, endpoint QR sisa bayar,
-// demo simulasi bayar) dipindah ke ./webhookServer.js.
+// Server webhook dan halaman demo (webhook Xendit, endpoint QR sisa pembayaran,
+// simulasi pembayaran demo) telah dipindahkan ke ./webhookServer.js.
 startWebhookServer({ sendMessageWithDelay });
 
 client.initialize();

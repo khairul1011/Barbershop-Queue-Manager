@@ -74,17 +74,18 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Gerbang buat semua hook data di bawah yang tabelnya authenticated-only
-  // lewat RLS (whatsapp_requests, barbers, services, queue_entries) -- baru
-  // `true` setelah authLoading kelar DAN session beneran ada. Sebelumnya
-  // hook-hook ini fetch langsung pas mount tanpa nunggu ini, sering kejadian
-  // SEBELUM user login (hook tetap jalan walau yang di-render masih
-  // <Login/>, React tetap manggil semua hook di atas duluan sebelum return
-  // bersyarat di bawah) -- fetch itu balik kosong/diblokir RLS, dan nggak
-  // pernah refetch otomatis begitu user beneran login, jadi dashboard
-  // kelihatan kosong sampai di-reload manual. `business_hours` SENGAJA
-  // dikecualikan dari gerbang ini -- tabel itu punya policy `anon` terpisah
-  // karena nama toko/logo harus kebaca di halaman Login sebelum auth.
+  // Gerbang untuk semua hook data di bawah yang tabelnya bersifat authenticated-only
+  // melalui RLS (whatsapp_requests, barbers, services, queue_entries) — bernilai
+  // `true` hanya setelah authLoading selesai DAN session benar-benar ada. Sebelumnya,
+  // hook-hook ini melakukan fetch langsung saat mount tanpa menunggu kondisi ini,
+  // sehingga sering terjadi SEBELUM pengguna login (hook tetap berjalan meskipun yang
+  // dirender masih <Login/>, karena React tetap memanggil seluruh hook di atas
+  // terlebih dahulu sebelum mencapai return bersyarat di bawah) — fetch tersebut
+  // menghasilkan data kosong/diblokir RLS, dan tidak pernah di-refetch secara otomatis
+  // setelah pengguna benar-benar login, sehingga dashboard tampak kosong hingga
+  // dilakukan reload manual. `business_hours` SENGAJA dikecualikan dari gerbang ini —
+  // tabel tersebut memiliki policy `anon` terpisah karena nama toko/logo harus dapat
+  // dibaca pada halaman Login sebelum autentikasi.
   const dataReady = !authLoading && !!session;
 
   // Core App States

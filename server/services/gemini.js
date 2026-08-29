@@ -63,7 +63,8 @@ Output: {"nama":null,"hari":null,"jam":null,"servis":null,"kapster":null,"isBook
 Input: "ok makasih"
 Output: {"nama":null,"hari":null,"jam":null,"servis":null,"kapster":null,"isBookingIntent":false,"naturalReply":"Sama-sama kak! Ditunggu kedatangannya ya."}`;
 
-// 'gemini-3.1-flash' nggak ada (404) -- 3.1 cuma ada varian lite/image. Ganti 'gemini-3.6-flash'.
+// 'gemini-3.1-flash' tidak tersedia (404) — versi 3.1 hanya memiliki varian lite/image.
+// Diganti dengan 'gemini-3.6-flash'.
 const MODEL_CHAIN = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.5-flash'];
 
 function getStartingIndex(text) {

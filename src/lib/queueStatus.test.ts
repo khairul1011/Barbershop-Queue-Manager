@@ -6,7 +6,7 @@ describe('getQueueStatusVariant', () => {
     expect(getQueueStatusVariant({ status: 'Confirmed', startedAt: undefined, completedAt: '2026-01-01T00:00:00Z' })).toBe('blue');
   });
 
-  it('startedAt tanpa completedAt = lagi dilayani (violet), meski status masih Confirmed', () => {
+  it('startedAt tanpa completedAt = sedang dilayani (violet), meskipun status masih Confirmed', () => {
     expect(getQueueStatusVariant({ status: 'Confirmed', startedAt: '2026-01-01T00:00:00Z', completedAt: undefined })).toBe('violet');
   });
 

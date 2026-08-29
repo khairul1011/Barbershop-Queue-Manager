@@ -2,11 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { Barber } from '../types';
 
-// `enabled` — jangan fetch sampai status login (session) kepastian, dan cuma
-// fetch kalau beneran ada session. RLS tabel ini authenticated-only, jadi
-// fetch sebelum session ada cuma buang-buang request (balik kosong/diblokir).
-// Dulu fetch selalu jalan pas mount (sebelum tau ada session atau nggak),
-// nggak pernah refetch begitu user beneran login -- lihat App.tsx.
+// `enabled` — fetch tidak dilakukan sampai status login (session) dipastikan,
+// dan hanya dilakukan apabila session benar-benar ada. RLS pada tabel ini
+// bersifat authenticated-only, sehingga fetch sebelum session ada hanya akan
+// menghasilkan request yang sia-sia (hasil kosong/diblokir). Sebelumnya, fetch
+// selalu dijalankan saat mount (sebelum diketahui ada session atau tidak) dan
+// tidak pernah di-refetch setelah pengguna benar-benar login — lihat App.tsx.
 export function useSupabaseBarbers(enabled: boolean) {
   const [barbers, setBarbers] = useState<Barber[]>([]);
   const [loading, setLoading] = useState(true);
@@ -112,11 +113,12 @@ export function useSupabaseBarbers(enabled: boolean) {
     }
   };
 
-  // Soft delete: kapster diarsipkan (archived = true), bukan dihapus permanen
-  // dari database. Kapster yang sudah punya riwayat di queue_entries nggak
-  // bisa di-hard-delete (foreign key constraint) tanpa merusak riwayat
-  // antrean lama — soft delete ini konsisten menghindari itu tanpa perlu
-  // cek dulu apakah kapsternya punya riwayat atau nggak.
+  // Soft delete: kapster diarsipkan (archived = true), bukan dihapus secara
+  // permanen dari database. Kapster yang sudah memiliki riwayat pada queue_entries
+  // tidak dapat di-hard-delete (foreign key constraint) tanpa merusak riwayat
+  // antrean lama — pendekatan soft delete ini secara konsisten menghindari
+  // masalah tersebut tanpa perlu memeriksa terlebih dahulu apakah kapster
+  // yang bersangkutan memiliki riwayat atau tidak.
   const removeBarber = async (id: string) => {
     try {
       setError(null);

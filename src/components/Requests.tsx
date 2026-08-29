@@ -53,15 +53,15 @@ export default function Requests({
     setEditingId(null);
   };
 
-  // Gerbang DP: booking baru kelihatan buat di-approve/reject setelah
-  // pembayarannya beres. 'expired'/'failed' sengaja disembunyikan dari
-  // dua-duanya untuk v1 — tetap ada di database, cuma nggak bikin noise
-  // di dashboard.
+  // Gerbang DP: booking baru terlihat untuk di-approve/reject setelah
+  // pembayarannya selesai. Status 'expired'/'failed' sengaja disembunyikan
+  // dari keduanya untuk v1 — data tetap tersimpan di database, hanya tidak
+  // ditampilkan agar tidak menimbulkan noise pada dashboard.
   const awaitingPayment = requests.filter(r => r.status === 'pending' && r.paymentStatus === 'unpaid');
   const pendingRequests = requests.filter(r => r.status === 'pending' && r.paymentStatus === 'paid');
 
-  // Kartu request WhatsApp — dipakai dua kali (menunggu bayar & menunggu
-  // approval) dengan actions yang beda, biar nggak duplikat ~120 baris JSX.
+  // Kartu request WhatsApp — digunakan dua kali (menunggu pembayaran & menunggu
+  // approval) dengan actions yang berbeda, agar tidak terjadi duplikasi ~120 baris JSX.
   const renderRequestCard = (req: WhatsAppRequest, showApprovalActions: boolean) => {
     const isEditing = showApprovalActions && editingId === req.id;
 

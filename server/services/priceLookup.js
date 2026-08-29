@@ -1,6 +1,6 @@
 const supabase = require('../supabaseClient');
 
-// Matching sama kayak fuzzyMatchService() di src/App.tsx (exact dulu, baru partial).
+// Logika pencocokan sama seperti fuzzyMatchService() di src/App.tsx (exact match terlebih dahulu, kemudian partial match).
 async function getServicePrice(serviceName) {
   if (!serviceName) return null;
 
@@ -24,8 +24,8 @@ async function getServicePrice(serviceName) {
   return null;
 }
 
-// Xendit butuh nominal IDR bulat (nggak boleh desimal), jadi pembulatan di
-// sini wajib, bukan sekadar rapi-rapi angka.
+// Xendit mensyaratkan nominal IDR berupa bilangan bulat (desimal tidak diperbolehkan),
+// sehingga pembulatan di sini bersifat wajib, bukan sekadar formatting.
 function calculateDp(price) {
   return Math.round(price * 0.5);
 }

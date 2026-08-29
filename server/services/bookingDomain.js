@@ -1,7 +1,8 @@
 const supabase = require('../supabaseClient');
 
-// VPS jalan di UTC, toko operasional WIB (UTC+7, no DST) -- geser +7 jam
-// biar getUTC*() di bawah balikin tanggal-kalender WIB yang bener.
+// VPS berjalan pada UTC, sedangkan toko beroperasi pada WIB (UTC+7, tanpa DST).
+// Pergeseran +7 jam ini diperlukan agar getUTC*() di bawah mengembalikan tanggal
+// kalender WIB yang benar.
 function getWibNow() {
   return new Date(Date.now() + 7 * 60 * 60 * 1000);
 }
@@ -33,23 +34,24 @@ function getTargetDateStr(dayStr) {
   return `${y}-${m}-${dd}`;
 }
 
-// Guard: cuma percaya field `hari` dari Gemini kalau pesan ASLI beneran
-// nyebut kata hari -- Gemini kadang ngarang hari di follow-up singkat.
+// Guard: field `hari` dari Gemini hanya dipercaya apabila pesan asli benar-benar
+// menyebutkan kata terkait hari — Gemini kadang menghasilkan nilai hari yang tidak
+// sesuai pada pesan follow-up yang singkat.
 const DAY_KEYWORDS = ['besok', 'lusa', 'hari ini', 'senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu'];
 function mentionsDay(text) {
   const t = (text || '').toLowerCase();
   return DAY_KEYWORDS.some(k => t.includes(k));
 }
 
-// Cek bentrok jadwal kapster buat 1 slot (hari+jam), balikin kapster yang
-// ditugasin kalau kosong.
+// Memeriksa bentrok jadwal kapster untuk satu slot (hari+jam), dan mengembalikan
+// kapster yang ditugaskan apabila slot tersedia.
 async function checkAvailability(hariStr, jamStr, kapsterStr) {
   const dateStr = getTargetDateStr(hariStr);
   const { data: queue } = await supabase.from('queue_entries')
     .select('barber_id, scheduled_time, status')
     .eq('scheduled_date', dateStr);
 
-  // archived=false, bukan status -- kapster "terhapus" harus tetap dikecualikan
+  // Filter menggunakan archived=false, bukan status — kapster yang telah "dihapus" harus tetap dikecualikan.
   const { data: barbers } = await supabase.from('barbers').select('id, name').eq('archived', false);
 
   const { data: waReqs } = await supabase.from('whatsapp_requests')
@@ -108,8 +110,9 @@ async function checkAvailability(hariStr, jamStr, kapsterStr) {
   }
 }
 
-// Cek nomor ini udah ada booking aktif di hari yang sama (whatsapp_requests
-// pending/approved, atau queue_entries) -- buat peringatan aja, nggak diblok.
+// Memeriksa apakah nomor ini sudah memiliki booking aktif pada hari yang sama
+// (whatsapp_requests berstatus pending/approved, atau queue_entries). Hasilnya
+// hanya digunakan sebagai peringatan, bukan untuk memblokir booking.
 async function checkExistingBookingSameDay(realPhone, dateStr) {
   if (!realPhone) return null;
 
@@ -146,8 +149,8 @@ async function getShopName() {
   }
 }
 
-// Rangkum jam operasional, kapster aktif, layanan, dan info cuti buat
-// dikasih ke Gemini sebagai konteks parsing pesan booking.
+// Merangkum jam operasional, kapster aktif, daftar layanan, dan informasi cuti
+// untuk diberikan kepada Gemini sebagai konteks parsing pesan booking.
 async function getBusinessContext() {
   try {
     const { data: barbers } = await supabase.from('barbers').select('name, specialization, status').eq('status', 'active').eq('archived', false);

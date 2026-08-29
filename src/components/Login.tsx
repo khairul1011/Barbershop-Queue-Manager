@@ -42,10 +42,10 @@ export default function Login({ shopName, logoUrl }: LoginProps) {
     }
   };
 
-  // Cuma validasi + buka dialog konfirmasi -- BUKAN kirim email langsung.
-  // Sebelumnya klik ini langsung nembak resetPasswordForEmail() tanpa
-  // konfirmasi sama sekali, jadi kalau kolom email kepencet nggak sengaja
-  // ikutan kepencet, email reset password langsung terkirim tanpa disadari.
+  // Hanya melakukan validasi dan membuka dialog konfirmasi — BUKAN mengirim email secara langsung.
+  // Sebelumnya, tombol ini langsung memanggil resetPasswordForEmail() tanpa
+  // konfirmasi sama sekali, sehingga apabila kolom email tidak sengaja terklik
+  // bersamaan, email reset password langsung terkirim tanpa disadari.
   const handleForgotPasswordClick = (e: React.MouseEvent) => {
     e.preventDefault();
     setError(null);
@@ -57,7 +57,7 @@ export default function Login({ shopName, logoUrl }: LoginProps) {
     setShowResetConfirm(true);
   };
 
-  // Beneran kirim email reset -- cuma dipanggil setelah user konfirmasi di dialog.
+  // Benar-benar mengirim email reset — hanya dipanggil setelah pengguna mengonfirmasi pada dialog.
   const confirmResetPassword = async () => {
     setShowResetConfirm(false);
     setLoading(true);

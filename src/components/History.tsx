@@ -25,8 +25,8 @@ import { DataPagination } from '@/components/ui/DataPagination';
 
 const PAGE_SIZE = 9;
 
-// 'yyyy-MM-dd' berbasis tanggal LOKAL, bukan toISOString() (UTC) -- bug yang
-// sama yang udah diwaspadai di useSupabaseQueue.ts (getLocalDateString).
+// 'yyyy-MM-dd' berbasis tanggal LOKAL, bukan toISOString() (UTC) — kelas bug
+// yang sama seperti yang diantisipasi pada useSupabaseQueue.ts (getLocalDateString).
 function toDateKey(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -57,7 +57,7 @@ export default function History({ completedEntries, barbers, services }: History
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [page, setPage] = useState(1);
 
-  // Detail pembayaran -- diklik dari card/row riwayat.
+  // Detail pembayaran — ditampilkan saat card/row riwayat diklik.
   const [selectedEntry, setSelectedEntry] = useState<QueueEntry | null>(null);
   const [waDpInfo, setWaDpInfo] = useState<WaDpInfo | null>(null);
   const [waDpLoading, setWaDpLoading] = useState(false);
@@ -69,7 +69,7 @@ export default function History({ completedEntries, barbers, services }: History
       setCopiedCode(code);
       setTimeout(() => setCopiedCode((prev) => (prev === code ? null : prev)), 1500);
     } catch {
-      // Clipboard API bisa gagal (mis. izin browser) -- diemin aja, bukan fatal.
+      // Clipboard API dapat gagal (misalnya karena izin browser) — diabaikan, tidak bersifat fatal.
     }
   };
 
