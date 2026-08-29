@@ -43,6 +43,19 @@ function mentionsDay(text) {
   return DAY_KEYWORDS.some(k => t.includes(k));
 }
 
+// Guard: mendeteksi kalau pelanggan eksplisit menyatakan ingin booking BARU
+// (bukan melanjutkan sesi yang masih tertunda). Insiden nyata: booking pertama
+// belum sempat dikonfirmasi (pelanggan malah bertanya-tanya di tengah jalan),
+// lalu pelanggan bilang "bisa book lagi?" dengan nama berbeda -- tanpa guard
+// ini, field jam/servis/kapster dari sesi lama yang belum selesai ikut
+// terbawa ke booking baru tersebut karena pelanggan tidak menyebutkan ulang
+// detail yang sebenarnya ingin diisi ulang dari nol.
+const NEW_BOOKING_KEYWORDS = ['book lagi', 'booking lagi', 'booking baru', 'pesan lagi', 'pesen lagi', 'reservasi lagi', 'reservasi baru'];
+function indicatesNewBooking(text) {
+  const t = (text || '').toLowerCase();
+  return NEW_BOOKING_KEYWORDS.some(k => t.includes(k));
+}
+
 // Memeriksa bentrok jadwal kapster untuk satu slot (hari+jam), dan mengembalikan
 // kapster yang ditugaskan apabila slot tersedia.
 async function checkAvailability(hariStr, jamStr, kapsterStr) {
@@ -202,6 +215,7 @@ async function getBusinessContext() {
 module.exports = {
   getTargetDateStr,
   mentionsDay,
+  indicatesNewBooking,
   checkAvailability,
   checkExistingBookingSameDay,
   getShopName,

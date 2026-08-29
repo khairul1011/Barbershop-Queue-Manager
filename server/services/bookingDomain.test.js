@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { getTargetDateStr, mentionsDay } = require('./bookingDomain');
+const { getTargetDateStr, mentionsDay, indicatesNewBooking } = require('./bookingDomain');
 
 function withMockedNow(isoString, fn) {
   const realNow = Date.now;
@@ -39,4 +39,16 @@ test('mentionsDay hanya bernilai true apabila pesan asli benar-benar menyebutkan
   assert.equal(mentionsDay('ya'), false);
   assert.equal(mentionsDay(''), false);
   assert.equal(mentionsDay(null), false);
+});
+
+test('indicatesNewBooking mendeteksi sinyal eksplisit "booking baru" dari pelanggan', () => {
+  // Insiden nyata: booking pertama belum sempat dikonfirmasi, pelanggan bilang
+  // "bisa book lagi ga?" dengan nama berbeda -- tanpa deteksi ini, jam/servis/
+  // kapster dari sesi lama yang belum selesai ikut kebawa ke booking baru.
+  assert.equal(indicatesNewBooking('bisa book lagi ga?'), true);
+  assert.equal(indicatesNewBooking('mau booking baru dong'), true);
+  assert.equal(indicatesNewBooking('pesen lagi ya kak'), true);
+  assert.equal(indicatesNewBooking('besok jam 3 masih ada slot?'), false);
+  assert.equal(indicatesNewBooking(''), false);
+  assert.equal(indicatesNewBooking(null), false);
 });

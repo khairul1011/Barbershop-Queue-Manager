@@ -7,7 +7,7 @@ const { parseBookingMessage } = require('./services/gemini');
 const supabase = require('./supabaseClient');
 const { getServicePrice, calculateDp } = require('./services/priceLookup');
 const { createQrisPaymentRequest } = require('./services/xenditClient');
-const { getTargetDateStr, mentionsDay, checkAvailability, checkExistingBookingSameDay, getShopName, getBusinessContext } = require('./services/bookingDomain');
+const { getTargetDateStr, mentionsDay, indicatesNewBooking, checkAvailability, checkExistingBookingSameDay, getShopName, getBusinessContext } = require('./services/bookingDomain');
 const { startWebhookServer } = require('./webhookServer');
 
 const conversationState = new Map();
@@ -118,6 +118,38 @@ async function resolveRealPhone(waId) {
     console.error('[RESOLVE PHONE ERROR]', err.message, '| target:', waId);
   }
   return waId.replace('@c.us', '').replace('@lid', '');
+}
+
+// Memeriksa ketersediaan jadwal untuk `merged`, lalu mengirim ringkasan booking
+// (atau pesan bentrok jadwal apabila slot sudah penuh) dan memperbarui
+// conversationState sesuai hasilnya. Dipakai bersama oleh cabang (b)/(c) di
+// message handler -- sebelumnya cabang (b) langsung menampilkan ringkasan
+// tanpa validasi ulang, sehingga koreksi pelanggan (misal ganti jam ke slot
+// yang baru saja dinyatakan penuh) tetap tampil seolah tersedia.
+async function presentBookingSummary(msg, merged) {
+  const { conflict, msg: conflictMsg, assignedBarber } = await checkAvailability(merged.hari, merged.jam, merged.kapster);
+  if (conflict) {
+    conversationState.set(msg.from, { ...merged, jam: null, kapster: null, awaitingConfirmation: false, lastUpdated: Date.now() });
+    try {
+      console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
+      await replyAndSaveHistory(msg, conflictMsg);
+    } catch (err) {
+      console.error('[REPLY ERROR]', err.message, '| target:', msg.from);
+    }
+    return;
+  }
+
+  merged.kapster = assignedBarber;
+  conversationState.set(msg.from, { ...merged, awaitingConfirmation: true, lastUpdated: Date.now() });
+  try {
+    console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
+    const realPhone = await resolveRealPhone(msg.from);
+    const dup = await checkExistingBookingSameDay(realPhone, getTargetDateStr(merged.hari));
+    const dupWarning = dup ? `Perlu diketahui, Anda sudah memiliki booking pada jam ${dup.jam} di hari yang sama. ` : '';
+    await replyAndSaveHistory(msg, `${dupWarning}Baik, berikut ringkasan booking Anda: hari ${merged.hari}, jam ${merged.jam}, layanan ${merged.servis} dengan kapster *${assignedBarber}*, atas nama ${merged.nama}. Apakah data tersebut sudah benar? Silakan balas "ya" untuk konfirmasi.`);
+  } catch (err) {
+    console.error('[REPLY ERROR]', err.message, '| target:', msg.from);
+  }
 }
 
 // Mengirim notifikasi approve/reject ke customer. sender_wa_id (ID chat asli)
@@ -271,6 +303,14 @@ client.on('message', async msg => {
   if (parsedData) {
     console.log('[GEMINI PARSED]', JSON.stringify(parsedData, null, 2));
 
+    // Pelanggan eksplisit menyatakan ingin booking baru ("book lagi", dst) --
+    // buang state lama (kalaupun belum sempat dikonfirmasi) supaya jam/servis/
+    // kapster dari sesi sebelumnya tidak ikut terbawa ke booking yang baru ini.
+    if (indicatesNewBooking(msg.body) && conversationState.has(msg.from)) {
+      console.log('[NEW BOOKING SIGNAL] mereset state lama untuk', msg.from);
+      conversationState.delete(msg.from);
+    }
+
     const hasActiveState = conversationState.has(msg.from);
 
     // Menangani natural reply dari Gemini meskipun state percakapan sedang aktif,
@@ -278,16 +318,13 @@ client.on('message', async msg => {
     // bukan diulang dengan prompt field yang belum lengkap.
     if (!parsedData.isBookingIntent && parsedData.naturalReply && hasActiveState) {
       const oldState = conversationState.get(msg.from) || { nama: null, hari: null, jam: null, servis: null, kapster: null };
-      
-      const merged = {
-        nama: parsedData.nama ?? oldState.nama,
-        hari: mentionsDay(msg.body) ? (parsedData.hari ?? oldState.hari) : oldState.hari,
-        jam: parsedData.jam ?? oldState.jam,
-        servis: parsedData.servis ?? oldState.servis,
-        kapster: parsedData.kapster ?? oldState.kapster
-      };
-      
-      conversationState.set(msg.from, { ...merged, awaitingConfirmation: false, lastUpdated: Date.now() });
+
+      // Gemini sendiri menilai pesan ini BUKAN pernyataan detail booking (isBookingIntent
+      // false) -- field booking yang sudah tercatat (oldState) sengaja TIDAK ikut
+      // diperbarui dari parsedData di sini. Insiden nyata: pelanggan bertanya/menyangkal
+      // ("bukannya tadi saya pakai nama pais?"), Gemini ikut mengekstrak field "nama" dari
+      // pertanyaan tersebut dan menimpa nama yang sudah benar tercatat sebelumnya.
+      conversationState.set(msg.from, { ...oldState, awaitingConfirmation: false, lastUpdated: Date.now() });
 
       try {
         console.log('[REPLY ATTEMPT] mencoba membalas natural reply (interupsi) ke', msg.from);
@@ -472,51 +509,15 @@ client.on('message', async msg => {
             console.error('[REPLY ERROR]', err.message, '| target:', msg.from);
           }
         } else {
-          // Customer mengirimkan hal lain (kemungkinan koreksi data) — mereset state dan meminta konfirmasi ulang.
+          // Customer mengirimkan hal lain (kemungkinan koreksi data) — validasi ulang
+          // ketersediaan (bisa saja koreksinya mengarah ke slot yang sudah penuh) lalu
+          // kirim ringkasan konfirmasi ulang.
           console.log('[CONFIRM RESET] pesan bukan konfirmasi, kirim ringkasan ulang ke', msg.from);
-
-          // Melanjutkan langsung ke cabang (c): mengirim ringkasan dan meminta konfirmasi ulang.
-          conversationState.set(msg.from, { ...merged, awaitingConfirmation: true, lastUpdated: Date.now() });
-          try {
-            console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
-            const kapsterText = merged.kapster ? ` dengan kapster *${merged.kapster}*` : '';
-            const realPhone = await resolveRealPhone(msg.from);
-            const dup = await checkExistingBookingSameDay(realPhone, getTargetDateStr(merged.hari));
-            const dupWarning = dup ? `Perlu diketahui, Anda sudah memiliki booking pada jam ${dup.jam} di hari yang sama. ` : '';
-            await replyAndSaveHistory(msg, `${dupWarning}Baik, berikut ringkasan booking Anda: hari ${merged.hari}, jam ${merged.jam}, layanan ${merged.servis}${kapsterText}, atas nama ${merged.nama}. Apakah data tersebut sudah benar? Silakan balas "ya" untuk konfirmasi.`);
-          } catch (err) {
-            console.error('[REPLY ERROR]', err.message, '| target:', msg.from);
-          }
+          await presentBookingSummary(msg, merged);
         }
       } else {
         // (c) Semua field terisi namun belum pernah meminta konfirmasi — mengirim ringkasan dan meminta konfirmasi.
-
-        // Memeriksa ketersediaan terlebih dahulu.
-        const { conflict, msg: conflictMsg, assignedBarber } = await checkAvailability(merged.hari, merged.jam, merged.kapster);
-        if (conflict) {
-          // Terjadi bentrok jadwal — meminta customer mengubah data.
-          conversationState.set(msg.from, { ...merged, jam: null, kapster: null, awaitingConfirmation: false, lastUpdated: Date.now() });
-          try {
-            console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
-            await replyAndSaveHistory(msg, conflictMsg);
-          } catch (err) {
-            console.error('[REPLY ERROR]', err.message, '| target:', msg.from);
-          }
-          return;
-        }
-
-        // Menyimpan kapster yang ditugaskan ke dalam state agar konsisten.
-        merged.kapster = assignedBarber;
-        conversationState.set(msg.from, { ...merged, awaitingConfirmation: true, lastUpdated: Date.now() });
-        try {
-          console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
-          const realPhone = await resolveRealPhone(msg.from);
-          const dup = await checkExistingBookingSameDay(realPhone, getTargetDateStr(merged.hari));
-          const dupWarning = dup ? `Perlu diketahui, Anda sudah memiliki booking pada jam ${dup.jam} di hari yang sama. ` : '';
-          await replyAndSaveHistory(msg, `${dupWarning}Baik, berikut ringkasan booking Anda: hari ${merged.hari}, jam ${merged.jam}, layanan ${merged.servis} dengan kapster *${assignedBarber}*, atas nama ${merged.nama}. Apakah data tersebut sudah benar? Silakan balas "ya" untuk konfirmasi.`);
-        } catch (err) {
-          console.error('[REPLY ERROR]', err.message, '| target:', msg.from);
-        }
+        await presentBookingSummary(msg, merged);
       }
     } else {
       if (parsedData.naturalReply) {
