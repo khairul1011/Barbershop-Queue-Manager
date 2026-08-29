@@ -10,7 +10,8 @@ Untuk requirements produk & known issues, lihat [PROJECT.md](PROJECT.md). Untuk 
 ```bash
 npm run dev      # Dev server Vite di port 3000, host 0.0.0.0
 npm run build    # Production build (vite build)
-npm run lint      # Cuma type-check — tsc --noEmit (nggak ada ESLint)
+npm run lint      # ESLint (flat config, eslint.config.js)
+npm run typecheck # tsc --noEmit
 ```
 Nggak ada test suite untuk frontend.
 
