@@ -1,9 +1,6 @@
-const supabase = require('./supabaseClient');
+const supabase = require('../supabaseClient');
 
-// Sama seperti fuzzyMatchService() di src/App.tsx — dipertahankan identik
-// (exact match dulu, baru partial "includes" dua arah) supaya bot dan
-// dashboard "mikir" dengan cara yang sama soal nama servis mana yang
-// dimaksud, walau dua sisi ini nggak share module langsung.
+// Matching sama kayak fuzzyMatchService() di src/App.tsx (exact dulu, baru partial).
 async function getServicePrice(serviceName) {
   if (!serviceName) return null;
 
