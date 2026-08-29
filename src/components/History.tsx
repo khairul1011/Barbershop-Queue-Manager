@@ -263,10 +263,20 @@ export default function History({ completedEntries, barbers, services }: History
                         </div>
                         </div>
 
-                        <div className="shrink-0 pt-0.5">
+                        <div className="shrink-0 pt-0.5 flex flex-col items-end gap-1">
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 font-sans">
                             {t('status.Completed')}
                           </span>
+                          {item.paymentMethod && (
+                            <span className={cn(
+                              "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border font-mono uppercase",
+                              item.paymentMethod === 'qris'
+                                ? "bg-teal-500/10 text-teal-400 border-teal-500/20"
+                                : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                            )}>
+                              {item.paymentMethod}
+                            </span>
+                          )}
                         </div>
                       </div>
 
@@ -301,6 +311,7 @@ export default function History({ completedEntries, barbers, services }: History
                       <th className="py-4 px-4">Waktu Selesai</th>
                       <th className="py-4 px-4">Layanan</th>
                       <th className="py-4 px-4">Kapster</th>
+                      <th className="py-4 px-4">Metode Bayar</th>
                       <th className="py-4 px-5 text-right">Status</th>
                     </tr>
                   </thead>
@@ -331,6 +342,20 @@ export default function History({ completedEntries, barbers, services }: History
                         </td>
                         <td className="py-4 px-4 font-sans font-medium text-foreground">
                           {item.barber}
+                        </td>
+                        <td className="py-4 px-4">
+                          {item.paymentMethod ? (
+                            <span className={cn(
+                              "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border font-mono uppercase",
+                              item.paymentMethod === 'qris'
+                                ? "bg-teal-500/10 text-teal-400 border-teal-500/20"
+                                : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                            )}>
+                              {item.paymentMethod}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">-</span>
+                          )}
                         </td>
                         <td className="py-4 px-5 text-right">
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono uppercase">
