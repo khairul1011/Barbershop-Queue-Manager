@@ -77,6 +77,10 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
   const [remainingAmount, setRemainingAmount] = useState<number | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Konfirmasi ekstra buat Cash -- kejadian nyata: barber salah klik langsung
+  // ke tombol utama dan sesi kepenuhi seketika tanpa jeda buat batalin.
+  const [cashConfirming, setCashConfirming] = useState(false);
+
   const stopPolling = () => {
     if (pollRef.current) {
       clearInterval(pollRef.current);
@@ -92,6 +96,7 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
       setQrDataUrl(null);
       stopPolling();
     }
+    setCashConfirming(false);
   }, [completePaymentMethod]);
 
   useEffect(() => stopPolling, []);
@@ -148,6 +153,7 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
     );
     setCompleteCustomerName(session.customerName && session.customerName !== 'TBD' ? session.customerName : '');
     setCompletePaymentMethod('cash');
+    setCashConfirming(false);
 
     setShowCompleteDialog(true);
   };
@@ -420,8 +426,18 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
                   <CheckCircle2 size={16} className="mr-2" /> {qrStep === 'loading' ? 'Menyiapkan QR...' : 'Buat QR Pembayaran'}
                 </Button>
               )
+            ) : cashConfirming ? (
+              <div className="space-y-2 pt-1">
+                <p className="text-sm text-center text-muted-foreground">Yakin sesi ini udah selesai & dibayar cash?</p>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setCashConfirming(false)} className="flex-1">Batal</Button>
+                  <Button onClick={submitComplete} className="flex-1">
+                    <CheckCircle2 size={16} className="mr-2" /> Ya, Selesaikan
+                  </Button>
+                </div>
+              </div>
             ) : (
-              <Button onClick={submitComplete} className="w-full mt-2" disabled={!completeServiceId}>
+              <Button onClick={() => setCashConfirming(true)} className="w-full mt-2" disabled={!completeServiceId}>
                 <CheckCircle2 size={16} className="mr-2" /> Tandai Lunas & Selesai
               </Button>
             )}

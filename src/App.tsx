@@ -770,7 +770,7 @@ export default function App() {
         );
       case 'history':
         return (
-          <HistoryTab completedEntries={completedEntries} barbers={barbers} />
+          <HistoryTab completedEntries={completedEntries} barbers={barbers} services={services} />
         );
       case 'settings':
         return (

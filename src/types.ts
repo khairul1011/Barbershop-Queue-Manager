@@ -16,6 +16,8 @@ export interface QueueEntry {
   completedAt?: string;
   paymentMethod?: 'cash' | 'qris' | null; // diisi pas "Selesaikan Sesi", nandain sisa pembayaran udah lunas
   sourceRequestId?: string | null; // link balik ke whatsapp_requests kalau booking ini asalnya dari WA (buat hitung sisa bayar dikurangi DP)
+  paymentTransactionId?: string | null; // payment_request_id Xendit kalau sisa bayar lewat QRIS dashboard
+  paymentQrAmount?: number | null; // nominal yang beneran dibayar lewat QR itu (bisa beda dari harga penuh kalau ada DP)
 }
 
 export type RequestStatus = 'pending' | 'approved' | 'rejected';

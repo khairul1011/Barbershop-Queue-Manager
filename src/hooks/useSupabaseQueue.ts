@@ -197,6 +197,8 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[], enabled
         completedAt: row.completed_at || undefined,
         paymentMethod: row.payment_method || null,
         sourceRequestId: row.source_request_id || null,
+        paymentTransactionId: row.payment_xendit_qr_id || null,
+        paymentQrAmount: row.payment_qr_amount || null,
       };
     };
 

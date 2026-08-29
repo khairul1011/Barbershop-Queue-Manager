@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { QueueEntry, Barber } from '../types';
+import { QueueEntry, Barber, Service } from '../types';
+import { supabase } from '../lib/supabaseClient';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { 
   History as HistoryIcon, 
   Search, 
@@ -33,15 +35,54 @@ function toDateKey(date: Date): string {
 interface HistoryProps {
   completedEntries: QueueEntry[];
   barbers: Barber[];
+  services: Service[];
 }
 
-export default function History({ completedEntries, barbers }: HistoryProps) {
+interface WaDpInfo {
+  dpAmount: number;
+  transactionId: string | null;
+}
+
+function formatRupiah(n: number): string {
+  return `Rp${n.toLocaleString('id-ID')}`;
+}
+
+export default function History({ completedEntries, barbers, services }: HistoryProps) {
   const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBarberFilter, setSelectedBarberFilter] = useState(t('history.allBarbers'));
   const [selectedDateFilter, setSelectedDateFilter] = useState<Date | undefined>(undefined);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [page, setPage] = useState(1);
+
+  // Detail pembayaran -- diklik dari card/row riwayat.
+  const [selectedEntry, setSelectedEntry] = useState<QueueEntry | null>(null);
+  const [waDpInfo, setWaDpInfo] = useState<WaDpInfo | null>(null);
+  const [waDpLoading, setWaDpLoading] = useState(false);
+
+  useEffect(() => {
+    if (!selectedEntry?.sourceRequestId) {
+      setWaDpInfo(null);
+      return;
+    }
+    let cancelled = false;
+    setWaDpLoading(true);
+    supabase
+      .from('whatsapp_requests')
+      .select('dp_amount, payment_status, xendit_qr_id')
+      .eq('id', selectedEntry.sourceRequestId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        if (data && data.payment_status === 'paid' && data.dp_amount) {
+          setWaDpInfo({ dpAmount: data.dp_amount, transactionId: data.xendit_qr_id || null });
+        } else {
+          setWaDpInfo(null);
+        }
+        setWaDpLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [selectedEntry]);
 
   // Sort completed entries by completedAt descending (newest first)
   const sortedEntries = [...completedEntries].sort((a, b) => {
@@ -194,6 +235,8 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
                   layout
+                  onClick={() => setSelectedEntry(item)}
+                  className="cursor-pointer"
                 >
                   <BentoCard variant="default">
                     <div className="flex flex-col gap-4">
@@ -267,7 +310,8 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
                         key={item.id}
                         initial={{ opacity: 0, y: 5 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="hover:bg-accent/50 transition-colors"
+                        onClick={() => setSelectedEntry(item)}
+                        className="hover:bg-accent/50 transition-colors cursor-pointer"
                       >
                         <td className="py-4 px-5">
                           <div className="flex items-center gap-3">
@@ -304,6 +348,78 @@ export default function History({ completedEntries, barbers }: HistoryProps) {
 
         <DataPagination page={page} totalPages={totalPages} onPageChange={setPage} className="pt-2" />
       </div>
+
+      {/* DETAIL PEMBAYARAN */}
+      <Dialog open={!!selectedEntry} onOpenChange={(open) => !open && setSelectedEntry(null)}>
+        <DialogContent className="sm:max-w-[400px] border border-border bg-popover p-0 overflow-hidden shadow-2xl">
+          {selectedEntry && (() => {
+            const fullPrice = services.find(s => s.name === selectedEntry.service)?.price ?? null;
+            const methodLabel = selectedEntry.paymentMethod === 'qris' ? 'QRIS' : selectedEntry.paymentMethod === 'cash' ? 'Cash' : 'Tidak tercatat';
+            return (
+              <>
+                <div className="bg-gradient-to-b from-accent/40 to-popover p-6 pb-4 border-b border-border">
+                  <DialogHeader>
+                    <DialogTitle className="text-xl font-bold font-display text-foreground tracking-tight">{selectedEntry.customerName}</DialogTitle>
+                    <p className="text-sm text-muted-foreground mt-1">Detail sesi & pembayaran.</p>
+                  </DialogHeader>
+                </div>
+
+                <div className="p-6 space-y-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Layanan</span>
+                    <span className="font-medium text-foreground">{selectedEntry.service}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Kapster</span>
+                    <span className="font-medium text-foreground">{selectedEntry.barber}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Selesai</span>
+                    <span className="font-medium text-foreground">{selectedEntry.day}, {formatTime(selectedEntry.completedAt)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Harga Layanan</span>
+                    <span className="font-medium text-foreground">{fullPrice != null ? formatRupiah(fullPrice) : '-'}</span>
+                  </div>
+
+                  <div className="h-px bg-border my-1" />
+
+                  {waDpLoading ? (
+                    <p className="text-xs text-muted-foreground">Memuat info pembayaran...</p>
+                  ) : (
+                    <>
+                      {waDpInfo && (
+                        <div className="flex justify-between items-start">
+                          <span className="text-muted-foreground shrink-0">DP via WhatsApp</span>
+                          <div className="text-right">
+                            <div className="font-medium text-foreground">{formatRupiah(waDpInfo.dpAmount)}</div>
+                            {waDpInfo.transactionId && (
+                              <div className="text-[10px] text-muted-foreground font-mono mt-0.5 break-all">{waDpInfo.transactionId}</div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex justify-between items-start">
+                        <span className="text-muted-foreground shrink-0">{waDpInfo ? 'Sisa Dibayar' : 'Metode Bayar'}</span>
+                        <div className="text-right">
+                          <div className="font-medium text-foreground">
+                            {methodLabel}
+                            {selectedEntry.paymentMethod === 'qris' && selectedEntry.paymentQrAmount ? ` — ${formatRupiah(selectedEntry.paymentQrAmount)}` : ''}
+                          </div>
+                          {selectedEntry.paymentMethod === 'qris' && selectedEntry.paymentTransactionId && (
+                            <div className="text-[10px] text-muted-foreground font-mono mt-0.5 break-all">{selectedEntry.paymentTransactionId}</div>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
