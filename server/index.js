@@ -129,15 +129,15 @@ async function notifyStatusChange(row) {
   }
 
   const [servis, barber] = (row.extracted_service || '').split('|BARBER:');
-  const nama = row.sender_name || 'kak';
+  const namaText = row.sender_name ? ` ${row.sender_name}` : '';
 
   let text;
   if (row.status === 'approved') {
     const barberText = barber ? `, kapster ${barber}` : '';
     const shopName = await getShopName();
-    text = `Halo kak ${nama}! Booking kamu buat ${row.extracted_day} jam ${row.extracted_time} (${servis}${barberText}) udah dikonfirmasi ya. Ditunggu kedatangannya di ${shopName}!`;
+    text = `Halo Kak${namaText}, booking untuk ${row.extracted_day} jam ${row.extracted_time} (${servis}${barberText}) sudah dikonfirmasi. Kami tunggu kedatangannya di ${shopName}.`;
   } else if (row.status === 'rejected') {
-    text = `Mohon maaf kak ${nama}, slot ${row.extracted_day} jam ${row.extracted_time} ternyata nggak bisa. Boleh chat lagi kalau mau cari jadwal lain ya.`;
+    text = `Mohon maaf, Kak${namaText}, slot ${row.extracted_day} jam ${row.extracted_time} ternyata tidak tersedia. Silakan hubungi kami kembali apabila ingin mencari jadwal lain.`;
   } else {
     return; // status lain (mis. 'pending') — bukan urusan fungsi ini
   }
@@ -314,10 +314,10 @@ client.on('message', async msg => {
       conversationState.set(msg.from, { ...merged, awaitingConfirmation: oldState.awaitingConfirmation || false, lastUpdated: Date.now() });
 
       let missing = [];
-      if (!merged.hari) missing.push('hari apa');
-      if (!merged.jam) missing.push('jam berapa');
-      if (!merged.servis) missing.push('mau potong apa (misal: cukur, creambath)');
-      if (!merged.nama) missing.push('atas nama siapa');
+      if (!merged.hari) missing.push('hari yang diinginkan');
+      if (!merged.jam) missing.push('jam yang diinginkan');
+      if (!merged.servis) missing.push('jenis layanan yang diinginkan (misalnya: cukur, creambath)');
+      if (!merged.nama) missing.push('nama untuk booking');
 
       // (a) Terdapat field yang kosong -> tanyakan field tersebut. (b) Semua field lengkap dan
       // sedang menunggu konfirmasi -> periksa jawaban "ya"/"tidak". (c) Semua field lengkap namun
@@ -332,14 +332,14 @@ client.on('message', async msg => {
         let known = [];
         if (merged.hari) known.push(`hari ${merged.hari}`);
         if (merged.jam) known.push(`jam ${merged.jam}`);
-        if (merged.servis) known.push(`servis ${merged.servis}`);
-        if (merged.nama) known.push(`Kak ${merged.nama}`);
+        if (merged.servis) known.push(`layanan ${merged.servis}`);
+        if (merged.nama) known.push(`atas nama ${merged.nama}`);
 
-        let intro = known.length > 0 
-          ? `Baik, untuk ${known.join(', ')} ya kak.` 
-          : `Halo kak! Untuk booking jadwalnya,`;
+        let intro = known.length > 0
+          ? `Baik, untuk ${known.join(', ')}.`
+          : `Halo, Kak. Untuk booking jadwal,`;
 
-        let missingStr = missing.length > 1 
+        let missingStr = missing.length > 1
           ? missing.slice(0, -1).join(', ') + ', dan ' + missing[missing.length - 1]
           : missing[0];
 
@@ -347,7 +347,7 @@ client.on('message', async msg => {
 
         try {
           console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
-          await replyAndSaveHistory(msg, `${intro} Boleh info ${missingStr}?`);
+          await replyAndSaveHistory(msg, `${intro} Mohon informasikan ${missingStr}.`);
         } catch (err) {
           console.error('[REPLY ERROR]', err.message, '| target:', msg.from);
         }
@@ -425,18 +425,18 @@ client.on('message', async msg => {
             if (lockResult.outcome === 'conflict') {
               conversationState.set(msg.from, { ...merged, jam: null, kapster: null, awaitingConfirmation: false, lastUpdated: Date.now() });
               console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
-              await replyAndSaveHistory(msg, `Waduh kak, barusan saja jadwalnya diambil orang lain. ${lockResult.conflictMsg}`);
+              await replyAndSaveHistory(msg, `Mohon maaf, Kak, jadwal tersebut baru saja diambil oleh pelanggan lain. ${lockResult.conflictMsg}`);
               return;
             }
 
             if (lockResult.outcome === 'insertError') {
-              await replyAndSaveHistory(msg, 'Waduh kak, ada gangguan pas nyimpen booking-nya. Boleh dicoba lagi sebentar lagi ya.');
+              await replyAndSaveHistory(msg, 'Mohon maaf, Kak, terjadi kendala saat menyimpan booking. Silakan coba lagi dalam beberapa saat.');
               conversationState.delete(msg.from);
               return;
             }
 
             if (lockResult.outcome === 'noDp') {
-              await replyAndSaveHistory(msg, `Sip kak! Booking sudah lengkap:\n\nHari: ${merged.hari}\nJam: ${merged.jam}\nServis: ${merged.servis}\nKapster: ${lockResult.finalKapster}\nNama: ${merged.nama}\n\nTerima kasih, ditunggu kedatangannya!`);
+              await replyAndSaveHistory(msg, `Baik, Kak. Booking sudah lengkap:\n\nHari: ${merged.hari}\nJam: ${merged.jam}\nServis: ${merged.servis}\nKapster: ${lockResult.finalKapster}\nNama: ${merged.nama}\n\nTerima kasih, kami tunggu kedatangannya.`);
               conversationState.delete(msg.from);
               return;
             }
@@ -450,7 +450,7 @@ client.on('message', async msg => {
 
               const qrPngBase64 = await QRCode.toDataURL(qrString).then(dataUrl => dataUrl.split(',')[1]);
               const media = new MessageMedia('image/png', qrPngBase64);
-              const caption = `Hampir selesai kak! Tinggal bayar DP Rp${dpAmount.toLocaleString('id-ID')} (50% dari total) lewat QRIS di atas, scan pakai e-wallet/m-banking apa aja ya. Slot ditahan 30 menit — kalau lewat, booking otomatis batal dan kakak perlu booking ulang.`;
+              const caption = `Booking hampir selesai, Kak. Silakan bayar DP sebesar Rp${dpAmount.toLocaleString('id-ID')} (50% dari total) melalui QRIS di atas, dapat dipindai menggunakan e-wallet atau m-banking apa pun. Slot ditahan selama 30 menit; apabila melewati batas waktu tersebut, booking akan otomatis dibatalkan dan perlu dilakukan booking ulang.`;
 
               await sendMediaWithDelay(msg.from, media, caption);
               console.log('[QR SENT] QR pembayaran DP terkirim ke', msg.from);
@@ -461,7 +461,7 @@ client.on('message', async msg => {
               }
               await supabase.from('whatsapp_requests').update({ payment_status: 'failed' }).eq('id', insertedRow.id);
               try {
-                await replyAndSaveHistory(msg, 'Waduh kak, ada gangguan pas nyiapin pembayaran DP-nya. Boleh dicoba booking ulang beberapa saat lagi ya.');
+                await replyAndSaveHistory(msg, 'Mohon maaf, Kak, terjadi kendala saat menyiapkan pembayaran DP. Silakan coba melakukan booking ulang dalam beberapa saat.');
               } catch (replyErr) {
                 console.error('[REPLY ERROR]', replyErr.message, '| target:', msg.from);
               }
@@ -479,11 +479,11 @@ client.on('message', async msg => {
           conversationState.set(msg.from, { ...merged, awaitingConfirmation: true, lastUpdated: Date.now() });
           try {
             console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
-            const kapsterText = merged.kapster ? ` dengan kapster ${merged.kapster}` : '';
+            const kapsterText = merged.kapster ? ` dengan kapster *${merged.kapster}*` : '';
             const realPhone = await resolveRealPhone(msg.from);
             const dup = await checkExistingBookingSameDay(realPhone, getTargetDateStr(merged.hari));
-            const dupWarning = dup ? `⚠️ Kak, kamu udah ada booking jam ${dup.jam} di hari yang sama ya. ` : '';
-            await replyAndSaveHistory(msg, `${dupWarning}Baik kak, jadi booking untuk hari ${merged.hari} jam ${merged.jam}, servis ${merged.servis}${kapsterText}, atas nama ${merged.nama} -- benar begitu kak? Balas 'ya' untuk konfirmasi ya.`);
+            const dupWarning = dup ? `Perlu diketahui, Anda sudah memiliki booking pada jam ${dup.jam} di hari yang sama. ` : '';
+            await replyAndSaveHistory(msg, `${dupWarning}Baik, berikut ringkasan booking Anda: hari ${merged.hari}, jam ${merged.jam}, layanan ${merged.servis}${kapsterText}, atas nama ${merged.nama}. Apakah data tersebut sudah benar? Silakan balas "ya" untuk konfirmasi.`);
           } catch (err) {
             console.error('[REPLY ERROR]', err.message, '| target:', msg.from);
           }
@@ -512,8 +512,8 @@ client.on('message', async msg => {
           console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
           const realPhone = await resolveRealPhone(msg.from);
           const dup = await checkExistingBookingSameDay(realPhone, getTargetDateStr(merged.hari));
-          const dupWarning = dup ? `⚠️ Kak, kamu udah ada booking jam ${dup.jam} di hari yang sama ya. ` : '';
-          await replyAndSaveHistory(msg, `${dupWarning}Baik kak, jadi booking untuk hari ${merged.hari} jam ${merged.jam}, servis ${merged.servis} dengan kapster **${assignedBarber}**, atas nama ${merged.nama} -- benar begitu kak? Balas 'ya' untuk konfirmasi ya.`);
+          const dupWarning = dup ? `Perlu diketahui, Anda sudah memiliki booking pada jam ${dup.jam} di hari yang sama. ` : '';
+          await replyAndSaveHistory(msg, `${dupWarning}Baik, berikut ringkasan booking Anda: hari ${merged.hari}, jam ${merged.jam}, layanan ${merged.servis} dengan kapster *${assignedBarber}*, atas nama ${merged.nama}. Apakah data tersebut sudah benar? Silakan balas "ya" untuk konfirmasi.`);
         } catch (err) {
           console.error('[REPLY ERROR]', err.message, '| target:', msg.from);
         }

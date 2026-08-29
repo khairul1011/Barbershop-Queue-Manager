@@ -90,10 +90,10 @@ async function checkAvailability(hariStr, jamStr, kapsterStr) {
         const availableBarbers = barbers.filter(b => !busyBarberIds.has(b.id));
         return {
            conflict: true,
-           msg: `Maaf kak, kapster ${kapsterStr} sudah ada jadwal jam ${jamStr}. ` +
+           msg: `Mohon maaf, Kak, kapster ${kapsterStr} sudah memiliki jadwal pada jam ${jamStr}. ` +
                 (availableBarbers.length > 0
-                  ? `Yang kosong ada ${availableBarbers.map(b=>b.name).join(', ')}. Mau ganti kapster atau ganti jam?`
-                  : `Semua kapster juga penuh jam segitu. Boleh pilih jam lain?`)
+                  ? `Kapster yang tersedia pada jam tersebut: ${availableBarbers.map(b=>b.name).join(', ')}. Apakah Kak ingin mengganti kapster atau memilih jam lain?`
+                  : `Seluruh kapster juga penuh pada jam tersebut. Silakan pilih jam lain.`)
         };
      }
      const match = barbers.find(b => b.id === requestedBarberId);
@@ -102,7 +102,7 @@ async function checkAvailability(hariStr, jamStr, kapsterStr) {
      if (busyBarberIds.size + anyCount >= barbers.length) {
         return {
            conflict: true,
-           msg: `Maaf kak, semua kapster sudah penuh untuk jam ${jamStr}. Boleh pilih jam lain?`
+           msg: `Mohon maaf, Kak, seluruh kapster sudah penuh untuk jam ${jamStr}. Silakan pilih jam lain.`
         };
      }
      const availableBarbers = barbers.filter(b => !busyBarberIds.has(b.id));

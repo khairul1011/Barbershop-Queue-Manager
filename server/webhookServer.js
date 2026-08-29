@@ -56,7 +56,8 @@ function startWebhookServer({ sendMessageWithDelay }) {
 
       if (!row.payment_notified && row.sender_wa_id) {
         try {
-          const text = `Sip kak ${row.sender_name || ''}! Pembayaran DP kamu udah kami terima. Booking-nya udah dikonfirmasi, ditunggu kedatangannya ya!`;
+          const namaText = row.sender_name ? ` ${row.sender_name}` : '';
+          const text = `Terima kasih, Kak${namaText}. Pembayaran DP Anda sudah kami terima dan booking sudah dikonfirmasi. Kami tunggu kedatangannya.`;
           await sendMessageWithDelay(row.sender_wa_id, text);
           await supabase.from('whatsapp_requests').update({ payment_notified: true }).eq('id', row.id);
         } catch (err) {
