@@ -221,6 +221,36 @@ async function checkAvailability(hariStr, jamStr, kapsterStr) {
   }
 }
 
+// Cek apakah nomor ini UDAH punya booking aktif (pending/approved di
+// whatsapp_requests, atau udah masuk queue_entries) di hari yang sama --
+// insiden potensial: customer lupa udah pernah booking, bikin dobel tanpa
+// sadar. Nggak diblokir total (bisa aja emang sengaja, mis. booking buat
+// keluarga pake 1 WA) -- cuma dikasih tau di ringkasan konfirmasi.
+async function checkExistingBookingSameDay(realPhone, dateStr) {
+  if (!realPhone) return null;
+
+  const { data: waRows } = await supabase
+    .from('whatsapp_requests')
+    .select('extracted_day, extracted_time')
+    .eq('sender_phone', realPhone)
+    .in('status', ['pending', 'approved']);
+
+  const waMatch = (waRows || []).find(r => getTargetDateStr(r.extracted_day) === dateStr);
+  if (waMatch) return { jam: waMatch.extracted_time };
+
+  const { data: qeRows } = await supabase
+    .from('queue_entries')
+    .select('scheduled_time')
+    .eq('phone', realPhone)
+    .eq('scheduled_date', dateStr)
+    .neq('status', 'completed')
+    .limit(1);
+
+  if (qeRows && qeRows.length > 0) return { jam: qeRows[0].scheduled_time };
+
+  return null;
+}
+
 // Fallback name kalau baris business_hours belum ada / query gagal — dipakai
 // juga sebagai default param di parseBookingMessage().
 const DEFAULT_SHOP_NAME = 'BarberFlow';
@@ -748,7 +778,10 @@ client.on('message', async msg => {
           try {
             console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
             const kapsterText = merged.kapster ? ` dengan kapster ${merged.kapster}` : '';
-            await replyAndSaveHistory(msg, `Baik kak, jadi booking untuk hari ${merged.hari} jam ${merged.jam}, servis ${merged.servis}${kapsterText}, atas nama ${merged.nama} -- benar begitu kak? Balas 'ya' untuk konfirmasi ya.`);
+            const realPhone = await resolveRealPhone(msg.from);
+            const dup = await checkExistingBookingSameDay(realPhone, getTargetDateStr(merged.hari));
+            const dupWarning = dup ? `⚠️ Kak, kamu udah ada booking jam ${dup.jam} di hari yang sama ya. ` : '';
+            await replyAndSaveHistory(msg, `${dupWarning}Baik kak, jadi booking untuk hari ${merged.hari} jam ${merged.jam}, servis ${merged.servis}${kapsterText}, atas nama ${merged.nama} -- benar begitu kak? Balas 'ya' untuk konfirmasi ya.`);
           } catch (err) {
             console.error('[REPLY ERROR]', err.message, '| target:', msg.from);
           }
@@ -775,7 +808,10 @@ client.on('message', async msg => {
         conversationState.set(msg.from, { ...merged, awaitingConfirmation: true, lastUpdated: Date.now() });
         try {
           console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
-          await replyAndSaveHistory(msg, `Baik kak, jadi booking untuk hari ${merged.hari} jam ${merged.jam}, servis ${merged.servis} dengan kapster **${assignedBarber}**, atas nama ${merged.nama} -- benar begitu kak? Balas 'ya' untuk konfirmasi ya.`);
+          const realPhone = await resolveRealPhone(msg.from);
+          const dup = await checkExistingBookingSameDay(realPhone, getTargetDateStr(merged.hari));
+          const dupWarning = dup ? `⚠️ Kak, kamu udah ada booking jam ${dup.jam} di hari yang sama ya. ` : '';
+          await replyAndSaveHistory(msg, `${dupWarning}Baik kak, jadi booking untuk hari ${merged.hari} jam ${merged.jam}, servis ${merged.servis} dengan kapster **${assignedBarber}**, atas nama ${merged.nama} -- benar begitu kak? Balas 'ya' untuk konfirmasi ya.`);
         } catch (err) {
           console.error('[REPLY ERROR]', err.message, '| target:', msg.from);
         }
