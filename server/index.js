@@ -420,6 +420,10 @@ client.on('message', async msg => {
                   extracted_day: merged.hari,
                   extracted_time: merged.jam,
                   extracted_service: finalService,
+                  // Tanggal absolut hasil resolusi disimpan di sini supaya
+                  // pemeriksaan booking ganda tidak perlu menerjemahkan ulang
+                  // string relatif extracted_day (lihat checkExistingBookingSameDay).
+                  scheduled_date: getTargetDateStr(merged.hari),
                   is_booking_intent: true
                 });
                 if (error) console.error('[DB SAVE ERROR]', error.message);
@@ -442,6 +446,7 @@ client.on('message', async msg => {
                   extracted_day: merged.hari,
                   extracted_time: merged.jam,
                   extracted_service: finalService,
+                  scheduled_date: getTargetDateStr(merged.hari),
                   is_booking_intent: true,
                   payment_status: 'unpaid',
                   dp_amount: dpAmount,

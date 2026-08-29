@@ -123,20 +123,35 @@ async function checkAvailability(hariStr, jamStr, kapsterStr) {
   }
 }
 
-// Memeriksa apakah nomor ini sudah memiliki booking aktif pada hari yang sama
-// (whatsapp_requests berstatus pending/approved, atau queue_entries). Hasilnya
-// hanya digunakan sebagai peringatan, bukan untuk memblokir booking.
+// Memeriksa apakah nomor ini sudah memiliki booking aktif pada hari yang sama.
+// Hasilnya hanya digunakan sebagai peringatan, bukan untuk memblokir booking.
+//
+// Pencocokan WAJIB memakai kolom scheduled_date (tanggal absolut yang sudah
+// diresolusi saat insert), BUKAN menerjemahkan ulang extracted_day. Insiden
+// nyata: extracted_day menyimpan string relatif ("besok"), dan sebelumnya
+// fungsi ini menerjemahkannya ulang dengan getTargetDateStr() pada saat query
+// -- sehingga baris booking berumur berhari-hari yang dulu berarti "besok"
+// versi tanggal pembuatannya ikut cocok dengan "besok" versi hari ini, dan
+// peringatan booking ganda muncul terus-menerus untuk jadwal yang sebenarnya
+// sudah lama lewat.
+//
+// Baris berstatus 'approved' sengaja tidak diperiksa di whatsapp_requests
+// karena sudah menjadi entri queue_entries (kalender) yang diperiksa di bawah;
+// memakai keduanya justru berisiko salah lapor apabila entri kalendernya sudah
+// dibatalkan barber sementara baris whatsapp_requests-nya tetap 'approved'.
 async function checkExistingBookingSameDay(realPhone, dateStr) {
   if (!realPhone) return null;
 
   const { data: waRows } = await supabase
     .from('whatsapp_requests')
-    .select('extracted_day, extracted_time')
+    .select('extracted_time')
     .eq('sender_phone', realPhone)
-    .in('status', ['pending', 'approved']);
+    .eq('status', 'pending')
+    .eq('scheduled_date', dateStr)
+    .not('payment_status', 'in', '("expired","failed")')
+    .limit(1);
 
-  const waMatch = (waRows || []).find(r => getTargetDateStr(r.extracted_day) === dateStr);
-  if (waMatch) return { jam: waMatch.extracted_time };
+  if (waRows && waRows.length > 0) return { jam: formatJam(waRows[0].extracted_time) };
 
   const { data: qeRows } = await supabase
     .from('queue_entries')
@@ -146,9 +161,16 @@ async function checkExistingBookingSameDay(realPhone, dateStr) {
     .neq('status', 'completed')
     .limit(1);
 
-  if (qeRows && qeRows.length > 0) return { jam: qeRows[0].scheduled_time };
+  if (qeRows && qeRows.length > 0) return { jam: formatJam(qeRows[0].scheduled_time) };
 
   return null;
+}
+
+// queue_entries.scheduled_time bertipe `time` sehingga terbaca "14:00:00",
+// sedangkan whatsapp_requests.extracted_time berupa teks "14:00". Diseragamkan
+// ke HH:MM agar pesan ke pelanggan tidak menampilkan detik.
+function formatJam(value) {
+  return (value || '').slice(0, 5);
 }
 
 const DEFAULT_SHOP_NAME = 'BarberFlow';
