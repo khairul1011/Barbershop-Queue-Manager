@@ -26,7 +26,7 @@ import { Button } from '@/components/ui/button';
 interface OverviewProps {
   queue: QueueEntry[];
   servingSessions: Record<string, QueueEntry | null>;
-  onCompleteSession: (barberId: string, actualDuration: number, serviceId?: string, customerName?: string) => void;
+  onCompleteSession: (barberId: string, actualDuration: number, serviceId?: string, customerName?: string, paymentMethod?: 'cash' | 'qris') => void;
   onCallNextForBarber: (barberId: string) => void;
   onServeNow: (entry: QueueEntry, barberId: string) => void;
   onQuickStart: (barberId: string) => void;
@@ -43,7 +43,7 @@ interface BarberSeatCardProps {
   session: QueueEntry | null;
   todayQueue: QueueEntry[];
   services: Service[];
-  onCompleteSession: (barberId: string, duration: number, serviceId?: string, customerName?: string) => void;
+  onCompleteSession: (barberId: string, duration: number, serviceId?: string, customerName?: string, paymentMethod?: 'cash' | 'qris') => void;
   onCallNext: (barberId: string) => void;
   onQuickStart: (barberId: string) => void;
 }
@@ -62,6 +62,7 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const [completeServiceId, setCompleteServiceId] = useState('');
   const [completeCustomerName, setCompleteCustomerName] = useState('');
+  const [completePaymentMethod, setCompletePaymentMethod] = useState<'cash' | 'qris'>('cash');
 
   // Hitung detik yang sudah berlalu sejak sesi dimulai (bertahan setelah refresh)
   const getElapsedFromSession = (sess: typeof session) => {
@@ -114,14 +115,15 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
       (potongRambut ? potongRambut.id : services[0]?.id || '')
     );
     setCompleteCustomerName(session.customerName && session.customerName !== 'TBD' ? session.customerName : '');
-    
+    setCompletePaymentMethod('cash');
+
     setShowCompleteDialog(true);
   };
 
   const submitComplete = () => {
     if (!session) return;
     const finalName = completeCustomerName.trim() || 'Anonymous';
-    onCompleteSession(barber.id, elapsedSeconds / 60, completeServiceId, finalName);
+    onCompleteSession(barber.id, elapsedSeconds / 60, completeServiceId, finalName, completePaymentMethod);
     setElapsedSeconds(0);
     setIsTimerRunning(false);
     setShowCompleteDialog(false);
@@ -259,7 +261,7 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
           <div className="bg-gradient-to-b from-accent/40 to-popover p-6 pb-4 border-b border-border">
             <DialogHeader>
               <DialogTitle className="text-xl font-bold font-display text-foreground tracking-tight">Selesaikan Sesi</DialogTitle>
-              <p className="text-sm text-muted-foreground mt-1">Konfirmasi layanan dan nama pelanggan.</p>
+              <p className="text-sm text-muted-foreground mt-1">Konfirmasi layanan, nama pelanggan, dan metode pembayaran.</p>
             </DialogHeader>
           </div>
 
@@ -293,8 +295,21 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
               />
             </div>
 
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">Metode Bayar <span className="text-destructive">*</span></label>
+              <Select value={completePaymentMethod} onValueChange={(v) => setCompletePaymentMethod(v as 'cash' | 'qris')}>
+                <SelectTrigger className="w-full bg-background border-border text-foreground h-11 rounded-lg">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border-border text-popover-foreground rounded-lg">
+                  <SelectItem value="cash" className="focus:bg-accent focus:text-accent-foreground">Cash</SelectItem>
+                  <SelectItem value="qris" className="focus:bg-accent focus:text-accent-foreground">QRIS</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <Button onClick={submitComplete} className="w-full mt-2" disabled={!completeServiceId}>
-              <CheckCircle2 size={16} className="mr-2" /> Simpan & Selesai
+              <CheckCircle2 size={16} className="mr-2" /> Tandai Lunas & Selesai
             </Button>
           </div>
         </DialogContent>

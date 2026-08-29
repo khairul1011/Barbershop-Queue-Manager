@@ -14,6 +14,7 @@ export interface QueueEntry {
   durationMinutes: number;
   startedAt?: string;
   completedAt?: string;
+  paymentMethod?: 'cash' | 'qris' | null; // diisi pas "Selesaikan Sesi", nandain sisa pembayaran udah lunas
 }
 
 export type RequestStatus = 'pending' | 'approved' | 'rejected';

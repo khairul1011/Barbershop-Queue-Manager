@@ -195,6 +195,7 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[], enabled
         durationMinutes,
         startedAt: row.started_at || undefined,
         completedAt: row.completed_at || undefined,
+        paymentMethod: row.payment_method || null,
       };
     };
 
@@ -340,7 +341,7 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[], enabled
   };
 
   // COMPLETE SESSION
-  const completeServingSession = async (barberId: string, serviceId?: string, customerName?: string) => {
+  const completeServingSession = async (barberId: string, serviceId?: string, customerName?: string, paymentMethod?: 'cash' | 'qris') => {
     try {
       const session = servingSessions[barberId];
       if (!session) return; // tidak ada yg dikerjakan
@@ -352,6 +353,7 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[], enabled
 
       if (serviceId) updatePayload.service_id = serviceId;
       if (customerName) updatePayload.customer_name = customerName;
+      if (paymentMethod) updatePayload.payment_method = paymentMethod;
 
       const { error: supabaseError } = await supabase
         .from('queue_entries')

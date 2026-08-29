@@ -201,12 +201,12 @@ export default function App() {
   };
 
   // Callback: Complete session
-  const handleCompleteSession = async (barberId: string, actualDurationMinutes: number, serviceId?: string, customerName?: string) => {
+  const handleCompleteSession = async (barberId: string, actualDurationMinutes: number, serviceId?: string, customerName?: string, paymentMethod?: 'cash' | 'qris') => {
     const session = servingSessions[barberId];
     if (!session) return;
 
     try {
-      await completeServingSession(barberId, serviceId, customerName);
+      await completeServingSession(barberId, serviceId, customerName, paymentMethod);
       
       // Same lookup key + fallback as `revenueToday` below, so this toast's
       // number can never disagree with the dashboard once it recomputes.
