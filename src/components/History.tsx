@@ -263,20 +263,10 @@ export default function History({ completedEntries, barbers, services }: History
                         </div>
                         </div>
 
-                        <div className="shrink-0 pt-0.5 flex flex-col items-end gap-1">
+                        <div className="shrink-0 pt-0.5">
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 font-sans">
                             {t('status.Completed')}
                           </span>
-                          {item.paymentMethod && (
-                            <span className={cn(
-                              "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border font-mono uppercase",
-                              item.paymentMethod === 'qris'
-                                ? "bg-teal-500/10 text-teal-400 border-teal-500/20"
-                                : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                            )}>
-                              {item.paymentMethod}
-                            </span>
-                          )}
                         </div>
                       </div>
 
@@ -286,9 +276,21 @@ export default function History({ completedEntries, barbers, services }: History
                           <Scissors size={14} className="text-muted-foreground shrink-0" />
                           <span className="text-xs text-muted-foreground font-sans truncate">{item.service}</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <User size={14} className="text-muted-foreground shrink-0" />
-                          <span className="text-xs text-muted-foreground font-sans truncate">{item.barber}</span>
+                        <div className="flex items-center justify-between gap-2 min-w-0">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <User size={14} className="text-muted-foreground shrink-0" />
+                            <span className="text-xs text-muted-foreground font-sans truncate">{item.barber}</span>
+                          </div>
+                          {item.paymentMethod && (
+                            <span className={cn(
+                              "inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-semibold border font-mono uppercase shrink-0",
+                              item.paymentMethod === 'qris'
+                                ? "bg-teal-500/10 text-teal-400 border-teal-500/20"
+                                : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                            )}>
+                              {item.paymentMethod}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
