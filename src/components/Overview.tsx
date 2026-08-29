@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Users,
   Clock,
@@ -22,6 +22,12 @@ import { useTranslation } from '../i18n';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { supabase } from '../lib/supabaseClient';
+
+// Domain webhook backend (Cloudflare Tunnel -> VPS) yang sama dipakai buat
+// webhook Xendit & halaman demo -- lihat server/index.js. Nggak pernah
+// berubah, jadi hardcode di sini daripada nambah env var buat 1 nilai statis.
+const PAYMENT_BACKEND_URL = 'https://wa-webhook.takhtabarber.shop';
 
 interface OverviewProps {
   queue: QueueEntry[];
@@ -63,6 +69,32 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
   const [completeServiceId, setCompleteServiceId] = useState('');
   const [completeCustomerName, setCompleteCustomerName] = useState('');
   const [completePaymentMethod, setCompletePaymentMethod] = useState<'cash' | 'qris'>('cash');
+
+  // Alur QR pembayaran SISA (dipakai kalau metode = QRIS): idle -> loading ->
+  // showing (nunggu customer scan, di-poll tiap 3 detik) -> error kalau gagal.
+  const [qrStep, setQrStep] = useState<'idle' | 'loading' | 'showing' | 'error'>('idle');
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [remainingAmount, setRemainingAmount] = useState<number | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopPolling = () => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  };
+
+  // Balik ke idle tiap kali metode bayar bukan QRIS lagi (termasuk pas dialog
+  // dibuka ulang -- handleDoneClick selalu reset ke 'cash').
+  useEffect(() => {
+    if (completePaymentMethod !== 'qris') {
+      setQrStep('idle');
+      setQrDataUrl(null);
+      stopPolling();
+    }
+  }, [completePaymentMethod]);
+
+  useEffect(() => stopPolling, []);
 
   // Hitung detik yang sudah berlalu sejak sesi dimulai (bertahan setelah refresh)
   const getElapsedFromSession = (sess: typeof session) => {
@@ -122,11 +154,65 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
 
   const submitComplete = () => {
     if (!session) return;
+    stopPolling();
     const finalName = completeCustomerName.trim() || 'Anonymous';
     onCompleteSession(barber.id, elapsedSeconds / 60, completeServiceId, finalName, completePaymentMethod);
     setElapsedSeconds(0);
     setIsTimerRunning(false);
     setShowCompleteDialog(false);
+  };
+
+  // Hitung sisa yang harus dibayar: harga penuh layanan, dikurangi DP yang
+  // udah dibayar lewat WhatsApp kalau sesi ini asalnya dari booking WA
+  // (source_request_id) DAN DP-nya beneran udah lunas.
+  const computeRemainingAmount = async (): Promise<number> => {
+    const fullPrice = services.find(s => s.id === completeServiceId)?.price || 0;
+    if (!session?.sourceRequestId) return fullPrice;
+
+    const { data } = await supabase
+      .from('whatsapp_requests')
+      .select('dp_amount, payment_status')
+      .eq('id', session.sourceRequestId)
+      .maybeSingle();
+
+    if (data && data.payment_status === 'paid' && data.dp_amount) {
+      return Math.max(fullPrice - data.dp_amount, 0);
+    }
+    return fullPrice;
+  };
+
+  const generateQr = async () => {
+    if (!session) return;
+    setQrStep('loading');
+    try {
+      const amount = await computeRemainingAmount();
+      setRemainingAmount(amount);
+
+      const res = await fetch(`${PAYMENT_BACKEND_URL}/api/session-payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount })
+      });
+      if (!res.ok) throw new Error('gagal membuat QR');
+      const { paymentRequestId, qrPngDataUrl } = await res.json();
+
+      await supabase.from('queue_entries').update({ payment_xendit_qr_id: paymentRequestId }).eq('id', session.id);
+
+      setQrDataUrl(qrPngDataUrl);
+      setQrStep('showing');
+
+      // Poll baris ini tiap 3 detik -- begitu webhook Xendit (server/index.js)
+      // nandain payment_method = 'qris', sesi otomatis di-selesaikan.
+      stopPolling();
+      pollRef.current = setInterval(async () => {
+        const { data } = await supabase.from('queue_entries').select('payment_method').eq('id', session.id).maybeSingle();
+        if (data?.payment_method === 'qris') {
+          submitComplete();
+        }
+      }, 3000);
+    } catch (err) {
+      setQrStep('error');
+    }
   };
 
   const nextInLine = todayQueue.find(q => q.barber === barber.name);
@@ -268,7 +354,7 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
           <div className="p-6 space-y-5">
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">Layanan <span className="text-destructive">*</span></label>
-              <Select value={completeServiceId} onValueChange={setCompleteServiceId}>
+              <Select value={completeServiceId} onValueChange={setCompleteServiceId} disabled={qrStep === 'loading' || qrStep === 'showing'}>
                 <SelectTrigger className="w-full bg-background border-border text-foreground h-11 rounded-lg">
                   <SelectValue placeholder="Pilih layanan" />
                 </SelectTrigger>
@@ -291,13 +377,18 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
                 value={completeCustomerName}
                 onChange={(e) => setCompleteCustomerName(e.target.value)}
                 placeholder="Biarkan kosong untuk Anonymous"
-                className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-foreground placeholder-muted-foreground focus:outline-none focus:border-ring transition-colors h-11"
+                disabled={qrStep === 'loading' || qrStep === 'showing'}
+                className="w-full bg-background border border-border rounded-lg px-4 py-2.5 text-foreground placeholder-muted-foreground focus:outline-none focus:border-ring transition-colors h-11 disabled:opacity-60"
               />
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">Metode Bayar <span className="text-destructive">*</span></label>
-              <Select value={completePaymentMethod} onValueChange={(v) => setCompletePaymentMethod(v as 'cash' | 'qris')}>
+              <Select
+                value={completePaymentMethod}
+                onValueChange={(v) => setCompletePaymentMethod(v as 'cash' | 'qris')}
+                disabled={qrStep === 'loading' || qrStep === 'showing'}
+              >
                 <SelectTrigger className="w-full bg-background border-border text-foreground h-11 rounded-lg">
                   <SelectValue />
                 </SelectTrigger>
@@ -308,9 +399,32 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
               </Select>
             </div>
 
-            <Button onClick={submitComplete} className="w-full mt-2" disabled={!completeServiceId}>
-              <CheckCircle2 size={16} className="mr-2" /> Tandai Lunas & Selesai
-            </Button>
+            {completePaymentMethod === 'qris' ? (
+              qrStep === 'showing' ? (
+                <div className="space-y-3 text-center pt-1">
+                  {remainingAmount != null && (
+                    <p className="text-sm text-muted-foreground">
+                      Sisa bayar: <span className="font-bold text-foreground">Rp{remainingAmount.toLocaleString('id-ID')}</span>
+                    </p>
+                  )}
+                  <img src={qrDataUrl || ''} alt="QR Pembayaran" className="w-48 h-48 mx-auto rounded-lg border border-border" />
+                  <p className="text-xs text-muted-foreground animate-pulse">Menunggu pembayaran dari customer...</p>
+                </div>
+              ) : qrStep === 'error' ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-destructive text-center">Gagal membuat QR, coba lagi ya.</p>
+                  <Button onClick={generateQr} className="w-full" disabled={!completeServiceId}>Coba Lagi</Button>
+                </div>
+              ) : (
+                <Button onClick={generateQr} className="w-full mt-2" disabled={!completeServiceId || qrStep === 'loading'}>
+                  <CheckCircle2 size={16} className="mr-2" /> {qrStep === 'loading' ? 'Menyiapkan QR...' : 'Buat QR Pembayaran'}
+                </Button>
+              )
+            ) : (
+              <Button onClick={submitComplete} className="w-full mt-2" disabled={!completeServiceId}>
+                <CheckCircle2 size={16} className="mr-2" /> Tandai Lunas & Selesai
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>

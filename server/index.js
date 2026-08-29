@@ -839,32 +839,85 @@ webhookApp.post('/webhooks/xendit', async (req, res) => {
     .eq('xendit_qr_id', paymentRequestId)
     .maybeSingle();
 
-  if (fetchError || !row) {
-    console.error('[WEBHOOK] payment_request_id tidak dikenali:', paymentRequestId);
-    return res.status(200).end();
-  }
-  if (row.payment_status === 'paid') {
-    // Idempotency guard -- webhook Xendit bisa di-retry, ini aman diproses ulang.
-    return res.status(200).end();
-  }
-
-  await supabase
-    .from('whatsapp_requests')
-    .update({ payment_status: 'paid', dp_paid_at: new Date().toISOString() })
-    .eq('id', row.id);
-  console.log('[PAYMENT CONFIRMED]', row.sender_wa_id, '| payment_request_id:', paymentRequestId);
-
-  if (!row.payment_notified && row.sender_wa_id) {
-    try {
-      const text = `Sip kak ${row.sender_name || ''}! Pembayaran DP kamu udah kami terima. Booking-nya udah dikonfirmasi, ditunggu kedatangannya ya!`;
-      await sendMessageWithDelay(row.sender_wa_id, text);
-      await supabase.from('whatsapp_requests').update({ payment_notified: true }).eq('id', row.id);
-    } catch (err) {
-      console.error('[PAYMENT NOTIFY ERROR]', err.message, '| id:', row.id);
+  if (!fetchError && row) {
+    if (row.payment_status === 'paid') {
+      // Idempotency guard -- webhook Xendit bisa di-retry, ini aman diproses ulang.
+      return res.status(200).end();
     }
+
+    await supabase
+      .from('whatsapp_requests')
+      .update({ payment_status: 'paid', dp_paid_at: new Date().toISOString() })
+      .eq('id', row.id);
+    console.log('[PAYMENT CONFIRMED]', row.sender_wa_id, '| payment_request_id:', paymentRequestId);
+
+    if (!row.payment_notified && row.sender_wa_id) {
+      try {
+        const text = `Sip kak ${row.sender_name || ''}! Pembayaran DP kamu udah kami terima. Booking-nya udah dikonfirmasi, ditunggu kedatangannya ya!`;
+        await sendMessageWithDelay(row.sender_wa_id, text);
+        await supabase.from('whatsapp_requests').update({ payment_notified: true }).eq('id', row.id);
+      } catch (err) {
+        console.error('[PAYMENT NOTIFY ERROR]', err.message, '| id:', row.id);
+      }
+    }
+
+    return res.status(200).end();
+  }
+
+  // Bukan payment_request DP booking WhatsApp -- cek queue_entries (pembayaran
+  // SISA lewat QRIS yang di-generate dari dashboard pas "Selesaikan Sesi").
+  const { data: qe } = await supabase
+    .from('queue_entries')
+    .select('id, payment_method')
+    .eq('payment_xendit_qr_id', paymentRequestId)
+    .maybeSingle();
+
+  if (qe && qe.payment_method !== 'qris') {
+    await supabase.from('queue_entries').update({ payment_method: 'qris' }).eq('id', qe.id);
+    console.log('[PAYMENT CONFIRMED] sisa bayar QRIS dashboard |', qe.id, '| payment_request_id:', paymentRequestId);
+  } else if (!qe) {
+    console.error('[WEBHOOK] payment_request_id tidak dikenali:', paymentRequestId);
   }
 
   res.status(200).end();
+});
+
+// Endpoint buat dashboard (frontend) minta QR pembayaran SISA (bukan DP) --
+// dipanggil pas barber pilih "QRIS" di dialog Selesaikan Sesi buat customer
+// yang bayar langsung di tempat. CORS dibatasi ke origin dashboard aja
+// (DASHBOARD_ORIGINS, comma-separated) -- endpoint ini bisa bikin payment
+// request beneran ke akun Xendit toko, jangan biarin situs sembarangan manggil.
+const DASHBOARD_ORIGINS = (process.env.DASHBOARD_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+function dashboardCors(req, res, next) {
+  const origin = req.header('origin');
+  const allowed = origin && DASHBOARD_ORIGINS.includes(origin);
+  if (allowed) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type');
+  }
+  if (req.method === 'OPTIONS') return res.status(204).end();
+  if (!allowed) return res.status(403).end();
+  next();
+}
+
+webhookApp.options('/api/session-payment', dashboardCors);
+webhookApp.post('/api/session-payment', dashboardCors, async (req, res) => {
+  const { amount } = req.body || {};
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return res.status(400).json({ error: 'amount tidak valid' });
+  }
+
+  try {
+    const referenceId = `qe-${crypto.randomUUID()}`;
+    const { id: paymentRequestId, qrString } = await createQrisPaymentRequest({ referenceId, amount });
+    const qrPngDataUrl = await QRCode.toDataURL(qrString);
+    res.json({ paymentRequestId, qrPngDataUrl });
+  } catch (err) {
+    console.error('[SESSION PAYMENT ERROR]', err.message);
+    if (err.response && err.response.data) console.error('[SESSION PAYMENT ERROR DETAIL]', JSON.stringify(err.response.data));
+    res.status(502).json({ error: 'gagal membuat QR pembayaran' });
+  }
 });
 
 // Halaman demo "kayak e-wallet" -- SENGAJA DIBUAT BUAT DEMO KE BARBER, bukan

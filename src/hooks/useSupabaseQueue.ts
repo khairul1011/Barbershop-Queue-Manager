@@ -196,6 +196,7 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[], enabled
         startedAt: row.started_at || undefined,
         completedAt: row.completed_at || undefined,
         paymentMethod: row.payment_method || null,
+        sourceRequestId: row.source_request_id || null,
       };
     };
 

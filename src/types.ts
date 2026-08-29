@@ -15,6 +15,7 @@ export interface QueueEntry {
   startedAt?: string;
   completedAt?: string;
   paymentMethod?: 'cash' | 'qris' | null; // diisi pas "Selesaikan Sesi", nandain sisa pembayaran udah lunas
+  sourceRequestId?: string | null; // link balik ke whatsapp_requests kalau booking ini asalnya dari WA (buat hitung sisa bayar dikurangi DP)
 }
 
 export type RequestStatus = 'pending' | 'approved' | 'rejected';
