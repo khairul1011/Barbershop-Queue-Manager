@@ -12,14 +12,14 @@ npm run dev      # Dev server Vite di port 3000, host 0.0.0.0
 npm run build    # Production build (vite build)
 npm run lint      # ESLint (flat config, eslint.config.js)
 npm run typecheck # tsc --noEmit
+npm test          # Vitest — cuma nyentuh src/**/*.test.{ts,tsx} (vitest.config.ts), belum full coverage
 ```
-Nggak ada test suite untuk frontend.
 
 **Backend** (`server/` — `package.json`/`node_modules` terpisah, bukan workspace):
 ```bash
 cd server && npm start   # node index.js — proses bot WhatsApp yang jalan terus-menerus (long-running)
+cd server && npm test    # node --test services/*.test.js — belum full coverage
 ```
-Juga nggak ada test suite di sini (`npm test` cuma placeholder).
 
 ## Arsitektur
 

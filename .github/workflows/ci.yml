@@ -20,6 +20,7 @@ jobs:
         run: npm run lint
         continue-on-error: true
       - run: npm run typecheck
+      - run: npm test
       - run: npm run build
 
   backend:
@@ -35,4 +36,6 @@ jobs:
         working-directory: server
       - name: Syntax-check all server .js files
         run: find . -name '*.js' -not -path './node_modules/*' -print0 | xargs -0 -n1 node --check
+        working-directory: server
+      - run: npm test
         working-directory: server
