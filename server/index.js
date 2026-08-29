@@ -1026,20 +1026,20 @@ webhookApp.get('/demo', (req, res) => {
     list.innerHTML = rows.map(r => \`
       <div class="card">
         <div class="name">\${r.sender_name}</div>
-        <div class="meta">\${r.extracted_day}, \${r.extracted_time} -- \${(r.extracted_service || '').split('|')[0]}</div>
+        <div class="meta">\${r.type === 'queue' ? r.extracted_service : \`\${r.extracted_day}, \${r.extracted_time} -- \${(r.extracted_service || '').split('|')[0]}\`}</div>
         <div class="amount">Rp\${Number(r.dp_amount).toLocaleString('id-ID')}</div>
-        <button onclick="pay('\${r.id}', this)">Tandai lunas manual</button>
+        <button onclick="pay('\${r.id}', '\${r.type}', this)">Tandai lunas manual</button>
       </div>
     \`).join('');
   }
 
-  async function pay(id, btn) {
+  async function pay(id, type, btn) {
     if (btn) { btn.disabled = true; btn.textContent = 'Memproses...'; }
     try {
       const res = await fetch('/demo/api/pay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, kode })
+        body: JSON.stringify({ id, type, kode })
       });
       if (!res.ok) throw new Error('gagal');
       if (btn) { btn.textContent = '✓ Berhasil dibayar'; btn.classList.add('done'); }
@@ -1100,7 +1100,7 @@ webhookApp.get('/demo', (req, res) => {
       setTimeout(stopScan, 1500);
       return;
     }
-    const ok = await pay(currentRows[0].id, null);
+    const ok = await pay(currentRows[0].id, currentRows[0].type, null);
     stopScan();
     if (ok) {
       tryLoad();
@@ -1116,41 +1116,66 @@ webhookApp.get('/demo', (req, res) => {
 </html>`);
 });
 
+// List gabungan 2 sumber "menunggu bayar": DP booking WhatsApp
+// (whatsapp_requests) DAN sisa bayar QRIS yang di-generate dari dashboard
+// (queue_entries) -- keduanya dibedain lewat field `type` biar /demo/api/pay
+// tau harus baca/update tabel mana.
 webhookApp.get('/demo/api/list', async (req, res) => {
   if (!verifyDemoPasscode(req.query.kode)) return res.status(401).json({ error: 'unauthorized' });
 
-  const { data, error } = await supabase
+  const { data: waRows, error: waError } = await supabase
     .from('whatsapp_requests')
     .select('id, sender_name, dp_amount, extracted_day, extracted_time, extracted_service')
     .eq('payment_status', 'unpaid')
     .not('xendit_qr_id', 'is', null) // buang booking lama pra-fitur DP (payment_status default 'unpaid' tapi nggak pernah ada QR)
     .order('received_at', { ascending: false })
     .limit(10);
+  if (waError) return res.status(500).json({ error: waError.message });
 
-  if (error) return res.status(500).json({ error: error.message });
-  res.json(data || []);
+  const { data: qeRows, error: qeError } = await supabase
+    .from('queue_entries')
+    .select('id, customer_name, payment_qr_amount')
+    .is('payment_method', null)
+    .not('payment_xendit_qr_id', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(10);
+  if (qeError) return res.status(500).json({ error: qeError.message });
+
+  const waList = (waRows || []).map(r => ({
+    id: r.id, type: 'wa', sender_name: r.sender_name, dp_amount: r.dp_amount,
+    extracted_day: r.extracted_day, extracted_time: r.extracted_time, extracted_service: r.extracted_service
+  }));
+  const qeList = (qeRows || []).map(r => ({
+    id: r.id, type: 'queue', sender_name: r.customer_name, dp_amount: r.payment_qr_amount,
+    extracted_day: null, extracted_time: null, extracted_service: 'Sisa pembayaran sesi (dashboard)'
+  }));
+
+  res.json([...waList, ...qeList]);
 });
 
 webhookApp.post('/demo/api/pay', async (req, res) => {
-  const { id, kode } = req.body || {};
+  const { id, type, kode } = req.body || {};
   if (!verifyDemoPasscode(kode)) return res.status(401).json({ error: 'unauthorized' });
   if (!id) return res.status(400).json({ error: 'id wajib diisi' });
 
-  const { data: row, error: fetchError } = await supabase
-    .from('whatsapp_requests')
-    .select('id, xendit_qr_id, dp_amount, payment_status')
-    .eq('id', id)
-    .maybeSingle();
+  let paymentRequestId, amount;
 
-  if (fetchError || !row || !row.xendit_qr_id) {
-    return res.status(404).json({ error: 'booking tidak ditemukan atau belum ada QR' });
-  }
-  if (row.payment_status !== 'unpaid') {
-    return res.status(409).json({ error: 'booking ini sudah tidak berstatus unpaid' });
+  if (type === 'queue') {
+    const { data: row } = await supabase.from('queue_entries').select('payment_xendit_qr_id, payment_qr_amount, payment_method').eq('id', id).maybeSingle();
+    if (!row || !row.payment_xendit_qr_id) return res.status(404).json({ error: 'booking tidak ditemukan atau belum ada QR' });
+    if (row.payment_method === 'qris') return res.status(409).json({ error: 'booking ini sudah lunas' });
+    paymentRequestId = row.payment_xendit_qr_id;
+    amount = row.payment_qr_amount;
+  } else {
+    const { data: row } = await supabase.from('whatsapp_requests').select('xendit_qr_id, dp_amount, payment_status').eq('id', id).maybeSingle();
+    if (!row || !row.xendit_qr_id) return res.status(404).json({ error: 'booking tidak ditemukan atau belum ada QR' });
+    if (row.payment_status !== 'unpaid') return res.status(409).json({ error: 'booking ini sudah tidak berstatus unpaid' });
+    paymentRequestId = row.xendit_qr_id;
+    amount = row.dp_amount;
   }
 
   try {
-    await simulatePayment({ paymentRequestId: row.xendit_qr_id, amount: row.dp_amount });
+    await simulatePayment({ paymentRequestId, amount });
     res.json({ ok: true });
   } catch (err) {
     console.error('[DEMO SIMULATE ERROR]', err.message, '| id:', id);

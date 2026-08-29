@@ -196,7 +196,7 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
       if (!res.ok) throw new Error('gagal membuat QR');
       const { paymentRequestId, qrPngDataUrl } = await res.json();
 
-      await supabase.from('queue_entries').update({ payment_xendit_qr_id: paymentRequestId }).eq('id', session.id);
+      await supabase.from('queue_entries').update({ payment_xendit_qr_id: paymentRequestId, payment_qr_amount: amount }).eq('id', session.id);
 
       setQrDataUrl(qrPngDataUrl);
       setQrStep('showing');
