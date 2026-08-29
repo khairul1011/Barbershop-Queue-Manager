@@ -9,7 +9,9 @@ import {
   Scissors,
   User,
   Clock,
-  CalendarCheck
+  CalendarCheck,
+  Copy,
+  Check
 } from 'lucide-react';
 import { BentoCard } from './ui/BentoCard';
 import { motion, AnimatePresence } from 'motion/react';
@@ -59,6 +61,17 @@ export default function History({ completedEntries, barbers, services }: History
   const [selectedEntry, setSelectedEntry] = useState<QueueEntry | null>(null);
   const [waDpInfo, setWaDpInfo] = useState<WaDpInfo | null>(null);
   const [waDpLoading, setWaDpLoading] = useState(false);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  const handleCopyCode = async (code: string) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedCode(code);
+      setTimeout(() => setCopiedCode((prev) => (prev === code ? null : prev)), 1500);
+    } catch {
+      // Clipboard API bisa gagal (mis. izin browser) -- diemin aja, bukan fatal.
+    }
+  };
 
   useEffect(() => {
     if (!selectedEntry?.sourceRequestId) {
@@ -416,28 +429,46 @@ export default function History({ completedEntries, barbers, services }: History
                   ) : (
                     <>
                       {waDpInfo && (
-                        <div className="flex justify-between items-start">
-                          <span className="text-muted-foreground shrink-0">DP via WhatsApp</span>
-                          <div className="text-right">
-                            <div className="font-medium text-foreground">{formatRupiah(waDpInfo.dpAmount)}</div>
-                            {waDpInfo.transactionId && (
-                              <div className="text-[10px] text-muted-foreground font-mono mt-0.5 break-all">{waDpInfo.transactionId}</div>
-                            )}
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">DP via WhatsApp</span>
+                            <span className="font-medium text-foreground">{formatRupiah(waDpInfo.dpAmount)}</span>
                           </div>
+                          {waDpInfo.transactionId && (
+                            <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-mono bg-background border border-border/50 rounded px-2 py-1">
+                              <span className="break-all flex-1">{waDpInfo.transactionId}</span>
+                              <button
+                                onClick={() => handleCopyCode(waDpInfo.transactionId!)}
+                                className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                                title="Salin kode"
+                              >
+                                {copiedCode === waDpInfo.transactionId ? <Check size={12} /> : <Copy size={12} />}
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )}
 
-                      <div className="flex justify-between items-start">
-                        <span className="text-muted-foreground shrink-0">{waDpInfo ? 'Sisa Dibayar' : 'Metode Bayar'}</span>
-                        <div className="text-right">
-                          <div className="font-medium text-foreground">
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">{waDpInfo ? 'Sisa Dibayar' : 'Metode Bayar'}</span>
+                          <span className="font-medium text-foreground">
                             {methodLabel}
                             {selectedEntry.paymentMethod === 'qris' && selectedEntry.paymentQrAmount ? ` — ${formatRupiah(selectedEntry.paymentQrAmount)}` : ''}
-                          </div>
-                          {selectedEntry.paymentMethod === 'qris' && selectedEntry.paymentTransactionId && (
-                            <div className="text-[10px] text-muted-foreground font-mono mt-0.5 break-all">{selectedEntry.paymentTransactionId}</div>
-                          )}
+                          </span>
                         </div>
+                        {selectedEntry.paymentMethod === 'qris' && selectedEntry.paymentTransactionId && (
+                          <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-mono bg-background border border-border/50 rounded px-2 py-1">
+                            <span className="break-all flex-1">{selectedEntry.paymentTransactionId}</span>
+                            <button
+                              onClick={() => handleCopyCode(selectedEntry.paymentTransactionId!)}
+                              className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                              title="Salin kode"
+                            >
+                              {copiedCode === selectedEntry.paymentTransactionId ? <Check size={12} /> : <Copy size={12} />}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </>
                   )}
