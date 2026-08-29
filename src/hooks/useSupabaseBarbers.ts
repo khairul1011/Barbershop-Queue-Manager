@@ -83,7 +83,7 @@ export function useSupabaseBarbers(enabled: boolean) {
     try {
       setError(null);
       
-      const updatePayload: any = {};
+      const updatePayload: { name?: string; status?: Barber['status']; specialization?: string; photo_url?: string } = {};
       if (updated.name !== undefined) updatePayload.name = updated.name;
       if (updated.status !== undefined) updatePayload.status = updated.status;
       if (updated.specialty !== undefined) updatePayload.specialization = updated.specialty;

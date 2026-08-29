@@ -1,25 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Service, Barber } from '../types';
 import {
-  Settings,
   Scissors,
   Clock,
-  DollarSign,
   UserCheck,
   Plus,
   Trash,
   Save,
-  BellRing,
   Edit3,
   X,
   AlertCircle,
-  ChevronDown,
   Store,
   Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from '../i18n';
-import { SegmentedToggle, SegmentOption } from './ui/SegmentedToggle';
+import { SegmentedToggle } from './ui/SegmentedToggle';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { compressImage } from '@/lib/imageCompression';

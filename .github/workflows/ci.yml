@@ -16,9 +16,7 @@ jobs:
           node-version: 22
           cache: 'npm'
       - run: npm ci
-      - name: Lint (non-blocking — 220 pre-existing findings tracked as backlog)
-        run: npm run lint
-        continue-on-error: true
+      - run: npm run lint
       - run: npm run typecheck
       - run: npm test
       - run: npm run build

@@ -5,6 +5,25 @@ import { QueueEntry, Barber, Service, QueueStatus } from '../types';
 type DayType = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
 const DAYS: DayType[] = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+// Bentuk baris mentah tabel queue_entries dari Supabase, sebelum dipetakan ke QueueEntry.
+interface QueueEntryRow {
+  id: string;
+  customer_name: string;
+  phone: string | null;
+  status: string;
+  scheduled_date: string;
+  scheduled_time: string | null;
+  barber_id: string;
+  service_id: string;
+  source_request_id: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  payment_method: string | null;
+  payment_xendit_qr_id: string | null;
+  payment_qr_amount: number | null;
+}
+
 /**
  * Helper: dapatkan tanggal lokal (bukan UTC) sebagai string 'YYYY-MM-DD'.
  * Menghindari bug toISOString() yang selalu pakai UTC — berbahaya di timezone +07:00
@@ -63,8 +82,8 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[], enabled
   // hanya dilakukan sekali pada saat mount, dan pemetaan nama dihitung ulang secara
   // murni di sisi client melalui useMemo apabila barbers/services berubah — tanpa
   // adanya network call tambahan.
-  const [activeRowsRaw, setActiveRowsRaw] = useState<any[]>([]);
-  const [completedRowsRaw, setCompletedRowsRaw] = useState<any[]>([]);
+  const [activeRowsRaw, setActiveRowsRaw] = useState<QueueEntryRow[]>([]);
+  const [completedRowsRaw, setCompletedRowsRaw] = useState<QueueEntryRow[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -134,7 +153,7 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[], enabled
     // Temporary groups to calculate queue numbers for 'Estimated' status
     const estimatedCountPerDayBarber: Record<string, number> = {};
 
-    const mapRowToEntry = (row: any): QueueEntry => {
+    const mapRowToEntry = (row: QueueEntryRow): QueueEntry => {
       const barberObj = barbers.find(b => b.id === row.barber_id);
       const barberName = barberObj ? barberObj.name : 'Unknown Barber';
 
@@ -145,7 +164,7 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[], enabled
       const dateObj = new Date(row.scheduled_date + 'T00:00:00'); // force local midnight
       const dayAbbr = dateObj.toLocaleDateString('en-US', { weekday: 'short' }) as DayType;
 
-      let timeRange = '';
+      let timeRange: string;
       if (row.scheduled_time) {
           const startH = parseInt(row.scheduled_time.split(':')[0]);
           const startM = parseInt(row.scheduled_time.split(':')[1]);
@@ -197,7 +216,7 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[], enabled
         durationMinutes,
         startedAt: row.started_at || undefined,
         completedAt: row.completed_at || undefined,
-        paymentMethod: row.payment_method || null,
+        paymentMethod: (row.payment_method as 'cash' | 'qris' | null) || null,
         sourceRequestId: row.source_request_id || null,
         paymentTransactionId: row.payment_xendit_qr_id || null,
         paymentQrAmount: row.payment_qr_amount || null,
@@ -208,7 +227,7 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[], enabled
     const newQueue: QueueEntry[] = [];
     const newServingSessions: Record<string, QueueEntry | null> = {};
 
-    activeRowsRaw.forEach((row: any) => {
+    activeRowsRaw.forEach((row) => {
       const entry = mapRowToEntry(row);
       if (row.started_at) {
         newServingSessions[row.barber_id] = entry;
@@ -266,7 +285,7 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[], enabled
   const updateQueueEntryStatus = async (id: string, newStatus: QueueStatus, scheduledTime?: string) => {
     try {
       const dbStatus = mapStatusToSupabase(newStatus);
-      const payload: any = { status: dbStatus };
+      const payload: Partial<QueueEntryRow> = { status: dbStatus };
       if (scheduledTime) {
         payload.scheduled_time = scheduledTime;
       }
@@ -351,7 +370,7 @@ export function useSupabaseQueue(barbers: Barber[], services: Service[], enabled
       const session = servingSessions[barberId];
       if (!session) return; // tidak ada sesi yang sedang dikerjakan
 
-      const updatePayload: any = {
+      const updatePayload: Partial<QueueEntryRow> = {
         completed_at: new Date().toISOString(),
         status: 'completed'
       };

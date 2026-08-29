@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 import { QueueEntry, QueueStatus, Barber, Service } from '../types';
 import {
-  Calendar, Clock, MapPin, User, ChevronRight, ChevronLeft, ChevronDown,
-  Phone, MessageSquarePlus, Info, X, Plus, Trash2, Check, Sparkles,
-  Scissors, Bell, Filter, Edit2, CalendarDays, CalendarRange, LayoutGrid
+  Calendar, Clock, User, ChevronRight, ChevronLeft,
+  MessageSquarePlus, Info, Plus, Trash2, Check,
+  Scissors, Filter, CalendarDays, CalendarRange, LayoutGrid
 } from 'lucide-react';
-import { motion } from 'motion/react';
 import { useTranslation } from '../i18n';
 import { SegmentedToggle } from './ui/SegmentedToggle';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -955,7 +954,7 @@ export default function Schedule({
                          size="icon"
                          className="h-11 w-11 shrink-0"
                          onClick={() => { 
-                           onRemoveBooking && onRemoveBooking(activeSlotDetails.entry.id); 
+                           onRemoveBooking?.(activeSlotDetails.entry.id);
                            setActiveSlotDetails(null); 
                            setConfirmTime('');
                          }} 

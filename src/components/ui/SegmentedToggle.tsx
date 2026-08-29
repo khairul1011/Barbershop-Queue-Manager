@@ -1,5 +1,4 @@
 import React from 'react';
-import { Button } from '@/components/ui/button';
 
 export interface SegmentOption<T extends string> {
   value: T;

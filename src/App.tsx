@@ -36,10 +36,7 @@ import { QueueEntry, WhatsAppRequest, Barber, Service, QueueStatus } from './typ
 import {
   Search,
   Clock,
-  Sparkles,
   Bell,
-  User,
-  ChevronDown,
   CheckCircle,
   MessageSquare,
   X,
@@ -89,10 +86,10 @@ export default function App() {
   const dataReady = !authLoading && !!session;
 
   // Core App States
-  const { requests, loading: requestsLoading, error: requestsError, approveRequest, rejectRequest, updateRequestDetails, refreshRequests } = useSupabaseRequests(dataReady);
+  const { requests, loading: requestsLoading, error: requestsError, approveRequest, rejectRequest, updateRequestDetails } = useSupabaseRequests(dataReady);
   const { barbers, loading: barbersLoading, error: barbersError, addBarber, editBarber, removeBarber, updateBarberStatus } = useSupabaseBarbers(dataReady);
   const { services, loading: servicesLoading, error: servicesError, addService, updateService, removeService } = useSupabaseServices(dataReady);
-  const { queue, servingSessions, completedEntries, loading: queueLoading, error: queueError, addQueueEntry, updateQueueEntryStatus, serveQueueEntry, completeServingSession, removeQueueEntry, startQuickWalkIn } = useSupabaseQueue(barbers, services, dataReady);
+  const { queue, servingSessions, completedEntries, error: queueError, addQueueEntry, updateQueueEntryStatus, serveQueueEntry, completeServingSession, removeQueueEntry, startQuickWalkIn } = useSupabaseQueue(barbers, services, dataReady);
   const { businessHours, updateBusinessHours, updateShopProfile } = useSupabaseBusinessHours();
 
   // Stats Counters (derived from Supabase data)
@@ -167,7 +164,7 @@ export default function App() {
   const todayKey = useMemo(() => {
     return currentTime.toLocaleDateString('en-US', { weekday: 'short' }) as
       'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
-  }, [currentTime.toDateString()]);
+  }, [currentTime]);
 
   // Derived Stats
   const completedCount = useMemo(() => {
@@ -219,7 +216,7 @@ export default function App() {
         'success',
         'Session Completed'
       );
-    } catch (err) {
+    } catch {
       triggerToast('Gagal menyelesaikan sesi pangkas.', 'error', 'Completion Failed');
     }
   };
@@ -308,7 +305,7 @@ export default function App() {
         'success',
         'Walk-In Added'
       );
-    } catch (err) {
+    } catch {
       triggerToast('Gagal menambah antrean walk-in.', 'error', 'Save Failed');
     }
   };
@@ -397,17 +394,16 @@ export default function App() {
 
     try {
       await approveRequest(id);
-    } catch (err: any) {
+    } catch {
       triggerToast('Gagal mengubah status di server.', 'error', 'Update Failed');
       return;
     }
 
     const rawDay = customDay || request.extractedDay || '';
-    const daySelected = indonesianToEnglishDay(rawDay) as any;
+    const daySelected = indonesianToEnglishDay(rawDay) as 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
     const timeSelected = customTime || request.extractedTime;
     const serviceSelected = customService || request.extractedService;
 
-    const endTime = calculateEndTime(timeSelected, serviceSelected);
     const barberMatch = fuzzyMatchBarber(request.extractedBarber, barbers, daySelected, timeSelected, queue);
     const targetBarber = barberMatch.barber;
 
@@ -450,7 +446,7 @@ export default function App() {
           'Perlu Verifikasi'
         );
       }
-    } catch (err) {
+    } catch {
       triggerToast('Gagal menyetujui request ke database antrean.', 'error', 'Approval Failed');
     }
   };
@@ -466,7 +462,7 @@ export default function App() {
         try {
           await rejectRequest(id);
           triggerToast(`Request booking dari ${request.senderName} ditolak.`, 'info', 'Request Declined');
-        } catch (err: any) {
+        } catch {
           triggerToast('Gagal mengubah status di server.', 'error', 'Update Failed');
         }
       },
@@ -479,7 +475,7 @@ export default function App() {
     try {
       await updateRequestDetails(id, updated);
       triggerToast(`Parameter booking berhasil disesuaikan.`, 'info', 'Metadata Extracted');
-    } catch (err) {
+    } catch {
       triggerToast('Gagal menyimpan perubahan ke server.', 'error', 'Update Failed');
     }
   };
@@ -523,7 +519,7 @@ export default function App() {
         'success',
         'Slot Booked'
       );
-    } catch (err) {
+    } catch {
       triggerToast('Gagal menyimpan booking.', 'error', 'Booking Failed');
     }
   };
@@ -540,7 +536,7 @@ export default function App() {
           'info',
           'Booking Cancelled'
         );
-      } catch (err) {
+      } catch {
         triggerToast('Gagal membatalkan booking.', 'error', 'Delete Failed');
       }
     }, 'Ya, Batalkan');
@@ -555,8 +551,9 @@ export default function App() {
         'info',
         'Active Seat Swapped'
       );
-    } catch (err: any) {
-      if (err.message === 'SEAT_OCCUPIED_LOCAL' || err.message === 'SEAT_OCCUPIED_DB') {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '';
+      if (message === 'SEAT_OCCUPIED_LOCAL' || message === 'SEAT_OCCUPIED_DB') {
         triggerToast(
           `Kursi ini sedang terisi, selesaikan dulu sesi yang sedang berjalan. (Simultaneous request blocked)`,
           'error',
@@ -595,7 +592,7 @@ export default function App() {
         if (item) {
           triggerToast(`${item.customerName} dihapus dari jadwal antrean.`, 'info', 'Queue Removed');
         }
-      } catch (err) {
+      } catch {
         triggerToast('Gagal menghapus antrean.', 'error', 'Delete Failed');
       }
     }, 'Ya, Hapus');
@@ -606,7 +603,7 @@ export default function App() {
     try {
       await updateQueueEntryStatus(id, newStatus, scheduledTime);
       triggerToast(`Status antrean diubah jadi ${newStatus}.`, 'info');
-    } catch (err) {
+    } catch {
       triggerToast('Gagal memperbarui status.', 'error', 'Update Failed');
     }
   };
@@ -625,7 +622,7 @@ export default function App() {
     try {
       await addService(newSvc);
       triggerToast(`Layanan baru "${newSvc.name}" ditambahkan ke daftar harga.`, 'success', 'Service Saved');
-    } catch (err) {
+    } catch {
       triggerToast(`Gagal menyimpan layanan baru.`, 'error', 'Save Failed');
     }
   };
@@ -635,7 +632,7 @@ export default function App() {
     try {
       await updateService(id, updates);
       triggerToast(`Layanan berhasil diperbarui.`, 'success', 'Service Updated');
-    } catch (err) {
+    } catch {
       triggerToast(`Gagal memperbarui layanan.`, 'error', 'Update Failed');
     }
   };
@@ -646,7 +643,7 @@ export default function App() {
       try {
         await removeService(id);
         triggerToast(`Layanan dihapus dari daftar pilihan.`, 'info', 'Service Deleted');
-      } catch (err) {
+      } catch {
         triggerToast(`Gagal menghapus layanan.`, 'error', 'Delete Failed');
       }
     }, 'Ya, Hapus');
@@ -659,7 +656,7 @@ export default function App() {
       const name = barbers.find(b => b.id === id)?.name || 'Kapster';
       const statusLabel = status === 'active' ? 'AKTIF' : status === 'break' ? 'ISTIRAHAT' : 'OFF';
       triggerToast(`${name} sekarang berstatus ${statusLabel}.`, status === 'active' ? 'success' : 'info', 'Duty Swapped');
-    } catch (err) {
+    } catch {
       triggerToast(`Gagal memperbarui status kapster.`, 'error', 'Update Failed');
     }
   };
@@ -669,7 +666,7 @@ export default function App() {
     try {
       await addBarber(newBarber);
       triggerToast(`Kapster "${newBarber.name}" berhasil ditambahkan.`, 'success', 'Barber Added');
-    } catch (err) {
+    } catch {
       triggerToast(`Gagal menyimpan kapster baru.`, 'error', 'Save Failed');
     }
   };
@@ -679,7 +676,7 @@ export default function App() {
     try {
       await editBarber(id, updatedBarber);
       triggerToast(`Data kapster berhasil diperbarui.`, 'success', 'Barber Edited');
-    } catch (err) {
+    } catch {
       triggerToast(`Gagal memperbarui data kapster.`, 'error', 'Update Failed');
     }
   };
@@ -690,8 +687,8 @@ export default function App() {
       try {
         await removeBarber(id);
         triggerToast(`Kapster berhasil dihapus.`, 'info', 'Barber Deleted');
-      } catch (err: any) {
-        triggerToast(err.message || `Gagal menghapus kapster.`, 'error', 'Delete Failed');
+      } catch (err) {
+        triggerToast(err instanceof Error ? err.message : 'Gagal menghapus kapster.', 'error', 'Delete Failed');
       }
     }, 'Ya, Hapus');
   };
@@ -718,7 +715,6 @@ export default function App() {
             servingSessions={servingSessions}
             onCompleteSession={handleCompleteSession}
             onQuickStart={handleQuickStart}
-            onServeNow={handleServeNow}
             onCallNextForBarber={handleCallNextForBarber}
             onAddWalkIn={handleAddWalkIn}
             barbers={barbers}

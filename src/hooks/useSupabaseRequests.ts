@@ -29,7 +29,7 @@ export function useSupabaseRequests(enabled: boolean) {
           senderName: row.sender_name,
           senderPhone: row.sender_phone,
           message: row.raw_message,
-          extractedDay: row.extracted_day as any,
+          extractedDay: row.extracted_day as 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun',
           extractedTime: row.extracted_time,
           extractedService: parts[0],
           extractedBarber: parts[1] || null,

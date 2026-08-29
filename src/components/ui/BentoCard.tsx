@@ -93,7 +93,7 @@ export function BentoCard({
           </div>
           
           {badge && (
-            <Badge variant={badge.color as any} className="gap-1.5 font-sans whitespace-nowrap shrink-0">
+            <Badge variant={badge.color} className="gap-1.5 font-sans whitespace-nowrap shrink-0">
               {badge.dot && (
                 <span className="relative flex h-2 w-2">
                   <span className={cn(

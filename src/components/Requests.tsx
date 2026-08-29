@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { WhatsAppRequest } from '../types';
-import { MessageSquare, Calendar, Clock, Scissors, UserCheck, ShieldCheck, Check, X, Edit3, Trash, Phone, CornerDownRight, Save, Wallet } from 'lucide-react';
+import { MessageSquare, Calendar, Clock, Scissors, ShieldCheck, Check, X, Edit3, Phone, Save, Wallet } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BentoCard } from './ui/BentoCard';
 import { useTranslation } from '../i18n';

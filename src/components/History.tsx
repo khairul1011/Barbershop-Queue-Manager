@@ -331,7 +331,7 @@ export default function History({ completedEntries, barbers, services }: History
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border text-sm">
-                    {paginatedEntries.map((item, index) => (
+                    {paginatedEntries.map((item) => (
                       <motion.tr
                         key={item.id}
                         initial={{ opacity: 0, y: 5 }}

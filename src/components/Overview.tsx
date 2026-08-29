@@ -16,7 +16,6 @@ import {
 import { QueueEntry, Service, Barber } from '../types';
 import { AnimatePresence, motion } from 'motion/react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Calendar as CalendarIcon, UserPlus } from 'lucide-react';
 import { BentoCard } from './ui/BentoCard';
 import { useTranslation } from '../i18n';
 import { Badge } from '@/components/ui/badge';
@@ -35,7 +34,6 @@ interface OverviewProps {
   servingSessions: Record<string, QueueEntry | null>;
   onCompleteSession: (barberId: string, actualDuration: number, serviceId?: string, customerName?: string, paymentMethod?: 'cash' | 'qris') => void;
   onCallNextForBarber: (barberId: string) => void;
-  onServeNow: (entry: QueueEntry, barberId: string) => void;
   onQuickStart: (barberId: string) => void;
   onAddWalkIn: (name: string, service: string, barber: string) => void;
   barbers: Barber[];
@@ -113,7 +111,7 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
   const [isTimerRunning, setIsTimerRunning] = useState(!!session);
 
   useEffect(() => {
-    let interval: any = null;
+    let interval: ReturnType<typeof setInterval> | null = null;
     if (session && isTimerRunning) {
       interval = setInterval(() => {
         setElapsedSeconds((prev) => prev + 1);
@@ -135,6 +133,7 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
     }
   // Sengaja hanya bergantung pada id/startedAt, bukan seluruh objek session,
   // agar timer tidak ikut di-resinkronisasi setiap kali field lain pada session berubah.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.id, session?.startedAt]);
 
   const formatTime = (totalSeconds: number) => {
@@ -217,7 +216,7 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
           submitComplete();
         }
       }, 3000);
-    } catch (err) {
+    } catch {
       setQrStep('error');
     }
   };
@@ -454,7 +453,6 @@ export default function Overview({
   servingSessions,
   onCompleteSession,
   onCallNextForBarber,
-  onServeNow,
   onAddWalkIn,
   onQuickStart,
   barbers,

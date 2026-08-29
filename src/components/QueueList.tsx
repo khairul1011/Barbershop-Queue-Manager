@@ -1,18 +1,15 @@
 import React, { useState } from 'react';
 import { QueueEntry, Barber } from '../types';
 import { useTranslation } from '../i18n';
-import { 
-  Users, 
-  Clock, 
-  Trash2, 
-  Sparkles, 
-  Search, 
-  UserPlus, 
-  MessageCircle, 
-  Play, 
-  Filter, 
-  CheckCircle,
-  HelpCircle
+import {
+  Users,
+  Clock,
+  Trash2,
+  Sparkles,
+  Search,
+  MessageCircle,
+  Play,
+  Filter
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
