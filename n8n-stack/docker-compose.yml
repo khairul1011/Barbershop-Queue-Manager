@@ -1,0 +1,113 @@
+# Stack eksperimen n8n + Evolution API (WhatsApp non-resmi).
+#
+# Dijalankan di server terpisah dari bot produksi (server/), sehingga eksperimen
+# tidak dapat mengganggu booking pelanggan yang sedang berjalan.
+#
+# Seluruh port sengaja di-bind ke 127.0.0.1 saja. Akses publik disediakan lewat
+# Cloudflare Tunnel (koneksi keluar), sama seperti pola yang sudah dipakai bot
+# produksi -- proyek ini pernah mengalami insiden API yang terekspos tanpa
+# otentikasi, jadi tidak ada port masuk yang dibuka langsung ke internet.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Database kedua (evolution) dibuat oleh skrip di postgres-init/.
+      POSTGRES_DB: n8n
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  n8n:
+    image: n8nio/n8n:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5678:5678"
+    environment:
+      # WEBHOOK_URL wajib berisi URL publik. Tanpa ini, URL webhook yang
+      # ditampilkan n8n akan menunjuk ke localhost dan tidak bisa dipanggil
+      # Evolution API maupun layanan luar.
+      WEBHOOK_URL: ${N8N_PUBLIC_URL}
+      N8N_HOST: ${N8N_HOSTNAME}
+      N8N_PORT: 5678
+      # Default https untuk server di balik Cloudflare Tunnel; saat dijalankan
+      # di lokal, .env cukup meng-override keduanya menjadi http dan 0.
+      N8N_PROTOCOL: ${N8N_PROTOCOL:-https}
+      N8N_PROXY_HOPS: ${N8N_PROXY_HOPS:-1}
+      # Kunci enkripsi kredensial. JANGAN diubah setelah ada kredensial
+      # tersimpan -- mengubahnya membuat seluruh kredensial lama tidak terbaca.
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_USER: ${POSTGRES_USER}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+      GENERIC_TIMEZONE: Asia/Jakarta
+      TZ: Asia/Jakarta
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  evolution-api:
+    image: evoapicloud/evolution-api:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      SERVER_URL: ${EVOLUTION_PUBLIC_URL}
+      # Kunci ini adalah satu-satunya pelindung Evolution API. Wajib acak dan
+      # panjang -- siapa pun yang memilikinya bisa mengirim pesan atas nama
+      # nomor WhatsApp yang tersambung.
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
+      DATABASE_ENABLED: "true"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/evolution
+      DATABASE_CONNECTION_CLIENT_NAME: evolution
+      DATABASE_SAVE_DATA_INSTANCE: "true"
+      DATABASE_SAVE_DATA_NEW_MESSAGE: "true"
+      DATABASE_SAVE_MESSAGE_UPDATE: "false"
+      DATABASE_SAVE_DATA_CONTACTS: "true"
+      DATABASE_SAVE_DATA_CHATS: "true"
+      CACHE_REDIS_ENABLED: "true"
+      CACHE_REDIS_URI: redis://redis:6379/6
+      CACHE_REDIS_PREFIX_KEY: evolution
+      CACHE_REDIS_SAVE_INSTANCES: "false"
+      CACHE_LOCAL_ENABLED: "false"
+      LOG_LEVEL: ERROR,WARN,INFO
+      TZ: Asia/Jakarta
+    volumes:
+      - evolution_instances:/evolution/instances
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
+  n8n_data:
+  evolution_instances:
