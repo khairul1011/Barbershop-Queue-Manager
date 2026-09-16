@@ -26,3 +26,7 @@ server/*.log
 
 # Local git worktrees created by Claude Code background tasks
 .claude/worktrees/
+
+# Supabase CLI (file sementara lokal)
+supabase/.temp/
+supabase/.branches/
