@@ -84,10 +84,12 @@ Proyek ini adalah **experiment pribadi** (bukan produk komersial saat ini), diba
 
 ## 6. Model Data Inti
 
-- **QueueEntry**: id, nama customer, status (Confirmed/Estimated/Pending Reply), rentang waktu/nomor antrian, hari, layanan, kapster, telepon, durasi.
-- **WhatsAppRequest**: id, nama & telepon pengirim, waktu diterima, isi pesan asli, hasil ekstraksi (hari/jam/servis), status (pending/approved/rejected).
-- **Barber**: id, nama, status (active/break/off), spesialisasi.
-- **Service**: id, nama, harga, durasi (menit).
+- **QueueEntry** (`queue_entries`): id, nama customer, status (Confirmed/Estimated/Pending Reply/Completed), tanggal (`scheduled_date`) & jam (`scheduled_time`, kosong untuk Estimated), layanan, kapster, telepon, `started_at`/`completed_at`, `source_request_id` (kalau berasal dari request WA). Pelunasan sisa bayar saat sesi selesai: `payment_method` (cash/qris), `payment_xendit_qr_id`, `payment_qr_amount`.
+- **WhatsAppRequest** (`whatsapp_requests`): id, nama & telepon pengirim, `sender_wa_id` (ID chat WA mentah, target kirim notifikasi), waktu diterima, isi pesan asli, hasil ekstraksi (hari/jam/servis), `scheduled_date` (tanggal absolut hasil resolusi hari, dipakai cek booking ganda), status (pending/approved/rejected), `status_notified`. Gerbang DP: `payment_status` (unpaid/paid/expired/failed), `dp_amount`, `xendit_reference_id`, `xendit_qr_id`, `payment_expires_at`, `dp_paid_at`, `payment_notified`.
+- **Barber** (`barbers`): id, nama, avatar, status harian (active/break/off), spesialisasi, `archived` (soft delete).
+- **Service** (`services`): id, nama, harga, durasi (menit), `archived` (soft delete).
+- **BusinessHours** (`business_hours`, satu baris config): `open_hour`, `close_hour`, `shop_name`, `logo_url`.
+- **BarberTimeOff** (`barber_time_off`): kapster + `off_date`. Saat ini cuma dibaca bot sebagai info cuti di konteks Gemini; belum ada UI di dashboard.
 
 ## 7. Kebutuhan Non-Fungsional
 
@@ -104,7 +106,7 @@ Proyek ini adalah **experiment pribadi** (bukan produk komersial saat ini), diba
 - Perhitungan durasi servis dinamis berdasarkan jenis layanan.
 - **Schedule Daily View berfungsi sangat presisi** — layout telah dirombak penuh. Grid merentang tanpa kolaps menggunakan pola Hybrid Page-Scroll (commit `ca5713e`), dan header kapster kini dibungkus dalam satu kolom yang sama dengan grid jadwal sehingga keselarasan (alignment) kolom dijamin 100% presisi secara struktural, termasuk padding top/bottom dan whitespace yang optimal.
 - Navigasi kalender (*Monthly* ke *Daily*) secara presisi langsung pindah ke minggu yang relevan.
-- **Backend nyata sudah berjalan** (`server/index.js`): koneksi WhatsApp asli lewat `whatsapp-web.js` (scan QR sekali, sesi tersimpan lokal), pesan masuk diteruskan ke **Gemini API asli** (`server/gemini.js`, dengan fallback berjenjang antar model Gemini) untuk ekstraksi nama/hari/jam/servis, lalu ditulis langsung ke tabel Supabase `whatsapp_requests`.
+- **Backend nyata sudah berjalan** (`server/index.js`): koneksi WhatsApp asli lewat `whatsapp-web.js` (scan QR sekali, sesi tersimpan lokal), pesan masuk diteruskan ke **Gemini API asli** (`server/services/gemini.js`, dengan fallback berjenjang antar model Gemini) untuk ekstraksi nama/hari/jam/servis, lalu ditulis langsung ke tabel Supabase `whatsapp_requests`.
 - **Auto-reply WA menanyakan jam** ketika tidak disebutkan sudah berjalan — bot menjalankan state machine tanya-jawab per nomor pengirim (tanya hari/jam/servis/nama yang belum lengkap, cek ketersediaan jadwal, minta konfirmasi eksplisit "ya") sebelum menyimpan sebagai request.
 - **Persistensi data sudah migrasi ke Supabase (Postgres)** — seluruh data inti (queue, requests, barbers, services, business hours) tersimpan di Supabase dengan realtime subscription dari frontend (`useSupabase*` hooks), bukan localStorage lagi. `localStorage` sekarang hanya dipakai untuk preferensi bahasa UI (`useLocalStorageState` di `src/i18n`).
 - Review & approval request WhatsApp di dashboard sudah tersambung ke Supabase asli (`approveRequest`/`rejectRequest` di `useSupabaseRequests.ts`), bukan simulasi.
@@ -126,7 +128,7 @@ Lihat [Bagian 2 — Known Issues](#bagian-2--known-issues) untuk detail teknis d
 | Fase | Cakupan | Status |
 |---|---|---|
 | **Fase 1** | Perbaiki bug hardcode hari, tambah persistensi data | ✅ Selesai (kini pakai Supabase, bukan sekadar localStorage) |
-| **Fase 2** | Bangun backend nyata: `whatsapp-web.js` untuk baca pesan masuk + panggilan Gemini API untuk ekstraksi terstruktur | ✅ Selesai (`server/index.js` + `server/gemini.js`) |
+| **Fase 2** | Bangun backend nyata: `whatsapp-web.js` untuk baca pesan masuk + panggilan Gemini API untuk ekstraksi terstruktur | ✅ Selesai (`server/index.js` + `server/services/gemini.js`) |
 | **Fase 3** | Auto-reply WA untuk menanyakan jam ketika tidak disebutkan | ✅ Selesai (state machine tanya-jawab di `server/index.js`) |
 | **Fase 4** | Auto-deploy backend + bot tahan restart tanpa spam balasan dobel | ✅ Selesai (GitHub Actions + fix `BOT_START_TIME`/dedup di `server/index.js`) |
 | **Fase 5 (sekarang)** | Demo ke kapster asli, validasi alur UX & kumpulkan feedback pemakaian harian | ⏳ Belum dimulai |
@@ -159,16 +161,16 @@ Dokumen ini mencatat gap teknis yang ditemukan saat review kode per commit terak
 ## ✅ Sudah Diselesaikan
 
 ### Gerbang DP 50% via QRIS (Xendit) sebelum booking WA masuk Requests
-**File:** `server/index.js`, `server/xenditClient.js` (baru), `server/priceLookup.js` (baru), `src/components/Requests.tsx`, `src/hooks/useSupabaseRequests.ts`, `src/types.ts`, `src/lib/paymentStatus.ts` (baru). Tabel `whatsapp_requests` dapet kolom baru (`payment_status` enum `unpaid|paid|expired|failed`, `dp_amount`, `xendit_reference_id`, `xendit_qr_id`, `payment_expires_at`, `dp_paid_at`, `payment_notified`). Infra: domain `takhtabarber.shop` (Niagahoster/Hostinger) diarahkan ke Cloudflare, Cloudflare Tunnel (systemd service `cloudflared` di VPS) expose `127.0.0.1:3002` lewat `https://wa-webhook.takhtabarber.shop/webhooks/xendit`.
+**File:** `server/index.js`, `server/webhookServer.js`, `server/services/xenditClient.js`, `server/services/priceLookup.js`, `src/components/Requests.tsx`, `src/hooks/useSupabaseRequests.ts`, `src/types.ts`. Tabel `whatsapp_requests` dapet kolom baru (`payment_status` enum `unpaid|paid|expired|failed`, `dp_amount`, `xendit_reference_id`, `xendit_qr_id`, `payment_expires_at`, `dp_paid_at`, `payment_notified`). Infra: domain `takhtabarber.shop` (Niagahoster/Hostinger) diarahkan ke Cloudflare, Cloudflare Tunnel (systemd service `cloudflared` di VPS) expose `127.0.0.1:3002` lewat `https://wa-webhook.takhtabarber.shop/webhooks/xendit`.
 
 **Kenapa:** barbernya minta customer bayar DP 50% dulu sebelum booking dianggap pasti, buat nekan risiko no-show/telat. Bukan sistem invoicing penuh — cuma satu gerbang pembayaran di depan alur approve/reject yang udah ada (yang tetap nggak berubah sama sekali).
 
 **Cara kerja:** customer selesai isi data booking di WA → bot hitung DP 50% dari harga servis → generate QRIS lewat Xendit (**mode Test/Sandbox**, bukan uang asli) → kirim gambar QR ke customer + langsung `INSERT` ke `whatsapp_requests` dengan `payment_status: 'unpaid'` (jadi kelihatan di dashboard sebagai "Menunggu Pembayaran", walau belum bisa di-approve). Begitu Xendit kirim webhook `payment.succeeded` (di-verifikasi pakai `x-callback-token`), baris itu di-update `payment_status: 'paid'` dan baru "naik kelas" ke section "Menunggu Persetujuan" (alur approve/reject lama, tidak berubah). Booking yang nggak dibayar dalam 30 menit otomatis ditandai `expired` (disembunyikan dari dashboard, tetap ada di database).
 
-**Webhook endpoint** — dijalanin nebeng di proses bot yang sama (`pm2` app `barberflow-wa`, bukan proses terpisah), listen di `127.0.0.1:3002` (env `WEBHOOK_PORT`), diakses publik lewat **Cloudflare Tunnel** — bukan buka port langsung ke VPS. Satu-satunya route, token-checked di baris pertama sebelum nyentuh apapun lain. Ini didesain sengaja hati-hati karena proyek ini pernah kena insiden API yang lupa dikasih otentikasi (lihat entri "Kode mati: REST API Express..." di bawah) — **kalau nanti mau nyentuh file ini, jangan tambah route baru tanpa mikir ulang soal otentikasinya.**
+**Webhook endpoint** (`server/webhookServer.js`) — dijalanin nebeng di proses bot yang sama (`pm2` app `barberflow-wa`, bukan proses terpisah), listen di `127.0.0.1:3002` (env `WEBHOOK_PORT`), diakses publik lewat **Cloudflare Tunnel** — bukan buka port langsung ke VPS. Satu-satunya route, token-checked di baris pertama sebelum nyentuh apapun lain. Ini didesain sengaja hati-hati karena proyek ini pernah kena insiden API yang lupa dikasih otentikasi (lihat entri "Kode mati: REST API Express..." di bawah) — **kalau nanti mau nyentuh file ini, jangan tambah route baru tanpa mikir ulang soal otentikasinya.**
 
 **Dua jebakan nyata yang ketemu & dibetulin pas verifikasi langsung ke sandbox Xendit** (dokumentasi publiknya menyesatkan/nggak konsisten di dua hal ini):
-1. **Request body ke `POST /payment_requests` harus snake_case murni** (`reference_id`, `payment_method`, `qr_code`, `channel_code`), bukan camelCase. SDK resmi Xendit (Node/PHP) pakai camelCase di kode contoh, tapi SDK itu convert sendiri ke snake_case sebelum kirim HTTP request — kode ini pakai `axios` polos (sengaja, minim dependency) jadi harus snake_case dari awal. Versi camelCase sebelumnya selalu gagal 400 `"Only one of 'payment_method' or 'payment_method_id' should be present"`.
+1. **Request body ke `POST /payment_requests` harus snake_case murni** (`reference_id`, `payment_method`, `qr_code`, `channel_code`), bukan camelCase. SDK resmi Xendit (Node/PHP) pakai camelCase di kode contoh, tapi SDK itu convert sendiri ke snake_case sebelum kirim HTTP request — kode ini pakai `fetch` bawaan Node tanpa SDK (sengaja, minim dependency) jadi harus snake_case dari awal. Versi camelCase sebelumnya selalu gagal 400 `"Only one of 'payment_method' or 'payment_method_id' should be present"`.
 2. **Field korelasi webhook bukan `reference_id`.** Event asli yang terpicu saat QRIS lunas adalah `payment.succeeded` (bukan `payment.capture` seperti contoh generik di fitur "Tes dan simpan" Xendit Dashboard — itu ternyata cuma sample data dummy). Di event `payment.succeeded`, `data.reference_id` adalah ID milik **payment_method** di dalamnya (UUID acak Xendit, bukan `reference_id` yang kita generate sendiri). Field yang beneran cocok buat dikorelasikan balik ke baris kita adalah `data.payment_request_id`, sama persis dengan `id` hasil `createQrisPaymentRequest()` — makanya sekarang disimpan ke kolom `xendit_qr_id` pas QR berhasil dibuat, dan situ yang dipakai buat lookup baris di webhook handler.
 3. Event webhook juga harus didaftarkan di section **"REQUEST PAYMENT V2 (/v2/payment_requests)" → "Pembayaran Berhasil"** di Xendit Dashboard (bukan di "PERMINTAAN PEMBAYARAN V3" yang isinya event berbeda, `payment_request.*`) — kalau URL-nya cuma didaftar di section yang salah, webhook beneran nggak akan pernah terkirim walau endpoint-nya sendiri sehat (bakal kelihatan sebagai "URL Not Set" di halaman **Log Webhook**, itu cara paling cepat buat diagnosa kalau ini kejadian lagi di masa depan misalnya nambah channel pembayaran baru).
 
@@ -187,8 +189,9 @@ Grid time-axis di tab **Schedule → Daily View** menampilkan area yang sangat k
 - Hapus seluruh batas tinggi `h-[calc(100dvh-...)]` dari root container `Schedule.tsx`.
 - Grid dibiarkan merentang ke tinggi alami konten (~1170px untuk jam 09:00–21:00).
 - Scroll diserahkan ke level halaman (bukan container internal), sehingga tidak ada lagi ketergantungan pada kalkulasi viewport yang berubah-ubah.
-- Header kapster diberi `sticky top-[64px] md:top-[72px] z-30` agar tetap terlihat saat halaman di-scroll, menempel tepat di bawah top bar aplikasi.
-- Sel pojok kiri atas (perpotongan header kapster & sumbu waktu) diberi `sticky left-0 z-40` sebagai jangkar dua-arah.
+- Sumbu waktu (kolom jam di kiri) diberi `sticky left-0` agar tetap terlihat saat grid digeser horizontal.
+
+**Update (kondisi sekarang):** sticky vertikal di header kapster yang dipasang di fix awal ini (`sticky top-[64px] md:top-[72px]`) sudah **dicabut dengan sengaja** — offset-nya dobel-hitung karena top bar mobile di `App.tsx` sudah sticky sendiri di luar scroll container, sehingga muncul celah 2x lipat. Tab kapster mobile sekarang tidak sticky, dan header per kolom cuma dirender di layar `lg` ke atas. Lihat [CLAUDE.md](CLAUDE.md) sebelum menambahkan sticky lagi di area ini.
 
 ### [UI/UX] Grid Daily View — Alignment Header & Kolom
 Grid pada **Schedule → Daily View** sebelumnya mengalami mis-alignment antara barisan nama kapster (Header) dan kotak jadwal (Grid) ketika layar digeser secara horizontal. Garis batas kolom juga tidak simetris dan kotak jadwal "mepet" dengan batas atas.
@@ -204,8 +207,9 @@ Grid pada **Schedule → Daily View** sebelumnya mengalami mis-alignment antara 
 - **Solusi:** Menambahkan fungsi `jumpToDate` yang secara akurat menghitung selisih minggu dan menyesuaikan state `weekOffset` sebelum mengubah mode ke *Daily View*.
 
 ### [TERTINGGI] Reset harian untuk completedCount dan revenueToday
-**Status:** FIXED.
-- Menambahkan `lastResetDate` ke `localStorage` dan melakukan reset ke 0 untuk `completedCount` dan `revenueToday` jika tanggal saat ini berbeda dengan tanggal reset terakhir, memastikan statistik tidak menumpuk lintas hari.
+**Status:** DIGANTI (mekanisme lama sudah tidak ada).
+- Fix awalnya menyimpan `lastResetDate` di `localStorage` lalu me-reset counter ke 0 saat tanggal berganti. Sejak migrasi ke Supabase, mekanisme itu dihapus: `completedCount` dan `revenueToday` di `src/App.tsx` sekarang dihitung ulang (`useMemo`) dari `completedEntries` hasil query Supabase, jadi tidak ada state counter yang perlu di-reset.
+- ⚠️ **Catatan:** filternya masih `e.day === todayKey` (nama hari, mis. `'Wed'`), bukan tanggal, sementara `completedEntries` memuat riwayat hingga 1000 baris tanpa batas tanggal. Akibatnya angka "hari ini" ikut menjumlahkan semua sesi selesai di hari yang sama pada minggu-minggu sebelumnya.
 
 ### [TINGGI] Walk-in tidak divalidasi bentrok jadwal (double-booking)
 **Status:** FIXED.
@@ -230,8 +234,8 @@ Grid pada **Schedule → Daily View** sebelumnya mengalami mis-alignment antara 
 
 ### Tidak ada backend
 **Status:** FIXED.
-- `server/index.js` kini menjalankan bot WhatsApp asli lewat `whatsapp-web.js` (sesi login tersimpan via `LocalAuth`, QR code discan sekali), meneruskan pesan masuk ke **Gemini API asli** (`server/gemini.js`, `@google/genai`, dengan fallback berjenjang antar beberapa model Gemini) untuk ekstraksi terstruktur, lalu menulis hasilnya langsung ke tabel Supabase `whatsapp_requests` lewat `server/supabaseClient.js`.
-- Jalankan dengan `cd server && npm install && npm start`. Environment yang dibutuhkan: `GEMINI_API_KEY`, `SUPABASE_URL`, `SUPABASE_ANON_KEY` (lihat `server/.env.example`).
+- `server/index.js` kini menjalankan bot WhatsApp asli lewat `whatsapp-web.js` (sesi login tersimpan via `LocalAuth`, QR code discan sekali), meneruskan pesan masuk ke **Gemini API asli** (`server/services/gemini.js`, `@google/genai`, dengan fallback berjenjang antar beberapa model Gemini) untuk ekstraksi terstruktur, lalu menulis hasilnya langsung ke tabel Supabase `whatsapp_requests` lewat `server/supabaseClient.js`.
+- Jalankan dengan `cd server && npm install && npm start`. Environment yang dibutuhkan: lihat [README.md](README.md#2-backend-bot-whatsapp--parsing-gemini) dan `server/.env.example` (termasuk `SUPABASE_SERVICE_ROLE_KEY` yang wajib sejak RLS dikunci).
 
 ### Data persistensi masih localStorage
 **Status:** FIXED — bahkan sudah dilangkahi (superseded).
@@ -325,7 +329,7 @@ Grid pada **Schedule → Daily View** sebelumnya mengalami mis-alignment antara 
 - **Solusi:** fungsi `formatReceivedTime` — format `"dd MMM, HH:mm"` locale Indonesia (mis. `19 Agu, 14.53`), tanggal selalu ditampilkan (nggak disembunyiin walau pesannya diterima hari ini) biar kapster nggak perlu nebak-nebak.
 
 ### Model `gemini-3.1-flash` di fallback chain bot nggak pernah ada (404)
-**File:** `server/gemini.js`
+**File:** `server/services/gemini.js`
 **Status:** FIXED.
 - `MODEL_CHAIN` punya 4 model (`gemini-3.1-flash-lite`, `gemini-3.5-flash-lite`, `gemini-3.1-flash`, `gemini-3.5-flash`), tapi `gemini-3.1-flash` (tanpa akhiran `-lite`) ternyata nggak pernah eksis sebagai model — dikonfirmasi lewat panggilan API langsung, hasilnya `404 NOT_FOUND` ("keluarga 3.1 cuma ada varian lite"). Dampaknya nggak kelihatan kalau pesan pendek (chain mulai dari index 0), tapi `getStartingIndex()` bikin pesan customer yang panjang (>80 karakter) langsung lompat ke index 2 — model rusak itu duluan — jadi praktiknya cuma ada **1 model cadangan asli** buat pesan panjang, bukan 2. Kalau model terakhir itu kena hambatan sesaat, customer nggak dapat balasan sama sekali, dan log-nya nggak jelas kenapa karena `catch (err)` sebelumnya nggak pernah nyatet `err.message`.
 - **Solusi:** ganti `gemini-3.1-flash` → `gemini-3.6-flash` (dites langsung lewat API, beneran jalan), dan log fallback sekarang nyatet pesan error asli biar diagnosa ke depannya nggak perlu reproduksi manual lagi.
@@ -364,10 +368,10 @@ Grid pada **Schedule → Daily View** sebelumnya mengalami mis-alignment antara 
 - Section "Template Notifikasi WhatsApp" yang nggak pernah kepake (state/handler-nya cuma lokal, nggak ada satu pun kode lain yang baca) dihapus dari Settings sekalian beres-beres.
 
 ### Nama & logo toko hardcode "Golden Shears" di 10+ tempat (frontend & bot)
-**File:** `src/hooks/useSupabaseBusinessHours.ts`, `src/App.tsx`, `src/components/{Login,Sidebar,QueueList,Schedule,Settings}.tsx`, `server/index.js`, `server/gemini.js`, Database Supabase (`business_hours`).
+**File:** `src/hooks/useSupabaseBusinessHours.ts`, `src/App.tsx`, `src/components/{Login,Sidebar,QueueList,Schedule,Settings}.tsx`, `server/index.js`, `server/services/bookingDomain.js`, `server/services/gemini.js`, Database Supabase (`business_hours`).
 **Status:** FIXED (fitur baru — Profil Toko).
-- "Golden Shears"/logo huruf "G" ditulis literal di banyak tempat: sidebar, header desktop, top bar mobile, splash loading screen, halaman Login, judul halaman Jadwal, 2 template pesan WhatsApp ke customer (`QueueList.tsx`, `Schedule.tsx`) — **dan juga di backend bot** (`server/gemini.js` system prompt Gemini, `server/index.js` pesan konfirmasi approve). Ganti nama toko lewat dashboard sebelumnya cuma nyampe ke frontend — bot WA masih balas pakai nama lama karena hardcode-nya kepisah total dari database.
-- **Solusi:** kolom baru `shop_name`/`logo_url` ditambahkan ke tabel `business_hours` (satu baris config yang sama dengan jam operasional). Kartu baru **"Profil Toko"** di Settings (nama + upload logo, pola base64 sama kayak foto kapster). Semua 8 titik hardcode di frontend diganti baca dari `businessHours.shopName`/`logoUrl`. Di backend, `getBusinessContext()`/`getShopName()` di `server/index.js` sekarang query `shop_name` dari `business_hours` dan diteruskan ke `parseBookingMessage()` (`server/gemini.js`) dan `notifyStatusChange()`, gantiin string hardcode.
+- "Golden Shears"/logo huruf "G" ditulis literal di banyak tempat: sidebar, header desktop, top bar mobile, splash loading screen, halaman Login, judul halaman Jadwal, 2 template pesan WhatsApp ke customer (`QueueList.tsx`, `Schedule.tsx`) — **dan juga di backend bot** (`server/services/gemini.js` system prompt Gemini, `server/index.js` pesan konfirmasi approve). Ganti nama toko lewat dashboard sebelumnya cuma nyampe ke frontend — bot WA masih balas pakai nama lama karena hardcode-nya kepisah total dari database.
+- **Solusi:** kolom baru `shop_name`/`logo_url` ditambahkan ke tabel `business_hours` (satu baris config yang sama dengan jam operasional). Kartu baru **"Profil Toko"** di Settings (nama + upload logo, pola base64 sama kayak foto kapster). Semua 8 titik hardcode di frontend diganti baca dari `businessHours.shopName`/`logoUrl`. Di backend, `getBusinessContext()`/`getShopName()` (sekarang di `server/services/bookingDomain.js`) query `shop_name` dari `business_hours` dan diteruskan ke `parseBookingMessage()` (`server/services/gemini.js`) dan `notifyStatusChange()`, gantiin string hardcode.
 - **RLS**: `business_hours` sengaja dibuka lagi read-only (`SELECT`) untuk role `anon` — beda dari tabel lain yang udah dikunci `authenticated`-only (lihat entri RLS di atas) — karena nama/jam toko bukan data sensitif, dan halaman Login butuh nampilin nama/logo toko SEBELUM staff login (belum ada sesi `authenticated`). Write tetap `authenticated`-only.
 - Dites end-to-end: ganti nama lewat Settings → langsung berubah di semua tempat frontend (real-time, tanpa refresh) termasuk halaman Login sebelum sesi login ada. Bug backend-nya ketauan justru dari tes manual: setelah nama toko diganti di dashboard, bot WA masih balas pakai nama lama ("Golden Shears") pas ditanya kapster — fix di atas nutup celah itu, diverifikasi ulang lewat WA beneran setelah deploy.
 
@@ -408,6 +412,4 @@ Logika `startMinutes = ... + 15` antar walk-in mengasumsikan gap tetap 15 menit 
 
 ## 🔵 Batasan Desain (By Design)
 
-### 3. Barber Duty Status Edge Case
-- **Kapster Berubah Status ke 'Off' Saat Sedang Melayani**: Saat ini, jika kapster memiliki sesi pelanggan yang sedang berjalan (di kursi aktif) dan statusnya diubah dari 'Active' menjadi 'Off' via menu Settings, sistem tidak akan secara otomatis menghentikan atau menghapus sesi tersebut.
-- **Perilaku (Behavior)**: Sesi akan dibiarkan tetap berjalan hingga selesai secara natural (hingga ditekan tombol 'Complete Session'). Ini adalah **keputusan desain yang sadar (by design)** untuk mencegah hilangnya data pelanggan yang terlanjur duduk di kursi secara tidak sengaja (misalnya karena salah klik), dan bukan merupakan bug yang terlewat.
+Lihat [Bagian 1 §11 — Batasan Desain & Relasi Data](#11-batasan-desain--relasi-data-by-design) (status kapster 'Off' saat sedang melayani, soft delete kapster). Tidak diduplikasi di sini supaya cukup satu tempat yang di-update.

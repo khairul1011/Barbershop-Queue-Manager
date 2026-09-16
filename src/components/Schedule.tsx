@@ -582,7 +582,7 @@ export default function Schedule({
                 <div key={b.id}
                      className={`flex-1 min-w-[200px] flex flex-col border-r border-border ${activeMobileBarberIndex === idx ? 'flex' : 'hidden lg:flex'}`}>
 
-                  {/* Column Header — hidden on mobile: the sticky barber-tabs row above already
+                  {/* Column Header — hidden on mobile: the barber-tabs row above already
                       shows this info, and a second copy right below it just duplicates/overlaps it. */}
                   <div className="hidden lg:flex h-[64px] flex-col items-center justify-center border-b border-border bg-card shrink-0">
                     <div className="flex items-center gap-1.5">
