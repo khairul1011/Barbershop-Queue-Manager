@@ -1,0 +1,363 @@
+[
+  {
+    "updatedAt": "2026-09-16T23:23:21.671Z",
+    "createdAt": "2026-09-16T23:23:21.671Z",
+    "id": "TVDTToJMU2GZd1JI",
+    "name": "Webhook Xendit",
+    "description": "Pengganti POST /webhooks/xendit: verifikasi x-callback-token, tandai DP WhatsApp lunas (atomik) atau sisa bayar QRIS dashboard, balas 200 setelah DB, lalu kirim WA \"DP diterima\" sekali.",
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+      {
+        "id": "2961eb6c-ef8f-4ca3-b8b5-e66e13ce00ff",
+        "name": "Xendit Masuk",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          0,
+          96
+        ],
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "xendit",
+          "authentication": "headerAuth",
+          "responseMode": "responseNode"
+        },
+        "webhookId": "441d01dd-a7e7-44d1-adfa-ffc15a3937e0",
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "CClaHunudh8bTRty",
+            "name": "Xendit Callback"
+          }
+        }
+      },
+      {
+        "id": "ed19671b-b56f-4e96-820c-5ed98e7b1c2d",
+        "name": "Pembayaran Berhasil?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          224,
+          96
+        ],
+        "parameters": {
+          "conditions": {
+            "combinator": "and",
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "leftValue": "={{ !!($json.body.data && $json.body.data.payment_request_id) && ($json.body.data.status === 'SUCCEEDED' || String($json.body.event || '').endsWith('.succeeded')) }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "5758a30b-157f-4ce7-b1a9-9524b9109a6d",
+        "name": "Tandai Lunas",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.7,
+        "position": [
+          448,
+          0
+        ],
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "-- Korelasi WAJIB lewat payment_request_id (= xendit_qr_id), bukan reference_id.\n-- Transisi ke paid atomik: retry Xendit yang datang bersamaan hanya\n-- mengembalikan baris sekali, jadi notifikasi tidak terkirim dua kali.\nwith wa as (\n  update public.whatsapp_requests\n     set payment_status = 'paid', dp_paid_at = now()\n   where xendit_qr_id = $1 and payment_status <> 'paid'\n  returning id, sender_wa_id, sender_name, payment_notified\n), sisa_bayar as (\n  -- Bukan DP WhatsApp: sisa pembayaran QRIS dari dashboard.\n  update public.queue_entries\n     set payment_method = 'qris'\n   where payment_xendit_qr_id = $1\n     and payment_method is distinct from 'qris'\n     and not exists (select 1 from public.whatsapp_requests where xendit_qr_id = $1)\n  returning id\n)\nselect (select row_to_json(wa) from wa) as wa,\n  (select count(*) from sisa_bayar) as sisa_bayar_ditandai",
+          "options": {
+            "queryReplacement": "={{ [$json.body.data.payment_request_id] }}"
+          }
+        },
+        "credentials": {
+          "postgres": {
+            "id": "bzISw2QfqVYUFsSu",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "id": "4787332b-9b96-4020-a5b4-c92b1e533d85",
+        "name": "Balas 200",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          672,
+          0
+        ],
+        "parameters": {
+          "respondWith": "noData",
+          "options": {
+            "responseCode": 200
+          }
+        }
+      },
+      {
+        "id": "8d27b838-0f38-4938-8ca7-8724be31f979",
+        "name": "Perlu Notifikasi?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          896,
+          0
+        ],
+        "parameters": {
+          "conditions": {
+            "combinator": "and",
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "leftValue": "={{ !!($('Tandai Lunas').first().json.wa && $('Tandai Lunas').first().json.wa.sender_wa_id && !$('Tandai Lunas').first().json.wa.payment_notified) }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "cd6851ac-c28b-419f-81e1-4cba09c0ceb5",
+        "name": "Kirim DP Diterima",
+        "type": "n8n-nodes-base.executeWorkflow",
+        "typeVersion": 1.3,
+        "position": [
+          1120,
+          0
+        ],
+        "parameters": {
+          "mode": "once",
+          "source": "database",
+          "workflowId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "cod8lmSOmyc6I6pl"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "chatId": "={{ $('Tandai Lunas').first().json.wa.sender_wa_id }}",
+              "text": "={{ 'Terima kasih, Kak' + ($('Tandai Lunas').first().json.wa.sender_name ? ' ' + $('Tandai Lunas').first().json.wa.sender_name : '') + '. Pembayaran DP Anda sudah kami terima dan booking sudah dikonfirmasi. Kami tunggu kedatangannya.' }}",
+              "replyTo": "",
+              "imageBase64": ""
+            },
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "chatId",
+                "displayName": "chatId",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              },
+              {
+                "id": "text",
+                "displayName": "text",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              },
+              {
+                "id": "replyTo",
+                "displayName": "replyTo",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              },
+              {
+                "id": "imageBase64",
+                "displayName": "imageBase64",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": true
+          }
+        }
+      },
+      {
+        "id": "52fc2e84-df62-40e9-ac9f-789e9757abb5",
+        "name": "Tandai Sudah Dinotifikasi",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.7,
+        "position": [
+          1344,
+          0
+        ],
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "update public.whatsapp_requests set payment_notified = true where id = $1::uuid",
+          "options": {
+            "queryReplacement": "={{ [$('Tandai Lunas').first().json.wa.id] }}"
+          }
+        },
+        "credentials": {
+          "postgres": {
+            "id": "bzISw2QfqVYUFsSu",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "id": "b373fea2-4af3-4c9c-ae7b-8e5e2913655a",
+        "name": "Abaikan (200)",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          448,
+          192
+        ],
+        "parameters": {
+          "respondWith": "noData",
+          "options": {
+            "responseCode": 200
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Xendit Masuk": {
+        "main": [
+          [
+            {
+              "node": "Pembayaran Berhasil?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Pembayaran Berhasil?": {
+        "main": [
+          [
+            {
+              "node": "Tandai Lunas",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Abaikan (200)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Tandai Lunas": {
+        "main": [
+          [
+            {
+              "node": "Balas 200",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Balas 200": {
+        "main": [
+          [
+            {
+              "node": "Perlu Notifikasi?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Perlu Notifikasi?": {
+        "main": [
+          [
+            {
+              "node": "Kirim DP Diterima",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Kirim DP Diterima": {
+        "main": [
+          [
+            {
+              "node": "Tandai Sudah Dinotifikasi",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "availableInMCP": true
+    },
+    "staticData": null,
+    "meta": {
+      "aiBuilderAssisted": true,
+      "builderVariant": "mcp"
+    },
+    "nodeGroups": [],
+    "pinData": null,
+    "versionId": "41be5e7b-a868-4127-8650-5c590f86ae34",
+    "activeVersionId": "41be5e7b-a868-4127-8650-5c590f86ae34",
+    "versionCounter": 1,
+    "triggerCount": 1,
+    "sourceWorkflowId": null,
+    "tags": [],
+    "shared": [
+      {
+        "updatedAt": "2026-09-16T23:23:21.673Z",
+        "createdAt": "2026-09-16T23:23:21.673Z",
+        "role": "workflow:owner",
+        "workflowId": "TVDTToJMU2GZd1JI",
+        "projectId": "sYcUDTth5maq4WDX",
+        "project": {
+          "updatedAt": "2026-09-16T21:53:02.955Z",
+          "createdAt": "2026-09-16T21:48:04.028Z",
+          "id": "sYcUDTth5maq4WDX",
+          "name": "khairul anuar <erul7505@gmail.com>",
+          "type": "personal",
+          "icon": null,
+          "description": null,
+          "customTelemetryTags": [],
+          "creatorId": "704c4f2e-c87d-4b68-89c6-29c7a341ba6f"
+        }
+      }
+    ],
+    "versionMetadata": {
+      "name": "Port webhook Xendit bot lama",
+      "description": "Created with 8 nodes: Xendit Masuk, Pembayaran Berhasil?, Tandai Lunas, Balas 200, Perlu Notifikasi? and 3 more"
+    }
+  }
+]

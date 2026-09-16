@@ -1,0 +1,1224 @@
+[
+  {
+    "updatedAt": "2026-09-16T23:22:04.543Z",
+    "createdAt": "2026-09-16T23:10:23.522Z",
+    "id": "dLZ1LsNL4J1Emx8k",
+    "name": "WA Masuk",
+    "description": "Pengganti message handler server/index.js: pesan WAHA -> dedup -> konteks -> Gemini (fallback model) -> tentukan langkah -> balas/ringkasan/simpan booking + QRIS DP.",
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "waha",
+          "authentication": "headerAuth",
+          "options": {
+            "onlyRunIf": "={{ $json.body.event === 'message' && !!$json.body.payload && !$json.body.payload.fromMe && !/@(g\\.us|broadcast|newsletter)$/.test($json.body.payload.from || '') }}"
+          }
+        },
+        "id": "3865f7a9-9fd2-4d66-9aa3-c0f6113f6f26",
+        "name": "WAHA Masuk",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          0,
+          528
+        ],
+        "webhookId": "685135ab-a623-44f6-ad91-60cc32f470d8",
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "GVQrF8ORDycoHRiH",
+            "name": "WAHA Webhook"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Pengganti BOT_START_TIME di bot lama: pesan yang datang terlambat (mis. dikirim\n// ulang WAHA saat sesi tersambung kembali) diabaikan supaya tidak dibalas ulang.\nconst payload = $input.first().json.body.payload;\nconst umurDetik = Math.floor(Date.now() / 1000) - (payload.timestamp || 0);\nif (umurDetik > 5 * 60) return [];\nreturn [{ json: { chatId: payload.from, messageId: payload.id, body: payload.body || '' } }];\n"
+        },
+        "id": "15fcc88d-7a44-436b-87a3-35e8a6e8ed51",
+        "name": "Siapkan Pesan",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          224,
+          528
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "insert into bot.processed_messages (message_id) values ($1)\non conflict do nothing\nreturning message_id",
+          "options": {
+            "queryReplacement": "={{ [$json.messageId] }}"
+          }
+        },
+        "id": "d411f351-93ed-45c0-a8c0-3641fd21bf65",
+        "name": "Tandai Pesan Diproses",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.7,
+        "position": [
+          448,
+          528
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "bzISw2QfqVYUFsSu",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "url": "={{ 'http://waha:3000/api/default/lids/' + encodeURIComponent($('Siapkan Pesan').first().json.chatId) }}",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "options": {
+            "response": {
+              "response": {
+                "neverError": true
+              }
+            }
+          }
+        },
+        "id": "bfdf9a21-7aa3-4cbb-81a1-7a56b7d596a1",
+        "name": "Cari Nomor Asli",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          672,
+          528
+        ],
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "h54RLIgLQ6DUgfIk",
+            "name": "WAHA API"
+          }
+        },
+        "onError": "continueRegularOutput"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "select\n  (select case when c.state_updated_at > now() - interval '30 minutes' then c.state end\n     from bot.conversations c where c.chat_id = $1) as state,\n  coalesce((select c.history from bot.conversations c where c.chat_id = $1), '{}') as history,\n  (select json_agg(json_build_object('name', b.name, 'specialization', b.specialization) order by b.created_at)\n     from public.barbers b where b.status = 'active' and not b.archived) as barbers,\n  (select json_agg(json_build_object('name', s.name, 'price', s.price, 'duration_minutes', s.duration_minutes) order by s.created_at)\n     from public.services s where not s.archived) as services,\n  (select json_build_object('open_hour', h.open_hour, 'close_hour', h.close_hour, 'shop_name', h.shop_name)\n     from public.business_hours h limit 1) as hours,\n  (select json_agg(json_build_object('name', b.name, 'besok', t.off_date > (now() at time zone 'Asia/Jakarta')::date))\n     from public.barber_time_off t join public.barbers b on b.id = t.barber_id\n     where t.off_date in ((now() at time zone 'Asia/Jakarta')::date, (now() at time zone 'Asia/Jakarta')::date + 1)) as time_off",
+          "options": {
+            "queryReplacement": "={{ [$('Siapkan Pesan').first().json.chatId] }}"
+          }
+        },
+        "id": "496b157c-e4e8-40af-ba5d-cf9eda0dee40",
+        "name": "Muat Konteks",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.7,
+        "position": [
+          896,
+          528
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "bzISw2QfqVYUFsSu",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Port getBusinessContext() (server/services/bookingDomain.js) dan prompt\n// parseBookingMessage() (server/services/gemini.js). Teks prompt disalin apa\n// adanya; ubah di sini kalau prompt bot perlu diubah.\nconst pesan = $('Siapkan Pesan').first().json;\nconst data = $input.first().json;\nconst text = pesan.body;\n\n// Aturan pesan pendek dari index.js: abaikan pesan < 5 karakter kecuali\n// sedang ada sesi booking atau pesannya sapaan.\nconst GREETING_WORDS = ['halo', 'hallo', 'hai', 'hi', 'hey', 'min', 'bang', 'bg', 'kak', 'permisi', 'pagi', 'siang', 'sore', 'malam'];\nconst bodyNormalized = text.trim().toLowerCase();\nconst isGreeting = GREETING_WORDS.some(g => bodyNormalized === g || bodyNormalized.startsWith(g + ' ') || bodyNormalized.startsWith(g + ','));\nif (!text || (text.trim().length < 5 && !data.state && !isGreeting)) return [];\n\nconst shopName = (data.hours && data.hours.shop_name) || 'BarberFlow';\nlet businessContext = '';\nif (data.hours) {\n  businessContext += `Jam operasional: ${String(data.hours.open_hour).padStart(2, '0')}:00 - ${String(data.hours.close_hour).padStart(2, '0')}:00 setiap hari.\\n`;\n}\nif (data.barbers && data.barbers.length > 0) {\n  businessContext += `Kapster aktif: ${data.barbers.map(b => `${b.name} (${b.specialization || 'Umum'})`).join(', ')}.\\n`;\n}\nif (data.services && data.services.length > 0) {\n  businessContext += `Layanan: ${data.services.map(s => `${s.name} (Rp${Number(s.price).toLocaleString('id-ID')}, ${s.duration_minutes} menit)`).join(', ')}.`;\n}\nif (data.time_off && data.time_off.length > 0) {\n  businessContext += `\\nInfo cuti: ${data.time_off.map(t => `${t.name} libur pada ${t.besok ? 'besok' : 'hari ini'}`).join(', ')}.`;\n} else {\n  businessContext += `\\nInfo cuti: Tidak ada kapster yang libur hari ini atau besok (semua kapster aktif tersedia sesuai jam operasional).`;\n}\n\nconst SYSTEM_PROMPT = `TUGAS:\nAnalisis pesan pelanggan dan kembalikan HANYA objek JSON tanpa teks tambahan apapun, tanpa markdown, tanpa penjelasan. Hanya JSON murni.\n\nFORMAT OUTPUT WAJIB:\n{\n  \"nama\": string atau null,\n  \"hari\": string atau null,\n  \"jam\": string atau null,\n  \"servis\": string atau null,\n  \"kapster\": string atau null,\n  \"isBookingIntent\": boolean,\n  \"naturalReply\": string atau null\n}\n\nATURAN KRITIS — BACA DENGAN SEKSAMA:\n\n1. FIELD \"jam\": ISI HANYA jika pelanggan menyebutkan jam SECARA EKSPLISIT dengan angka.\n   - \"jam 2 siang\" -> \"14:00\"\n   - \"jam 10\" -> \"10:00\"\n   - \"pagi\" / \"sore\" / \"malam\" / \"besok\" / \"nanti\" -> JAM WAJIB null, JANGAN ditebak\n   - Tidak ada penyebutan jam sama sekali -> null\n\n2. FIELD \"hari\": WAJIB dinormalisasi ke nama hari dalam bahasa Indonesia atau kata ganti mutlak.\n   - HANYA BOLEH DIISI: \"hari ini\", \"besok\", \"lusa\", \"Senin\", \"Selasa\", \"Rabu\", \"Kamis\", \"Jumat\", \"Sabtu\", \"Minggu\".\n   - Jika pelanggan merujuk pada histori chat (misal: \"hari yang sama\", \"sama kayak tadi\"), BACA histori chat untuk menyimpulkan harinya (misal: \"Selasa\"). JANGAN PERNAH mengisi dengan frasa \"hari yang sama\".\n   - Jika pelanggan menyebut \"minggu depan\" -> null (terlalu ambigu, butuh tanggal pasti).\n   - Jika harinya tidak jelas dan tidak bisa disimpulkan dari histori -> null.\n\n3. FIELD \"isBookingIntent\":\n   - Nilai isBookingIntent berdasarkan KEPASTIAN NIAT pelanggan, bukan sekadar ada tidaknya kata booking/jadwal. Tanyakan pada dirimu: 'apakah pelanggan ini sudah siap menentukan waktu/layanan untuk booking sekarang, atau dia masih tahap mengumpulkan informasi sebelum memutuskan?' Kalau pelanggan masih dalam tahap bertanya-tanya (menanyakan ketersediaan, jadwal kapster tertentu, harga, jam buka) dan belum menyatakan kesiapan untuk booking pada waktu tertentu, set isBookingIntent: false dan jawab pertanyaannya secara natural di naturalReply. Gunakan penilaian ini secara fleksibel sesuai konteks kalimat, bukan mencocokkan kata per kata.\n   - Catatan: field nama/hari/jam/servis TETAP diisi jika informasi tersebut ada di pesan, terlepas dari nilai isBookingIntent. Sistem yang memanggil API ini yang memutuskan apakah field tersebut relevan berdasarkan konteks percakapan.\n\n4. FIELD \"nama\": Cari nama pelanggan jika disebutkan. Sering kali pelanggan tidak menyebut nama -> null.\n\n5. FIELD \"servis\": Cari jenis servis jika disebutkan (potong, cukur, creambath, dll). Normalisasi ke bahasa Indonesia yang jelas.\n\n6. FIELD \"kapster\": Cari nama kapster/barber yang diminta jika disebutkan (misal: \"dengan bg alex\", \"sama kenji\"). Jika tidak disebut, WAJIB null.\n\n7. Tangani bahasa campur Indonesia-Inggris secara natural. Contoh: \"book dong bro, sabtu jam 3 sore\" adalah pesan booking yang valid.\n\nCONTOH INPUT-OUTPUT:\n\nInput: \"bang mau booking sabtu jam 2 siang, potong doang\"\nOutput: {\"nama\":null,\"hari\":\"Sabtu\",\"jam\":\"14:00\",\"servis\":\"Potong\",\"kapster\":null,\"isBookingIntent\":true,\"naturalReply\":null}\n\nInput: \"besok bisa gak? gua si Reza, mau cukur sama creambath dengan marcus\"\nOutput: {\"nama\":\"Reza\",\"hari\":\"besok\",\"jam\":null,\"servis\":\"Cukur + Creambath\",\"kapster\":\"Marcus\",\"isBookingIntent\":true,\"naturalReply\":null}\n\nInput: \"kak mau tanya bang kenji besok ada jadwal kosong nggak ya?\"\nOutput: {\"nama\":null,\"hari\":\"besok\",\"jam\":null,\"servis\":null,\"kapster\":\"Kenji\",\"isBookingIntent\":false,\"naturalReply\":\"Halo Kak, Kapster Kenji besok masih memiliki beberapa slot kosong. Boleh diinformasikan rencana kedatangannya jam berapa agar dapat kami cek slot yang tepat?\"}\n\nInput: \"pangkas aja\"\nOutput: {\"nama\":null,\"hari\":null,\"jam\":null,\"servis\":\"Potong\",\"kapster\":null,\"isBookingIntent\":false,\"naturalReply\":null}\n\nInput: \"buka jam berapa bang?\"\nOutput: {\"nama\":null,\"hari\":null,\"jam\":null,\"servis\":null,\"kapster\":null,\"isBookingIntent\":false,\"naturalReply\":\"Halo Kak, kami buka setiap hari dari jam 9 pagi hingga 8 malam. Apakah ada hal lain yang ingin ditanyakan, atau Kakak ingin langsung melakukan booking?\"}\n\nInput: \"ok makasih\"\nOutput: {\"nama\":null,\"hari\":null,\"jam\":null,\"servis\":null,\"kapster\":null,\"isBookingIntent\":false,\"naturalReply\":\"Sama-sama, Kak. Kami tunggu kedatangannya.\"}`;\n\nconst dynamicInstruction = `Kamu adalah asisten WhatsApp untuk barbershop bernama ${shopName}. Info bisnis saat ini:\n${businessContext || 'Belum ada info spesifik.'}\n\nTugasmu:\n- Jika pesan customer adalah niat booking (isBookingIntent true), field naturalReply diisi null -- proses booking akan ditangani terpisah oleh sistem lain.\n- Jika BUKAN niat booking (sapaan seperti \"halo\", pertanyaan seperti \"jam berapa buka\", \"kapster siapa aja\", \"harga cukur berapa\", atau obrolan di luar topik), balas secara natural dan ramah di field naturalReply berdasarkan info bisnis di atas. JANGAN mengarang info yang tidak ada di konteks -- kalau tidak tahu jawabannya, jujur bilang tidak punya info itu dan arahkan customer hubungi barbershop langsung.\n- Kalau ada nama kapster disebut customer, cek kecocokannya dengan daftar 'Kapster aktif' di atas secara wajar (termasuk toleransi typo/panggilan akrab seperti 'bang', 'kak'). Kalau memang tidak cocok dengan siapapun di daftar, sampaikan dengan natural bahwa kamu tidak menemukan kapster tersebut, lalu sebutkan siapa saja yang tersedia -- jangan kaku menyalahkan, cukup informasikan dengan ramah.\n- Jika pesan di luar topik barbershop sama sekali (curhat, obrolan random, tidak nyambung), balas singkat dan ramah, lalu arahkan halus kembali ke topik booking/layanan barbershop. Jangan kaku, jangan template baku berulang -- variasikan gaya bicara secara natural.\n- naturalReply harus menggunakan Bahasa Indonesia yang profesional, sopan, dan mudah dibaca, layaknya admin barbershop yang ramah namun tetap menjaga kesan profesional. Hindari singkatan tidak baku (misalnya \"udah\", \"nggak\", \"gitu\", \"kayak\") dan jangan gunakan emotikon.\n- Jika customer menanyakan atau membantah data yang sudah disebutkan sebelumnya di percakapan ini (misalnya nama, hari, jam, atau layanan), JANGAN langsung menyetujui klaim baru dari customer begitu saja. Cek dulu RIWAYAT PERCAKAPAN di bawah untuk memverifikasi fakta yang sebenarnya. Jika riwayat percakapan menunjukkan data yang berbeda dari klaim customer, sampaikan dengan sopan data yang sebenarnya sesuai riwayat tersebut. JANGAN PERNAH mengarang klaim seolah-olah kamu baru saja memeriksa sistem/database -- kamu tidak punya akses ke sistem tersebut, satu-satunya sumber fakta yang kamu punya adalah riwayat percakapan ini.\n\n`;\n\nconst historyStr = (data.history || []).join('\\n');\nconst historyInjection = historyStr ? `\\n\\n=== RIWAYAT PERCAKAPAN TERAKHIR ===\\n${historyStr}` : '';\nconst prompt = dynamicInstruction + SYSTEM_PROMPT + historyInjection + '\\n\\n=== PESAN SAAT INI ===\\nCustomer: \"' + text + '\"\\nOutput:';\n\n// Pesan panjang langsung mulai dari model yang lebih kuat, sama seperti getStartingIndex().\nconst MODEL_CHAIN = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.5-flash'];\nconst models = MODEL_CHAIN.slice(text.length > 80 ? 2 : 0).map(m => 'models/' + m);\n\nreturn [{ json: { prompt, models } }];\n"
+        },
+        "id": "c3122835-3d91-44fd-90dd-e7bf4fd36266",
+        "name": "Siapkan Prompt",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1120,
+          528
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "select bot.append_history($1, $2)",
+          "options": {
+            "queryReplacement": "={{ [$('Siapkan Pesan').first().json.chatId, 'Customer: ' + $('Siapkan Pesan').first().json.body] }}"
+          }
+        },
+        "id": "d0f49b72-7296-48ac-96c2-8bc701f1c53f",
+        "name": "Simpan Riwayat Pelanggan",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.7,
+        "position": [
+          1344,
+          528
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "bzISw2QfqVYUFsSu",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "return $('Siapkan Prompt').first().json.models.map(model => ({ json: { model } }));\n"
+        },
+        "id": "fcf68136-73d1-40ff-8f4e-c3666aff7906",
+        "name": "Daftar Model",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1568,
+          528
+        ]
+      },
+      {
+        "parameters": {
+          "modelId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "={{ $json.model }}"
+          },
+          "messages": {
+            "values": [
+              {
+                "content": "={{ $('Siapkan Prompt').first().json.prompt }}"
+              }
+            ]
+          },
+          "builtInTools": {},
+          "options": {
+            "maxOutputTokens": 2048,
+            "temperature": 0.1
+          }
+        },
+        "id": "1c5cbb51-0c83-44ff-8eb4-8c86436c545e",
+        "name": "Parsing Gemini",
+        "type": "@n8n/n8n-nodes-langchain.googleGemini",
+        "typeVersion": 1.2,
+        "position": [
+          2016,
+          384
+        ],
+        "credentials": {
+          "googlePalmApi": {
+            "id": "D11aOgNFqnM6BaJT",
+            "name": "Gemini"
+          }
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Model kadang tetap membungkus JSON dengan blok markdown; JSON tidak valid = coba model berikutnya.\nconst parts = ($input.first().json.content && $input.first().json.content.parts) || [];\nconst raw = parts.map(p => p.text || '').join('').trim().replace(/^```(?:json)?\\s*/, '').replace(/```\\s*$/, '');\ntry {\n  return [{ json: { ok: true, parsed: JSON.parse(raw.trim()) } }];\n} catch (err) {\n  return [{ json: { ok: false, alasan: err.message } }];\n}\n"
+        },
+        "id": "b1093ed4-c995-427c-993c-4ba43769c2a5",
+        "name": "Baca JSON Gemini",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2368,
+          384
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "combinator": "and",
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "leftValue": "={{ $json.ok }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "146d3de9-d442-4796-8fa1-2ad792a11aae",
+        "name": "JSON Valid?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          2592,
+          464
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "// Port percabangan message handler di server/index.js. Output `action`:\n// balas (kirim `text`), ringkasan (cek slot lalu kirim ringkasan),\n// konfirmasi (simpan booking), diam (tidak membalas). `state` = state\n// percakapan yang disimpan untuk balas/diam.\nconst pesan = $('Siapkan Pesan').first().json;\nconst stateTersimpan = $('Muat Konteks').first().json.state;\nconst nomor = $('Cari Nomor Asli').first().json.pn || pesan.chatId;\nconst parsed = $input.first().json.parsed;\nconst text = pesan.body;\nconst lower = text.toLowerCase();\n\n// Termasuk salah ketik/singkatan umum (\"hri ini\", \"bsk\") supaya hari yang sudah dinormalisasi model tidak dibuang.\nconst DAY_KEYWORDS = ['besok', 'lusa', 'hari ini', 'senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu', 'hri ini', 'hr ini', 'bsk', 'besuk', \"jum'at\", 'senen', 'rebo'];\nconst NEW_BOOKING_KEYWORDS = ['book lagi', 'booking lagi', 'booking baru', 'pesan lagi', 'pesen lagi', 'reservasi lagi', 'reservasi baru'];\nconst KONFIRMASI_WORDS = ['ya', 'iya', 'benar', 'yes', 'oke', 'ok', 'betul', 'sip', 'siap'];\n\nconst dasar = { chatId: pesan.chatId, messageId: pesan.messageId, body: text, phone: nomor.replace(/@.*$/, '') };\nconst hasil = (json) => [{ json: { ...dasar, ...json } }];\n\n// Pelanggan eksplisit minta booking baru: buang sesi lama supaya jam/servis/kapster lama tidak terbawa.\nlet state = stateTersimpan;\nif (state && NEW_BOOKING_KEYWORDS.some(k => lower.includes(k))) state = null;\n\nconst menyebutHari = DAY_KEYWORDS.some(k => lower.includes(k));\n\n// Pertanyaan di tengah sesi booking dijawab natural. Field yang sudah tercatat sengaja\n// tidak ditimpa (insiden: nama tertimpa dari pertanyaan), tapi field yang masih kosong\n// boleh dilengkapi dari pesan ini. Kapster tidak ikut: pertanyaan sering menyebut nama\n// kapster tanpa berarti memilihnya.\nif (!parsed.isBookingIntent && parsed.naturalReply && state) {\n  const dilengkapi = { ...state, awaitingConfirmation: false };\n  for (const f of ['nama', 'jam', 'servis']) {\n    if (!dilengkapi[f] && parsed[f]) dilengkapi[f] = parsed[f];\n  }\n  if (!dilengkapi.hari && parsed.hari && menyebutHari) dilengkapi.hari = parsed.hari;\n  return hasil({ action: 'balas', text: parsed.naturalReply, state: dilengkapi });\n}\n\nif (!(parsed.isBookingIntent || state)) {\n  return parsed.naturalReply\n    ? hasil({ action: 'balas', text: parsed.naturalReply, state })\n    : hasil({ action: 'diam', state });\n}\n\nconst old = state || { nama: null, hari: null, jam: null, servis: null, kapster: null };\nconst merged = {\n  nama: parsed.nama ?? old.nama,\n  // Guard halusinasi hari: nilai dari model hanya dipercaya kalau pesan menyebut kata hari.\n  hari: menyebutHari ? (parsed.hari ?? old.hari) : old.hari,\n  jam: parsed.jam ?? old.jam,\n  servis: parsed.servis ?? old.servis,\n  kapster: parsed.kapster ?? old.kapster\n};\n\nconst missing = [];\nif (!merged.hari) missing.push('hari yang diinginkan');\nif (!merged.jam) missing.push('jam yang diinginkan');\nif (!merged.servis) missing.push('jenis layanan yang diinginkan (misalnya: cukur, creambath)');\nif (!merged.nama) missing.push('nama untuk booking');\n\nif (missing.length > 0) {\n  const known = [];\n  if (merged.hari) known.push(`hari ${merged.hari}`);\n  if (merged.jam) known.push(`jam ${merged.jam}`);\n  if (merged.servis) known.push(`layanan ${merged.servis}`);\n  if (merged.nama) known.push(`atas nama ${merged.nama}`);\n  const intro = known.length > 0 ? `Baik, untuk ${known.join(', ')}.` : `Halo, Kak. Untuk booking jadwal,`;\n  const missingStr = missing.length > 1\n    ? missing.slice(0, -1).join(', ') + ', dan ' + missing[missing.length - 1]\n    : missing[0];\n  return hasil({ action: 'balas', text: `${intro} Mohon informasikan ${missingStr}.`, state: { ...merged, awaitingConfirmation: false } });\n}\n\nconst t = text.trim().toLowerCase();\nconst isKonfirmasi = KONFIRMASI_WORDS.some(w => t === w || t.startsWith(w + ' ') || t.endsWith(' ' + w) || t.includes(' ' + w + ' '));\nif (old.awaitingConfirmation === true && isKonfirmasi) {\n  // Guard halusinasi kapster: pakai kapster yang sudah disetujui pelanggan, bukan hasil parsing \"ya\".\n  return hasil({ action: 'konfirmasi', merged, kapsterDisetujui: old.kapster });\n}\n\n// Belum pernah minta konfirmasi, atau pesan ini koreksi: cek slot ulang lalu kirim ringkasan.\nreturn hasil({ action: 'ringkasan', merged });\n"
+        },
+        "id": "38f48852-11df-4701-bdf9-ea0883c88885",
+        "name": "Tentukan Langkah",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2816,
+          464
+        ]
+      },
+      {
+        "parameters": {
+          "rules": {
+            "values": [
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "leftValue": "={{ $json.action }}",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      },
+                      "rightValue": "balas"
+                    }
+                  ],
+                  "combinator": "and"
+                }
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "leftValue": "={{ $json.action }}",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      },
+                      "rightValue": "ringkasan"
+                    }
+                  ],
+                  "combinator": "and"
+                }
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "leftValue": "={{ $json.action }}",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      },
+                      "rightValue": "konfirmasi"
+                    }
+                  ],
+                  "combinator": "and"
+                }
+              },
+              {
+                "conditions": {
+                  "options": {
+                    "caseSensitive": true,
+                    "leftValue": "",
+                    "typeValidation": "strict",
+                    "version": 2
+                  },
+                  "conditions": [
+                    {
+                      "leftValue": "={{ $json.action }}",
+                      "operator": {
+                        "type": "string",
+                        "operation": "equals"
+                      },
+                      "rightValue": "diam"
+                    }
+                  ],
+                  "combinator": "and"
+                }
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "8ab74e33-29a8-4b64-ad72-a9e274bb9689",
+        "name": "Pilih Jalur",
+        "type": "n8n-nodes-base.switch",
+        "typeVersion": 3.2,
+        "position": [
+          3040,
+          432
+        ]
+      },
+      {
+        "parameters": {},
+        "id": "7fa24f0c-5e63-4105-afb3-7effb15a70c8",
+        "name": "Balasan",
+        "type": "n8n-nodes-base.noOp",
+        "typeVersion": 1,
+        "position": [
+          4608,
+          432
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "select bot.check_slot(bot.resolve_date($1), $2, $3) as slot,\n  bot.find_same_day_booking($4, bot.resolve_date($1)) as jam_lain",
+          "options": {
+            "queryReplacement": "={{ [$json.merged.hari, $json.merged.jam, $json.merged.kapster, $json.phone] }}"
+          }
+        },
+        "id": "781654ae-eda7-4b00-a9c8-9fa19a1cba2d",
+        "name": "Cek Slot",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.7,
+        "position": [
+          4160,
+          0
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "bzISw2QfqVYUFsSu",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Port presentBookingSummary() di server/index.js.\nconst m = $('Tentukan Langkah').first().json.merged;\nconst { slot, jam_lain } = $input.first().json;\nif (!slot.available) {\n  return [{ json: { text: slot.message, state: { ...m, jam: null, kapster: null, awaitingConfirmation: false } } }];\n}\nconst peringatan = jam_lain ? `Perlu diketahui, Anda sudah memiliki booking pada jam ${jam_lain} di hari yang sama. ` : '';\nreturn [{ json: {\n  text: `${peringatan}Baik, berikut ringkasan booking Anda: hari ${m.hari}, jam ${m.jam}, layanan ${m.servis} dengan kapster *${slot.barber}*, atas nama ${m.nama}. Apakah data tersebut sudah benar? Silakan balas \"ya\" untuk konfirmasi.`,\n  state: { ...m, kapster: slot.barber, awaitingConfirmation: true }\n} }];\n"
+        },
+        "id": "890a22cd-774b-4f45-992e-c0eb69425cd0",
+        "name": "Susun Ringkasan",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          4384,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "select bot.create_booking($1, $2, $3, $4, $5, $6, $7, $8) as hasil",
+          "options": {
+            "queryReplacement": "={{ [$json.chatId, $json.phone, $json.merged.nama, $json.merged.hari, $json.merged.jam, $json.merged.servis, $json.kapsterDisetujui, $json.body] }}"
+          }
+        },
+        "id": "5c0a7c33-cb64-4b07-b798-ebc88a813963",
+        "name": "Simpan Booking",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.7,
+        "position": [
+          3264,
+          480
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "bzISw2QfqVYUFsSu",
+            "name": "Postgres account"
+          }
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "parameters": {
+          "jsCode": "// Port cabang konfirmasi di server/index.js setelah cek slot + insert.\nconst m = $('Tentukan Langkah').first().json.merged;\nconst hasil = $input.first().json.hasil;\nif (!hasil.available) {\n  return [{ json: { jalur: 'balas', text: `Mohon maaf, Kak, jadwal tersebut baru saja diambil oleh pelanggan lain. ${hasil.message}`, state: { ...m, jam: null, kapster: null, awaitingConfirmation: false } } }];\n}\nif (hasil.dp_amount == null) {\n  // Harga layanan tidak ditemukan: booking tetap tersimpan tanpa DP.\n  return [{ json: { jalur: 'balas', text: `Baik, Kak. Booking sudah lengkap:\\n\\nHari: ${m.hari}\\nJam: ${m.jam}\\nServis: ${m.servis}\\nKapster: ${hasil.barber}\\nNama: ${m.nama}\\n\\nTerima kasih, kami tunggu kedatangannya.`, state: null } }];\n}\nconst dp = Number(hasil.dp_amount);\nreturn [{ json: {\n  jalur: 'dp',\n  request_id: hasil.request_id,\n  reference_id: hasil.reference_id,\n  dp_amount: dp,\n  text: `Booking hampir selesai, Kak. Silakan bayar DP sebesar Rp${dp.toLocaleString('id-ID')} (50% dari total) melalui QRIS di atas, dapat dipindai menggunakan e-wallet atau m-banking apa pun. Slot ditahan selama 30 menit; apabila melewati batas waktu tersebut, booking akan otomatis dibatalkan dan perlu dilakukan booking ulang.`\n} }];\n"
+        },
+        "id": "409c2137-5dac-42c3-ae49-f5371349931c",
+        "name": "Olah Hasil Booking",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          3488,
+          416
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "combinator": "and",
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "leftValue": "={{ $json.jalur }}",
+                "rightValue": "dp",
+                "operator": {
+                  "type": "string",
+                  "operation": "equals"
+                }
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "264a98b0-70d2-4c26-b099-bdb38b8335f2",
+        "name": "Perlu DP?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          3712,
+          416
+        ]
+      },
+      {
+        "parameters": {
+          "workflowId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "geSlBU8DV2Tf3r26"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "referenceId": "={{ $json.reference_id }}",
+              "amount": "={{ $json.dp_amount }}"
+            },
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "referenceId",
+                "displayName": "referenceId",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              },
+              {
+                "id": "amount",
+                "displayName": "amount",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "number"
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": true
+          },
+          "options": {}
+        },
+        "id": "d6613937-2abd-47c3-b4af-9951da34153c",
+        "name": "Buat QRIS",
+        "type": "n8n-nodes-base.executeWorkflow",
+        "typeVersion": 1.3,
+        "position": [
+          3936,
+          384
+        ],
+        "onError": "continueErrorOutput"
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "with qr as (\n  update public.whatsapp_requests set xendit_qr_id = $1 where id = $2::uuid returning id\n), sesi as (\n  update bot.conversations set state = null, state_updated_at = now(), updated_at = now() where chat_id = $3\n)\nselect (select count(*) from qr) as qr_tersimpan",
+          "options": {
+            "queryReplacement": "={{ [$json.paymentRequestId, $('Olah Hasil Booking').first().json.request_id, $('Tentukan Langkah').first().json.chatId] }}"
+          }
+        },
+        "id": "99aebbaf-e1e7-4e35-907f-39216330fda1",
+        "name": "Simpan QR & Tutup Sesi",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.7,
+        "position": [
+          4160,
+          288
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "bzISw2QfqVYUFsSu",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "workflowId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "cod8lmSOmyc6I6pl"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "chatId": "={{ $('Tentukan Langkah').first().json.chatId }}",
+              "text": "={{ $('Olah Hasil Booking').first().json.text }}",
+              "replyTo": "",
+              "imageBase64": "={{ $('Buat QRIS').first().json.qrPngBase64 }}"
+            },
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "chatId",
+                "displayName": "chatId",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              },
+              {
+                "id": "text",
+                "displayName": "text",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              },
+              {
+                "id": "replyTo",
+                "displayName": "replyTo",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              },
+              {
+                "id": "imageBase64",
+                "displayName": "imageBase64",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": true
+          },
+          "options": {}
+        },
+        "id": "6dacf9ba-fc54-4923-9bd2-bcd60fda5e96",
+        "name": "Kirim QR DP",
+        "type": "n8n-nodes-base.executeWorkflow",
+        "typeVersion": 1.3,
+        "position": [
+          4384,
+          288
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "update public.whatsapp_requests set payment_status = 'failed' where id = $1::uuid",
+          "options": {
+            "queryReplacement": "={{ [$('Olah Hasil Booking').first().json.request_id] }}"
+          }
+        },
+        "id": "5f28a873-a5cf-478a-8f05-8fc919c91579",
+        "name": "Tandai DP Gagal",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.7,
+        "position": [
+          4160,
+          480
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "bzISw2QfqVYUFsSu",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "return [{ json: { text: 'Mohon maaf, Kak, terjadi kendala saat menyiapkan pembayaran DP. Silakan coba melakukan booking ulang dalam beberapa saat.', state: null } }];"
+        },
+        "id": "e572453e-512e-4df6-9e77-851cc8ff50e7",
+        "name": "Pesan Gagal DP",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          4384,
+          480
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "return [{ json: { text: 'Mohon maaf, Kak, terjadi kendala saat menyimpan booking. Silakan coba lagi dalam beberapa saat.', state: null } }];"
+        },
+        "id": "ac39eb11-80fa-4d4b-8acb-c7551dac6005",
+        "name": "Pesan Gagal Simpan",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          4384,
+          768
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "insert into bot.conversations as c (chat_id, state, state_updated_at)\nvalues ($1, $2::jsonb, now())\non conflict (chat_id) do update\n  set state = excluded.state, state_updated_at = now(), updated_at = now()",
+          "options": {
+            "queryReplacement": "={{ [$json.chatId, $json.state ? JSON.stringify($json.state) : null] }}"
+          }
+        },
+        "id": "d187fe3c-2b71-448a-b54c-944fe5b7548d",
+        "name": "Simpan State (Tanpa Balasan)",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.7,
+        "position": [
+          3264,
+          672
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "bzISw2QfqVYUFsSu",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "options": {}
+        },
+        "id": "d46a2f87-661f-4c9a-b9ac-e26bbd69db7f",
+        "name": "Coba Model Berikutnya",
+        "type": "n8n-nodes-base.splitInBatches",
+        "typeVersion": 3,
+        "position": [
+          1792,
+          528
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "insert into bot.conversations as c (chat_id, state, state_updated_at)\nvalues ($1, $2::jsonb, now())\non conflict (chat_id) do update\n  set state = excluded.state, state_updated_at = now(), updated_at = now()",
+          "options": {
+            "queryReplacement": "={{ [$('Tentukan Langkah').first().json.chatId, $json.state ? JSON.stringify($json.state) : null] }}"
+          }
+        },
+        "id": "081ab99f-ba18-46f5-b219-7185e02f17e9",
+        "name": "Simpan State",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.7,
+        "position": [
+          4832,
+          432
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "bzISw2QfqVYUFsSu",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "workflowId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "cod8lmSOmyc6I6pl"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "chatId": "={{ $('Tentukan Langkah').first().json.chatId }}",
+              "text": "={{ $('Balasan').first().json.text }}",
+              "replyTo": "={{ $('Tentukan Langkah').first().json.messageId }}",
+              "imageBase64": ""
+            },
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "chatId",
+                "displayName": "chatId",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              },
+              {
+                "id": "text",
+                "displayName": "text",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              },
+              {
+                "id": "replyTo",
+                "displayName": "replyTo",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              },
+              {
+                "id": "imageBase64",
+                "displayName": "imageBase64",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": true
+          },
+          "options": {}
+        },
+        "id": "64052702-f41c-457c-9d2b-3268567d9efa",
+        "name": "Kirim Balasan",
+        "type": "n8n-nodes-base.executeWorkflow",
+        "typeVersion": 1.3,
+        "position": [
+          5056,
+          432
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "select bot.append_history($1, $2)",
+          "options": {
+            "queryReplacement": "={{ [$('Tentukan Langkah').first().json.chatId, 'Bot: ' + $('Balasan').first().json.text] }}"
+          }
+        },
+        "id": "4eaa3d99-271c-4d4e-942f-808e1c70af14",
+        "name": "Simpan Riwayat Bot",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.7,
+        "position": [
+          5280,
+          432
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "bzISw2QfqVYUFsSu",
+            "name": "Postgres account"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "WAHA Masuk": {
+        "main": [
+          [
+            {
+              "node": "Siapkan Pesan",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Siapkan Pesan": {
+        "main": [
+          [
+            {
+              "node": "Tandai Pesan Diproses",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Tandai Pesan Diproses": {
+        "main": [
+          [
+            {
+              "node": "Cari Nomor Asli",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Cari Nomor Asli": {
+        "main": [
+          [
+            {
+              "node": "Muat Konteks",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Muat Konteks": {
+        "main": [
+          [
+            {
+              "node": "Siapkan Prompt",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Siapkan Prompt": {
+        "main": [
+          [
+            {
+              "node": "Simpan Riwayat Pelanggan",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Simpan Riwayat Pelanggan": {
+        "main": [
+          [
+            {
+              "node": "Daftar Model",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Daftar Model": {
+        "main": [
+          [
+            {
+              "node": "Coba Model Berikutnya",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parsing Gemini": {
+        "main": [
+          [
+            {
+              "node": "Baca JSON Gemini",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Coba Model Berikutnya",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Baca JSON Gemini": {
+        "main": [
+          [
+            {
+              "node": "JSON Valid?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "JSON Valid?": {
+        "main": [
+          [
+            {
+              "node": "Tentukan Langkah",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Coba Model Berikutnya",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Tentukan Langkah": {
+        "main": [
+          [
+            {
+              "node": "Pilih Jalur",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Pilih Jalur": {
+        "main": [
+          [
+            {
+              "node": "Balasan",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Cek Slot",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Simpan Booking",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Simpan State (Tanpa Balasan)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Balasan": {
+        "main": [
+          [
+            {
+              "node": "Simpan State",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Cek Slot": {
+        "main": [
+          [
+            {
+              "node": "Susun Ringkasan",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Susun Ringkasan": {
+        "main": [
+          [
+            {
+              "node": "Balasan",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Simpan Booking": {
+        "main": [
+          [
+            {
+              "node": "Olah Hasil Booking",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Pesan Gagal Simpan",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Olah Hasil Booking": {
+        "main": [
+          [
+            {
+              "node": "Perlu DP?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Perlu DP?": {
+        "main": [
+          [
+            {
+              "node": "Buat QRIS",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Balasan",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Buat QRIS": {
+        "main": [
+          [
+            {
+              "node": "Simpan QR & Tutup Sesi",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Tandai DP Gagal",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Simpan QR & Tutup Sesi": {
+        "main": [
+          [
+            {
+              "node": "Kirim QR DP",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Tandai DP Gagal": {
+        "main": [
+          [
+            {
+              "node": "Pesan Gagal DP",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Pesan Gagal DP": {
+        "main": [
+          [
+            {
+              "node": "Balasan",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Pesan Gagal Simpan": {
+        "main": [
+          [
+            {
+              "node": "Balasan",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Coba Model Berikutnya": {
+        "main": [
+          [],
+          [
+            {
+              "node": "Parsing Gemini",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Simpan State": {
+        "main": [
+          [
+            {
+              "node": "Kirim Balasan",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Kirim Balasan": {
+        "main": [
+          [
+            {
+              "node": "Simpan Riwayat Bot",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "availableInMCP": true,
+      "binaryMode": "separate"
+    },
+    "staticData": null,
+    "meta": {
+      "aiBuilderAssisted": true,
+      "builderVariant": "mcp"
+    },
+    "nodeGroups": [],
+    "pinData": {},
+    "versionId": "bd6e6673-6696-4ad6-bddd-2b1d58170b5e",
+    "activeVersionId": "bd6e6673-6696-4ad6-bddd-2b1d58170b5e",
+    "versionCounter": 3,
+    "triggerCount": 1,
+    "sourceWorkflowId": null,
+    "tags": [],
+    "shared": [
+      {
+        "updatedAt": "2026-09-16T23:10:23.523Z",
+        "createdAt": "2026-09-16T23:10:23.523Z",
+        "role": "workflow:owner",
+        "workflowId": "dLZ1LsNL4J1Emx8k",
+        "projectId": "sYcUDTth5maq4WDX",
+        "project": {
+          "updatedAt": "2026-09-16T21:53:02.955Z",
+          "createdAt": "2026-09-16T21:48:04.028Z",
+          "id": "sYcUDTth5maq4WDX",
+          "name": "khairul anuar <erul7505@gmail.com>",
+          "type": "personal",
+          "icon": null,
+          "description": null,
+          "customTelemetryTags": [],
+          "creatorId": "704c4f2e-c87d-4b68-89c6-29c7a341ba6f"
+        }
+      }
+    ],
+    "versionMetadata": {
+      "name": "Terima salah ketik hari & lengkapi field kosong",
+      "description": "Dua perbaikan dari uji nyata: (1) kata hari menerima salah ketik/singkatan umum (hri ini, bsk, dll); (2) pesan yang dinilai pertanyaan tetap melengkapi field nama/hari/jam/servis yang masih kosong, tanpa menimpa field yang sudah terisi dan tanpa kapster."
+    }
+  }
+]

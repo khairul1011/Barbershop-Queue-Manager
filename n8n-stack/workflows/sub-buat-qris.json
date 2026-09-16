@@ -1,0 +1,144 @@
+[
+  {
+    "updatedAt": "2026-09-16T22:57:11.129Z",
+    "createdAt": "2026-09-16T22:57:11.129Z",
+    "id": "geSlBU8DV2Tf3r26",
+    "name": "sub: Buat QRIS",
+    "description": "Pengganti createQrisPaymentRequest + QRCode.toDataURL: buat payment request QRIS sekali pakai di Xendit, lalu ubah qr_string jadi PNG base64. Output {paymentRequestId, qrPngBase64}.",
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+      {
+        "id": "ed8d45e1-9b22-4298-bfd3-0a138caac3cb",
+        "name": "Input",
+        "type": "n8n-nodes-base.executeWorkflowTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          0,
+          0
+        ],
+        "parameters": {
+          "inputSource": "workflowInputs",
+          "workflowInputs": {
+            "values": [
+              {
+                "name": "referenceId",
+                "type": "string"
+              },
+              {
+                "name": "amount",
+                "type": "number"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "b0e43709-935e-4911-adf3-d297ca32e143",
+        "name": "Buat Payment Request Xendit",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          224,
+          0
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "https://api.xendit.co/payment_requests",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpBasicAuth",
+          "sendBody": true,
+          "contentType": "json",
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify({ reference_id: $json.referenceId, amount: $json.amount, currency: 'IDR', country: 'ID', payment_method: { type: 'QR_CODE', reusability: 'ONE_TIME_USE', qr_code: { channel_code: 'QRIS' } } }) }}"
+        },
+        "credentials": {
+          "httpBasicAuth": {
+            "id": "FuzyjwPbX9K51WqK",
+            "name": "Xendit API"
+          }
+        }
+      },
+      {
+        "id": "d6222a72-d93a-4d5e-a869-b36e229478e4",
+        "name": "Ubah QR String ke PNG",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          448,
+          0
+        ],
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "language": "javaScript",
+          "jsCode": "// Lokasi qr_string sudah diverifikasi lewat sandbox Xendit (lihat server/services/xenditClient.js).\nconst QRCode = require('qrcode');\nconst res = $input.first().json;\nconst qrString = res.payment_method?.qr_code?.channel_properties?.qr_string;\nif (!qrString) {\n  throw new Error('Respons Xendit tidak berisi qr_string. Periksa bentuk respons terbaru.');\n}\nconst dataUrl = await QRCode.toDataURL(qrString);\nreturn [{ json: { paymentRequestId: res.id, qrPngBase64: dataUrl.split(',')[1] } }];"
+        }
+      }
+    ],
+    "connections": {
+      "Input": {
+        "main": [
+          [
+            {
+              "node": "Buat Payment Request Xendit",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Buat Payment Request Xendit": {
+        "main": [
+          [
+            {
+              "node": "Ubah QR String ke PNG",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "availableInMCP": true
+    },
+    "staticData": null,
+    "meta": {
+      "aiBuilderAssisted": true,
+      "builderVariant": "mcp"
+    },
+    "nodeGroups": [],
+    "pinData": null,
+    "versionId": "2f5a0566-2eb4-43c8-a644-87efd10c9f72",
+    "activeVersionId": "2f5a0566-2eb4-43c8-a644-87efd10c9f72",
+    "versionCounter": 1,
+    "triggerCount": 0,
+    "sourceWorkflowId": null,
+    "tags": [],
+    "shared": [
+      {
+        "updatedAt": "2026-09-16T22:57:11.130Z",
+        "createdAt": "2026-09-16T22:57:11.130Z",
+        "role": "workflow:owner",
+        "workflowId": "geSlBU8DV2Tf3r26",
+        "projectId": "sYcUDTth5maq4WDX",
+        "project": {
+          "updatedAt": "2026-09-16T21:53:02.955Z",
+          "createdAt": "2026-09-16T21:48:04.028Z",
+          "id": "sYcUDTth5maq4WDX",
+          "name": "khairul anuar <erul7505@gmail.com>",
+          "type": "personal",
+          "icon": null,
+          "description": null,
+          "customTelemetryTags": [],
+          "creatorId": "704c4f2e-c87d-4b68-89c6-29c7a341ba6f"
+        }
+      }
+    ],
+    "versionMetadata": {
+      "name": "Buat QRIS Xendit + PNG",
+      "description": "Created with 3 nodes: Input, Buat Payment Request Xendit, Ubah QR String ke PNG"
+    }
+  }
+]

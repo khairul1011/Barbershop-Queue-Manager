@@ -1,0 +1,255 @@
+[
+  {
+    "updatedAt": "2026-09-16T23:25:03.594Z",
+    "createdAt": "2026-09-16T23:25:03.594Z",
+    "id": "GTwaB6qo3yib0zpo",
+    "name": "QR Sisa Bayar Dashboard",
+    "description": "Pengganti POST /api/session-payment: validasi nominal, buat QRIS lewat sub: Buat QRIS, balas {paymentRequestId, qrPngDataUrl}. CORS: dashboard.takhtabarber.shop + localhost:3000.",
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+      {
+        "id": "e317c5fc-f5fa-465b-b39c-253fd241b916",
+        "name": "Permintaan QR Dashboard",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          0,
+          192
+        ],
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "session-payment",
+          "responseMode": "responseNode",
+          "options": {
+            "allowedOrigins": "https://dashboard.takhtabarber.shop,http://localhost:3000"
+          }
+        },
+        "webhookId": "336b39cf-2f25-4161-ac04-080402e17104"
+      },
+      {
+        "id": "aa5f76fe-07cc-4e4c-a68c-2f82046dfec9",
+        "name": "Nominal Valid?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          224,
+          192
+        ],
+        "parameters": {
+          "conditions": {
+            "combinator": "and",
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "leftValue": "={{ typeof $json.body.amount === 'number' && Number.isFinite($json.body.amount) && $json.body.amount > 0 }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "ed91fba3-f4b6-4dc2-9397-777489ae4855",
+        "name": "Buat QRIS",
+        "type": "n8n-nodes-base.executeWorkflow",
+        "typeVersion": 1.3,
+        "position": [
+          448,
+          96
+        ],
+        "parameters": {
+          "mode": "once",
+          "source": "database",
+          "workflowId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "geSlBU8DV2Tf3r26"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "referenceId": "={{ 'qe-' + $execution.id + '-' + Date.now() }}",
+              "amount": "={{ $json.body.amount }}"
+            },
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "referenceId",
+                "displayName": "referenceId",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              },
+              {
+                "id": "amount",
+                "displayName": "amount",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "number"
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": true
+          }
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "id": "d0d75e24-b863-4ecd-b24d-cb4c2f0ec09d",
+        "name": "Balas QR",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          672,
+          0
+        ],
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ JSON.stringify({ paymentRequestId: $json.paymentRequestId, qrPngDataUrl: 'data:image/png;base64,' + $json.qrPngBase64 }) }}",
+          "options": {
+            "responseCode": 200
+          }
+        }
+      },
+      {
+        "id": "b0a8c359-e4c4-4d62-8814-a7d9e8e48ae4",
+        "name": "Balas Gagal Buat QR",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          672,
+          192
+        ],
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "{\"error\":\"gagal membuat QR pembayaran\"}",
+          "options": {
+            "responseCode": 502
+          }
+        }
+      },
+      {
+        "id": "e67e3cb2-e3d4-4221-8daf-1c1503c99294",
+        "name": "Balas Nominal Tidak Valid",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          448,
+          288
+        ],
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "{\"error\":\"amount tidak valid\"}",
+          "options": {
+            "responseCode": 400
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Permintaan QR Dashboard": {
+        "main": [
+          [
+            {
+              "node": "Nominal Valid?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Nominal Valid?": {
+        "main": [
+          [
+            {
+              "node": "Buat QRIS",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Balas Nominal Tidak Valid",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Buat QRIS": {
+        "main": [
+          [
+            {
+              "node": "Balas QR",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Balas Gagal Buat QR",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "availableInMCP": true
+    },
+    "staticData": null,
+    "meta": {
+      "aiBuilderAssisted": true,
+      "builderVariant": "mcp"
+    },
+    "nodeGroups": [],
+    "pinData": null,
+    "versionId": "e72e9429-9ece-4537-96da-583b070f5ad3",
+    "activeVersionId": "e72e9429-9ece-4537-96da-583b070f5ad3",
+    "versionCounter": 1,
+    "triggerCount": 1,
+    "sourceWorkflowId": null,
+    "tags": [],
+    "shared": [
+      {
+        "updatedAt": "2026-09-16T23:25:03.597Z",
+        "createdAt": "2026-09-16T23:25:03.597Z",
+        "role": "workflow:owner",
+        "workflowId": "GTwaB6qo3yib0zpo",
+        "projectId": "sYcUDTth5maq4WDX",
+        "project": {
+          "updatedAt": "2026-09-16T21:53:02.955Z",
+          "createdAt": "2026-09-16T21:48:04.028Z",
+          "id": "sYcUDTth5maq4WDX",
+          "name": "khairul anuar <erul7505@gmail.com>",
+          "type": "personal",
+          "icon": null,
+          "description": null,
+          "customTelemetryTags": [],
+          "creatorId": "704c4f2e-c87d-4b68-89c6-29c7a341ba6f"
+        }
+      }
+    ],
+    "versionMetadata": {
+      "name": "Port endpoint QR sisa bayar dashboard",
+      "description": "Created with 6 nodes: Permintaan QR Dashboard, Nominal Valid?, Buat QRIS, Balas QR, Balas Gagal Buat QR and 1 more"
+    }
+  }
+]

@@ -1,0 +1,305 @@
+[
+  {
+    "updatedAt": "2026-09-16T22:56:40.180Z",
+    "createdAt": "2026-09-16T22:56:40.180Z",
+    "id": "cod8lmSOmyc6I6pl",
+    "name": "sub: Kirim WA",
+    "description": "Pengganti replyAndSaveHistory/sendMessageWithDelay/sendMediaWithDelay: tandai terbaca, indikator mengetik, jeda 1,5-7 detik, lalu kirim teks (opsional reply) atau gambar PNG base64 dengan caption lewat WAHA.",
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+      {
+        "id": "f28e532d-e2a4-454b-a093-37e7d51c22b2",
+        "name": "Input",
+        "type": "n8n-nodes-base.executeWorkflowTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          0,
+          96
+        ],
+        "parameters": {
+          "inputSource": "workflowInputs",
+          "workflowInputs": {
+            "values": [
+              {
+                "name": "chatId",
+                "type": "string"
+              },
+              {
+                "name": "text",
+                "type": "string"
+              },
+              {
+                "name": "replyTo",
+                "type": "string"
+              },
+              {
+                "name": "imageBase64",
+                "type": "string"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "d175960e-87b7-4e66-82b7-7acd5450b9ae",
+        "name": "Tandai Terbaca",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          224,
+          96
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "http://waha:3000/api/sendSeen",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendBody": true,
+          "contentType": "json",
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify({ session: 'default', chatId: $('Input').item.json.chatId }) }}"
+        },
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "h54RLIgLQ6DUgfIk",
+            "name": "WAHA API"
+          }
+        },
+        "onError": "continueRegularOutput"
+      },
+      {
+        "id": "3fbeb771-4e61-4563-8d64-1378864ed783",
+        "name": "Mulai Mengetik",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          448,
+          96
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "http://waha:3000/api/startTyping",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendBody": true,
+          "contentType": "json",
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify({ session: 'default', chatId: $('Input').item.json.chatId }) }}"
+        },
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "h54RLIgLQ6DUgfIk",
+            "name": "WAHA API"
+          }
+        },
+        "onError": "continueRegularOutput"
+      },
+      {
+        "id": "d21143ad-00b0-4929-88fc-bfdad73c3180",
+        "name": "Jeda Seperti Manusia",
+        "type": "n8n-nodes-base.wait",
+        "typeVersion": 1.1,
+        "position": [
+          672,
+          96
+        ],
+        "parameters": {
+          "resume": "timeInterval",
+          "amount": "={{ Math.min(1.5 + Math.random() * 1.5 + ($('Input').item.json.text || '').length * 0.03, 7) }}",
+          "unit": "seconds"
+        },
+        "webhookId": "6702b03c-5b96-432f-9401-d5ef5f39aa5e"
+      },
+      {
+        "id": "6400f1b7-e692-407b-b685-9e34eb37c51e",
+        "name": "Ada Gambar?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          896,
+          96
+        ],
+        "parameters": {
+          "conditions": {
+            "combinator": "and",
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "leftValue": "={{ !!$('Input').item.json.imageBase64 }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "1755af43-0681-49b1-90db-9cdbe4d2155b",
+        "name": "Kirim Gambar",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          1120,
+          0
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "http://waha:3000/api/sendImage",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendBody": true,
+          "contentType": "json",
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify({ session: 'default', chatId: $('Input').item.json.chatId, file: { mimetype: 'image/png', filename: 'qris.png', data: $('Input').item.json.imageBase64 }, caption: $('Input').item.json.text }) }}"
+        },
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "h54RLIgLQ6DUgfIk",
+            "name": "WAHA API"
+          }
+        }
+      },
+      {
+        "id": "efae31d6-2320-4f5f-be78-9ac907966218",
+        "name": "Kirim Teks",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          1120,
+          192
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "http://waha:3000/api/sendText",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendBody": true,
+          "contentType": "json",
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify({ session: 'default', chatId: $('Input').item.json.chatId, text: $('Input').item.json.text, reply_to: $('Input').item.json.replyTo || undefined }) }}"
+        },
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "h54RLIgLQ6DUgfIk",
+            "name": "WAHA API"
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Input": {
+        "main": [
+          [
+            {
+              "node": "Tandai Terbaca",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Tandai Terbaca": {
+        "main": [
+          [
+            {
+              "node": "Mulai Mengetik",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Mulai Mengetik": {
+        "main": [
+          [
+            {
+              "node": "Jeda Seperti Manusia",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Jeda Seperti Manusia": {
+        "main": [
+          [
+            {
+              "node": "Ada Gambar?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Ada Gambar?": {
+        "main": [
+          [
+            {
+              "node": "Kirim Gambar",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Kirim Teks",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "availableInMCP": true
+    },
+    "staticData": null,
+    "meta": {
+      "aiBuilderAssisted": true,
+      "builderVariant": "mcp"
+    },
+    "nodeGroups": [],
+    "pinData": null,
+    "versionId": "a5634c88-c788-428a-ab9c-5ebb8cab5e2d",
+    "activeVersionId": "a5634c88-c788-428a-ab9c-5ebb8cab5e2d",
+    "versionCounter": 1,
+    "triggerCount": 0,
+    "sourceWorkflowId": null,
+    "tags": [],
+    "shared": [
+      {
+        "updatedAt": "2026-09-16T22:56:40.181Z",
+        "createdAt": "2026-09-16T22:56:40.181Z",
+        "role": "workflow:owner",
+        "workflowId": "cod8lmSOmyc6I6pl",
+        "projectId": "sYcUDTth5maq4WDX",
+        "project": {
+          "updatedAt": "2026-09-16T21:53:02.955Z",
+          "createdAt": "2026-09-16T21:48:04.028Z",
+          "id": "sYcUDTth5maq4WDX",
+          "name": "khairul anuar <erul7505@gmail.com>",
+          "type": "personal",
+          "icon": null,
+          "description": null,
+          "customTelemetryTags": [],
+          "creatorId": "704c4f2e-c87d-4b68-89c6-29c7a341ba6f"
+        }
+      }
+    ],
+    "versionMetadata": {
+      "name": "Kirim WA dengan jeda mengetik",
+      "description": "Created with 7 nodes: Input, Tandai Terbaca, Mulai Mengetik, Jeda Seperti Manusia, Ada Gambar? and 2 more"
+    }
+  }
+]
