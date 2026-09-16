@@ -1,25 +1,29 @@
-# Stack Eksperimen n8n + Evolution API
+# Stack n8n + WAHA
 
-Versi eksperimen dari bot booking WhatsApp, dibangun dengan n8n (orkestrasi
-alur + AI) dan Evolution API (jembatan WhatsApp non-resmi berbasis Baileys).
+Pengganti bot booking WhatsApp di `server/`, dibangun dengan n8n (orkestrasi
+alur + AI) dan [WAHA](https://waha.devlike.pro) (WhatsApp HTTP API, jembatan
+WhatsApp non-resmi) dengan engine GOWS.
 
-Stack ini **terpisah penuh** dari bot produksi di `server/`. Bot produksi tetap
-berjalan di VPS Azure dan terus melayani booking pelanggan; stack ini berjalan
-di server lain sehingga eksperimen tidak dapat mengganggu operasional.
+Status saat ini: workflow sudah dibangun dan diuji di lokal, menunggu cutover ke
+VPS yang sama dengan bot lama (bot lama lalu dihapus). Progres dan langkah
+berikutnya: [PROGRES.md](PROGRES.md). Desain workflow: [RANCANGAN.md](RANCANGAN.md).
 
 ## Perbandingan dengan bot produksi
 
-| | `server/` (produksi) | Stack ini (eksperimen) |
+| | `server/` (bot lama) | Stack ini (pengganti) |
 |---|---|---|
-| Jembatan WhatsApp | `whatsapp-web.js` + Puppeteer (Chromium) | Evolution API (Baileys, tanpa browser) |
+| Jembatan WhatsApp | `whatsapp-web.js` + Puppeteer (Chromium) | WAHA engine GOWS (Go, WebSocket, tanpa browser) |
 | Logika booking | Kode Node.js | Alur visual n8n |
 | Parsing pesan | Gemini via `services/gemini.js` | Node AI n8n |
 | Penyimpanan | Supabase | Supabase (sama) |
 
 ## Prasyarat server
 
-- Arsitektur ARM64 atau AMD64 (kedua image mendukung keduanya, sudah diverifikasi)
-- RAM minimal 2 GB, disarankan 4 GB ke atas
+- Arsitektur ARM64 atau AMD64. Image WAHA GOWS dibuat terpisah per arsitektur:
+  isi `WAHA_IMAGE_TAG` di `.env` dengan `gows` (x86_64) atau `gows-arm`
+  (aarch64/arm64) sesuai hasil `uname -m`
+- RAM: setelah workflow dipakai terukur sekitar 755 MB (n8n ~460 MB, WAHA
+  ~300 MB, diukur di Docker Mac). Server dengan RAM 1 GB butuh swap; 2 GB ke atas lebih aman
 - Docker dan Docker Compose terpasang
 - Cloudflare Tunnel untuk akses publik (tidak ada port masuk yang dibuka)
 
@@ -35,7 +39,8 @@ Isi `.env`. Untuk nilai acak:
 openssl rand -hex 32
 ```
 
-Jalankan stack:
+Jalankan stack (image n8n di-build dari `n8n/Dockerfile` pada run pertama; setelah
+Dockerfile berubah, tambahkan `--build`):
 
 ```bash
 docker compose up -d
@@ -51,23 +56,44 @@ docker compose logs -f
 ## Akses
 
 Seluruh port hanya di-bind ke `127.0.0.1`, jadi tidak bisa diakses langsung
-dari internet. Akses publik lewat Cloudflare Tunnel dengan ingress:
+dari internet. Hanya n8n yang dibuka lewat Cloudflare Tunnel, karena webhook
+Xendit perlu URL publik:
 
 | Hostname | Service lokal |
 |---|---|
 | `n8n.takhtabarber.shop` | `http://localhost:5678` |
-| `evo.takhtabarber.shop` | `http://localhost:8080` |
 
-Manager Evolution API tersedia di `https://evo.takhtabarber.shop/manager`,
-dan login memakai `EVOLUTION_API_KEY`.
+WAHA sengaja tidak dibuka ke publik. Dashboard-nya ada di
+`http://localhost:3001/dashboard` (login `WAHA_DASHBOARD_USERNAME` /
+`WAHA_DASHBOARD_PASSWORD`). Di server, akses lewat SSH port forward:
+
+```bash
+ssh -L 3001:localhost:3001 <user>@<server>
+```
+
+## Menghubungkan WAHA ke n8n
+
+1. Di dashboard WAHA, buat/jalankan session lalu scan QR dengan nomor WhatsApp
+   percobaan.
+2. Di konfigurasi webhook session tersebut, isi URL `http://n8n:5678/webhook/waha`
+   (jaringan internal Docker, bukan `localhost`), event `message`, dan custom
+   header rahasia yang sama dengan credential *WAHA Webhook* di n8n.
+3. n8n memanggil WAHA di `http://waha:3000` dengan credential *WAHA API*
+   (header `X-Api-Key` = `WAHA_API_KEY`). Tidak perlu community node WAHA.
+
+Daftar lengkap credential dan workflow ada di [RANCANGAN.md](RANCANGAN.md).
 
 ## Catatan penting
 
 - **`N8N_ENCRYPTION_KEY` jangan diubah** setelah ada kredensial tersimpan di
   n8n. Mengubahnya membuat seluruh kredensial lama tidak dapat dibaca.
-- **`EVOLUTION_API_KEY` adalah satu-satunya pelindung Evolution API.** Siapa pun
-  yang memilikinya dapat mengirim pesan atas nama nomor WhatsApp yang
-  tersambung. Wajib acak dan panjang.
+- **`WAHA_API_KEY` adalah satu-satunya pelindung API WAHA.** Siapa pun yang
+  memilikinya dapat mengirim pesan atas nama nomor WhatsApp yang tersambung.
+  Wajib acak dan panjang.
+- **GOWS adalah engine terbaru WAHA.** Sebelum dipakai untuk nomor produksi,
+  pastikan kirim gambar (QR DP), indikator mengetik, dan resolusi nomor dari
+  `@lid` berjalan dengan nomor percobaan. Kalau bermasalah, engine bisa diganti
+  lewat `WHATSAPP_DEFAULT_ENGINE` (mis. `WEBJS`) dengan tag image yang sesuai.
 - Gunakan **nomor WhatsApp berbeda** dari bot produksi selama masa eksperimen,
   agar dua bot tidak saling berebut sesi pada nomor yang sama.
 - Pertimbangkan memakai project Supabase terpisah untuk eksperimen, supaya data
@@ -75,25 +101,7 @@ dan login memakai `EVOLUTION_API_KEY`.
 
 ## Logika yang perlu dipindahkan
 
-Bot produksi memuat sejumlah penjagaan yang lahir dari insiden nyata. Saat
-membangun ulang alurnya di n8n, penjagaan berikut sebaiknya ikut dipindahkan —
-seluruhnya terdokumentasi di `server/services/bookingDomain.js` dan
-`server/index.js`:
-
-1. **Zona waktu WIB** — server berjalan pada UTC; perhitungan "hari ini"/"besok"
-   harus digeser +7 jam, jika tidak tanggalnya mundur satu hari selama
-   17:00-23:59 UTC.
-2. **Guard halusinasi hari** — nilai `hari` dari model AI hanya dipercaya bila
-   pesan asli benar-benar menyebut kata terkait hari.
-3. **Guard halusinasi kapster** — saat pelanggan hanya membalas "ya", pakai
-   kapster yang sudah disetujui sebelumnya, bukan hasil parsing ulang.
-4. **Serialisasi cek-lalu-simpan** — dua pelanggan yang konfirmasi bersamaan
-   dapat teralokasi ke kapster yang sama. Di n8n perlu penguncian tingkat
-   database, karena eksekusi alur bisa berjalan paralel.
-5. **Filter kapster archived** — kapster yang sudah dihapus tidak boleh ikut
-   terhitung sebagai pilihan yang tersedia.
-6. **Dedup pesan saat restart** — jembatan WhatsApp dapat mengirim ulang pesan
-   lama ketika sesi tersambung kembali.
-7. **Tanggal absolut, bukan relatif** — simpan tanggal hasil resolusi di
-   database. Menyimpan string relatif ("besok") lalu menerjemahkannya ulang saat
-   query membuat baris lama ikut cocok selamanya.
+Bot produksi memuat sejumlah penjagaan yang lahir dari insiden nyata (zona waktu
+WIB, guard halusinasi Gemini, serialisasi booking, dedup pesan, tanggal absolut,
+dan lain-lain). Pemetaan tiap penjagaan ke workflow n8n dan skema `bot` ada di
+[RANCANGAN.md](RANCANGAN.md#pemetaan-penjagaan-bot-lama).
