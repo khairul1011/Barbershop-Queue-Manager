@@ -23,11 +23,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { supabase } from '../lib/supabaseClient';
 
-// Domain webhook backend (Cloudflare Tunnel -> VPS) yang sama digunakan untuk
-// webhook Xendit dan halaman demo — lihat server/index.js. Nilainya tidak
-// pernah berubah, sehingga di-hardcode di sini alih-alih menambah env var
-// untuk satu nilai statis.
-const PAYMENT_BACKEND_URL = 'https://wa-webhook.takhtabarber.shop';
+// Webhook n8n (workflow `QR Sisa Bayar Dashboard`, lihat n8n-stack/RANCANGAN.md).
+// Nilainya tidak pernah berubah, sehingga di-hardcode di sini alih-alih
+// menambah env var untuk satu nilai statis.
+const SESSION_PAYMENT_URL = 'https://n8n.takhtabarber.shop/webhook/session-payment';
 
 interface OverviewProps {
   queue: QueueEntry[];
@@ -194,7 +193,7 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
       const amount = await computeRemainingAmount();
       setRemainingAmount(amount);
 
-      const res = await fetch(`${PAYMENT_BACKEND_URL}/api/session-payment`, {
+      const res = await fetch(SESSION_PAYMENT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount })
@@ -208,7 +207,7 @@ const BarberSeatCard: React.FC<BarberSeatCardProps> = ({
       setQrStep('showing');
 
       // Melakukan polling pada baris ini setiap 3 detik — begitu webhook Xendit
-      // (server/index.js) menandai payment_method = 'qris', sesi akan otomatis diselesaikan.
+      // (workflow n8n `Webhook Xendit`) menandai payment_method = 'qris', sesi akan otomatis diselesaikan.
       stopPolling();
       pollRef.current = setInterval(async () => {
         const { data } = await supabase.from('queue_entries').select('payment_method').eq('id', session.id).maybeSingle();
