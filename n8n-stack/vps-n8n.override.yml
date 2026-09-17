@@ -1,0 +1,13 @@
+# Override untuk VM n8n (barberflow-n8n, 172.16.0.5) ketika n8n dan WAHA dipisah
+# ke dua VM di VNet yang sama (RAM 1 GiB per VM tidak cukup untuk keduanya).
+# Di server, salin sebagai docker-compose.override.yml (dibaca otomatis oleh
+# `docker compose`), lalu jalankan `docker compose up -d n8n` saja.
+services:
+  n8n:
+    ports:
+      # IP privat VNet: dipanggil cloudflared dan webhook WAHA dari VM lama.
+      # Tidak bisa dijangkau internet karena VM ini tanpa IP publik.
+      - "172.16.0.5:5678:5678"
+    extra_hosts:
+      # Workflow memanggil http://waha:3000; arahkan ke WAHA di VM lama.
+      - "waha:172.16.0.4"

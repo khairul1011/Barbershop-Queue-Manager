@@ -34,10 +34,20 @@ services:
       # Database memakai SQLite bawaan n8n (file di volume n8n_data), tanpa
       # container Postgres -- supaya stack muat di VPS kecil (RAM < 1 GB).
       NODE_FUNCTION_ALLOW_EXTERNAL: qrcode
+      # Matikan fitur yang tidak dipakai supaya hemat memori & koneksi keluar
+      # di VPS kecil.
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_VERSION_NOTIFICATIONS_ENABLED: "false"
+      N8N_TEMPLATES_ENABLED: "false"
+      # Pooler Supabase memakai sertifikat dari CA Supabase sendiri (Supabase
+      # Root 2021 CA), bukan CA publik. Dengan ini credential Postgres bisa
+      # memakai SSL terverifikasi tanpa "Ignore SSL Issues".
+      NODE_EXTRA_CA_CERTS: /etc/ssl/supabase-ca.crt
       GENERIC_TIMEZONE: Asia/Jakarta
       TZ: Asia/Jakarta
     volumes:
       - n8n_data:/home/node/.n8n
+      - ./supabase-ca.crt:/etc/ssl/supabase-ca.crt:ro
 
   waha:
     # Image GOWS dibuat terpisah per arsitektur CPU (bukan multi-arch):
@@ -65,6 +75,20 @@ services:
     volumes:
       - waha_sessions:/app/.sessions
       - waha_media:/app/.media
+
+  demo:
+    # Halaman simulasi pembayaran Xendit Test Mode (bayar.takhtabarber.shop),
+    # pengganti /demo bot lama. Hanya file statis; datanya lewat workflow n8n
+    # "Demo Bayar" (/webhook/demo/*) yang dirutekan cloudflared ke domain yang sama.
+    # Sengaja tidak disajikan dari webhook n8n: n8n membungkus HTML webhook dengan
+    # CSP sandbox yang memblokir fetch same-origin dan kamera untuk scan QR.
+    image: busybox:1.37
+    restart: unless-stopped
+    command: httpd -f -p 8080 -h /www
+    ports:
+      - "127.0.0.1:8081:8080"
+    volumes:
+      - ./demo:/www:ro
 
 volumes:
   n8n_data:

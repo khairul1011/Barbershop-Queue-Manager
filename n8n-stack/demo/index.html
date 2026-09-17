@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<!--
+  Halaman simulasi pembayaran QRIS (Xendit Test Mode) di bayar.takhtabarber.shop,
+  pengganti /demo bot lama. Disajikan container `demo` (busybox httpd) sebagai file
+  statis -- sengaja tidak lewat webhook n8n, karena n8n membungkus HTML webhook
+  dengan CSP sandbox yang memblokir fetch same-origin dan kamera.
+  Data & aksi lewat workflow n8n "Demo Bayar" (/webhook/demo/list, /webhook/demo/pay)
+  di domain yang sama; passcode dikirim di header X-Demo-Kode.
+-->
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>BarberFlow Pay</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+    min-height: 100vh; color: #f1f5f9; padding: 20px 16px 40px;
+  }
+  header { text-align: center; margin-bottom: 24px; }
+  header h1 { font-size: 20px; margin: 0 0 4px; }
+  header p { font-size: 12px; color: #94a3b8; margin: 0; }
+  .badge { display: inline-block; background: #f59e0b; color: #1e293b; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; margin-top: 8px; }
+  #passGate { max-width: 360px; margin: 60px auto 0; text-align: center; }
+  #passGate input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #334155; background: #1e293b; color: #f1f5f9; font-size: 16px; margin-bottom: 10px; }
+  #passGate button { width: 100%; padding: 12px; border-radius: 10px; border: none; background: #22c55e; color: #052e16; font-weight: 700; font-size: 15px; }
+  #passError { color: #f87171; font-size: 13px; min-height: 18px; margin-top: 8px; }
+  #app { max-width: 420px; margin: 0 auto; display: none; }
+  #scanBtn { width: 100%; padding: 16px; border-radius: 14px; border: none; background: #22c55e; color: #052e16; font-weight: 800; font-size: 16px; margin-bottom: 16px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .card { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 16px; margin-bottom: 12px; }
+  .card .name { font-weight: 700; font-size: 15px; }
+  .card .meta { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+  .card .amount { font-size: 22px; font-weight: 800; color: #22c55e; margin: 10px 0; }
+  .card button { width: 100%; padding: 12px; border-radius: 10px; border: none; background: #334155; color: #f1f5f9; font-weight: 700; font-size: 13px; }
+  .card button:disabled { background: #334155; color: #94a3b8; }
+  .card button.done { background: #16a34a; color: white; }
+  .empty { text-align: center; color: #64748b; font-size: 13px; margin-top: 20px; }
+  #scanOverlay { display: none; position: fixed; inset: 0; background: #000; z-index: 50; flex-direction: column; align-items: center; justify-content: center; }
+  #scanOverlay.active { display: flex; }
+  #scanVideo { width: 100%; max-width: 480px; }
+  #scanFrame { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 240px; height: 240px; border: 3px solid #22c55e; border-radius: 16px; box-shadow: 0 0 0 2000px rgba(0,0,0,0.5); }
+  #scanStatus { position: absolute; bottom: 90px; color: #fff; font-size: 14px; text-align: center; padding: 0 20px; }
+  #scanCancel { position: absolute; bottom: 30px; padding: 12px 28px; border-radius: 999px; border: none; background: #334155; color: #fff; font-weight: 700; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>💳 BarberFlow Pay</h1>
+    <p>Simulasi pembayaran QRIS -- Xendit Test Mode</p>
+    <span class="badge">MODE TES · BUKAN UANG ASLI</span>
+  </header>
+
+  <form id="passGate">
+    <input id="passInput" type="password" placeholder="Masukin kode akses" autocomplete="off">
+    <button type="submit">Buka</button>
+    <div id="passError"></div>
+  </form>
+
+  <div id="app">
+    <button id="scanBtn" type="button">📷 Scan QR untuk Bayar</button>
+    <div id="list"></div>
+  </div>
+
+  <div id="scanOverlay">
+    <video id="scanVideo" playsinline autoplay muted></video>
+    <div id="scanFrame"></div>
+    <div id="scanStatus">Arahin kamera ke QR pembayaran</div>
+    <button id="scanCancel" type="button">Batal</button>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script>
+  const $ = (id) => document.getElementById(id);
+  let kode = new URLSearchParams(location.search).get('kode') || '';
+  let currentRows = [];
+  let scanStream = null;
+  let scanRAF = null;
+  let pollTimer = null;
+
+  // Nama pelanggan berasal dari profil WhatsApp, jadi wajib di-escape sebelum masuk HTML.
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  function api(path, options = {}) {
+    return fetch('/webhook/demo/' + path, {
+      ...options,
+      headers: { 'X-Demo-Kode': kode, ...(options.body ? { 'Content-Type': 'application/json' } : {}) },
+    });
+  }
+
+  $('passGate').addEventListener('submit', (e) => {
+    e.preventDefault();
+    kode = $('passInput').value.trim();
+    tryLoad(true);
+  });
+
+  async function tryLoad(fromForm) {
+    let res;
+    try {
+      res = await api('list');
+    } catch {
+      return; // jaringan putus sesaat; polling berikutnya mencoba lagi
+    }
+    if (res.status === 401 || res.status === 403) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+      $('passGate').style.display = 'block';
+      $('app').style.display = 'none';
+      $('passError').textContent = fromForm && kode ? 'Kode akses salah.' : '';
+      return;
+    }
+    if (!res.ok) return;
+    $('passGate').style.display = 'none';
+    $('app').style.display = 'block';
+    currentRows = await res.json();
+    render(currentRows);
+    if (!pollTimer) pollTimer = setInterval(() => tryLoad(false), 5000);
+  }
+
+  function render(rows) {
+    const list = $('list');
+    if (rows.length === 0) {
+      list.innerHTML = '<div class="empty">Belum ada booking yang nunggu dibayar.<br>Kirim booking dulu lewat WhatsApp.</div>';
+      return;
+    }
+    list.innerHTML = rows.map((r) => `
+      <div class="card">
+        <div class="name">${esc(r.name)}</div>
+        <div class="meta">${esc(r.detail)}</div>
+        <div class="amount">Rp${Number(r.amount).toLocaleString('id-ID')}</div>
+        <button type="button" data-id="${esc(r.id)}" data-type="${esc(r.type)}">Tandai lunas manual</button>
+      </div>
+    `).join('');
+  }
+
+  $('list').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-id]');
+    if (btn) pay(btn.dataset.id, btn.dataset.type, btn);
+  });
+
+  async function pay(id, type, btn) {
+    if (btn) { btn.disabled = true; btn.textContent = 'Memproses...'; }
+    try {
+      const res = await api('pay', { method: 'POST', body: JSON.stringify({ id, type }) });
+      if (!res.ok) throw new Error('gagal');
+      if (btn) { btn.textContent = '✓ Berhasil dibayar'; btn.classList.add('done'); }
+      return true;
+    } catch {
+      if (btn) { btn.textContent = 'Gagal, coba lagi'; btn.disabled = false; }
+      return false;
+    }
+  }
+
+  // QR pada Test Mode berisi placeholder generik, sehingga deteksi QR apa pun sudah cukup sebagai trigger pembayaran.
+  $('scanBtn').addEventListener('click', startScan);
+  $('scanCancel').addEventListener('click', stopScan);
+
+  function startScan() {
+    $('scanOverlay').classList.add('active');
+    $('scanStatus').textContent = 'Arahin kamera ke QR pembayaran';
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      .then((stream) => {
+        scanStream = stream;
+        const video = $('scanVideo');
+        video.srcObject = stream;
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const tick = () => {
+          if (!scanStream) return;
+          if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            if (jsQR(imageData.data, imageData.width, imageData.height)) {
+              onScanSuccess();
+              return;
+            }
+          }
+          scanRAF = requestAnimationFrame(tick);
+        };
+        scanRAF = requestAnimationFrame(tick);
+      })
+      .catch(() => {
+        $('scanStatus').textContent = 'Nggak bisa akses kamera -- izinkan akses kamera di browser.';
+      });
+  }
+
+  function stopScan() {
+    if (scanRAF) cancelAnimationFrame(scanRAF);
+    if (scanStream) scanStream.getTracks().forEach((t) => t.stop());
+    scanStream = null;
+    $('scanOverlay').classList.remove('active');
+  }
+
+  async function onScanSuccess() {
+    $('scanStatus').textContent = 'QR terdeteksi, memproses pembayaran...';
+    if (currentRows.length === 0) {
+      $('scanStatus').textContent = 'Nggak ada booking yang perlu dibayar.';
+      setTimeout(stopScan, 1500);
+      return;
+    }
+    const ok = await pay(currentRows[0].id, currentRows[0].type, null);
+    stopScan();
+    if (ok) {
+      tryLoad(false);
+    } else {
+      alert('Gagal memproses pembayaran, coba lagi.');
+    }
+  }
+
+  if (kode) tryLoad(false);
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+# Override untuk VM WAHA (barberflow-backend, 172.16.0.4) ketika n8n dan WAHA
+# dipisah ke dua VM di VNet yang sama. Di server, salin sebagai
+# docker-compose.override.yml, lalu jalankan `docker compose up -d waha` saja.
+services:
+  waha:
+    ports:
+      # IP privat VNet: dipanggil n8n dari VM lain. Tetap dilindungi WAHA_API_KEY.
+      - "172.16.0.4:3000:3000"
+    extra_hosts:
+      # Webhook sesi WAHA mengarah ke http://n8n:5678; arahkan ke VM n8n.
+      - "n8n:172.16.0.5"

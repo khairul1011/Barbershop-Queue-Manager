@@ -1,0 +1,396 @@
+[
+  {
+    "id": "DmBayarDemo00001",
+    "name": "Demo Bayar",
+    "description": "Pengganti /demo bot lama untuk halaman bayar.takhtabarber.shop: daftar tagihan yang menunggu dibayar dan simulasi QRIS lunas (Xendit Test Mode). Dilindungi header X-Demo-Kode (credential \"Demo Kode\" = DEMO_SECRET bot lama).",
+    "active": false,
+    "isArchived": false,
+    "nodes": [
+      {
+        "id": "ebcae635-7611-4179-a745-397df0897402",
+        "name": "Daftar Diminta",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          0,
+          0
+        ],
+        "parameters": {
+          "httpMethod": "GET",
+          "path": "demo/list",
+          "authentication": "headerAuth",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "webhookId": "5269000f-d1f4-42d0-8ff1-acfc2b9608a0",
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "DmK0deBayarDemo1",
+            "name": "Demo Kode"
+          }
+        }
+      },
+      {
+        "id": "e3e6c507-b2bf-4b81-8c5f-0f7e2eb5f674",
+        "name": "Ambil Daftar Tagihan",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.7,
+        "position": [
+          224,
+          0
+        ],
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "-- Tagihan yang bisa disimulasikan: DP WhatsApp yang belum dibayar (terbaru dulu),\n-- lalu sisa pembayaran QRIS dari dashboard. Selalu mengembalikan satu baris.\nselect coalesce(json_agg(t), '[]'::json) as rows from (\n  (select id::text as id, 'wa' as type, sender_name as name, dp_amount as amount,\n          concat_ws(', ', extracted_day, extracted_time)\n            || coalesce(' -- ' || nullif(split_part(extracted_service, '|', 1), ''), '') as detail\n     from public.whatsapp_requests\n    where payment_status = 'unpaid' and xendit_qr_id is not null\n    order by received_at desc limit 10)\n  union all\n  (select id::text, 'queue', customer_name, payment_qr_amount, 'Sisa pembayaran sesi (dashboard)'\n     from public.queue_entries\n    where payment_method is null and payment_xendit_qr_id is not null\n    order by created_at desc limit 10)\n) t",
+          "options": {}
+        },
+        "credentials": {
+          "postgres": {
+            "id": "bzISw2QfqVYUFsSu",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "id": "f0a5628a-7cfa-4f4c-a61c-70ec7bcb623e",
+        "name": "Balas Daftar",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          448,
+          0
+        ],
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ JSON.stringify($json.rows) }}",
+          "options": {
+            "responseCode": 200
+          }
+        }
+      },
+      {
+        "id": "7ab5b190-bc63-4dd2-9db5-1c1dac19da49",
+        "name": "Bayar Diminta",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [
+          0,
+          320
+        ],
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "demo/pay",
+          "authentication": "headerAuth",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "webhookId": "97cf40c9-1c0d-4c9a-b0c6-6a0398f4eb4c",
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "DmK0deBayarDemo1",
+            "name": "Demo Kode"
+          }
+        }
+      },
+      {
+        "id": "74aa0449-2a48-42da-93d9-adbc797481e6",
+        "name": "Ambil Tagihan",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.7,
+        "position": [
+          224,
+          320
+        ],
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "-- Selalu satu baris. pr null = tagihan tidak ditemukan atau belum punya QR.\nselect coalesce(wa.xendit_qr_id, qe.payment_xendit_qr_id) as pr,\n       coalesce(wa.dp_amount, qe.payment_qr_amount) as amount,\n       coalesce(wa.payment_status::text <> 'unpaid', qe.payment_method = 'qris', false) as lunas\n  from (select 1) satu\n  left join public.whatsapp_requests wa on $2 <> 'queue' and wa.id::text = $1\n  left join public.queue_entries qe on $2 = 'queue' and qe.id::text = $1",
+          "options": {
+            "queryReplacement": "={{ [String($json.body.id ?? ''), String($json.body.type ?? 'wa')] }}"
+          }
+        },
+        "credentials": {
+          "postgres": {
+            "id": "bzISw2QfqVYUFsSu",
+            "name": "Postgres account"
+          }
+        }
+      },
+      {
+        "id": "d981fb95-dd29-4309-8be7-8b32b96481aa",
+        "name": "Tagihan Ada?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          448,
+          320
+        ],
+        "parameters": {
+          "conditions": {
+            "combinator": "and",
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "leftValue": "={{ !!$json.pr }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "77c5d1c5-1d44-48f8-ae1d-eface99918f6",
+        "name": "Belum Lunas?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          672,
+          224
+        ],
+        "parameters": {
+          "conditions": {
+            "combinator": "and",
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "leftValue": "={{ !$json.lunas }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "5f8646ea-7e6c-4ecf-8b7f-5826ca53f7dd",
+        "name": "Simulasi Bayar Xendit",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          896,
+          128
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "=https://api.xendit.co/v3/payment_requests/{{ $json.pr }}/simulate",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpBasicAuth",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "api-version",
+                "value": "2024-11-11"
+              }
+            ]
+          },
+          "sendBody": true,
+          "contentType": "json",
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify({ amount: Number($json.amount) }) }}",
+          "options": {}
+        },
+        "credentials": {
+          "httpBasicAuth": {
+            "id": "FuzyjwPbX9K51WqK",
+            "name": "Xendit API"
+          }
+        },
+        "onError": "continueErrorOutput"
+      },
+      {
+        "id": "c87d0ee4-7ec2-4c25-bc96-abaf5ed84191",
+        "name": "Balas Berhasil",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          1120,
+          32
+        ],
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "{\"ok\":true}",
+          "options": {
+            "responseCode": 200
+          }
+        }
+      },
+      {
+        "id": "67a4399d-4ae0-4de8-b038-fffd8a05d0a5",
+        "name": "Balas Gagal Xendit",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          1120,
+          224
+        ],
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "{\"error\":\"gagal memanggil Xendit\"}",
+          "options": {
+            "responseCode": 502
+          }
+        }
+      },
+      {
+        "id": "00e76462-2fd4-44c0-bfb4-188df7cd58da",
+        "name": "Balas Sudah Lunas",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          896,
+          320
+        ],
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "{\"error\":\"tagihan ini sudah lunas\"}",
+          "options": {
+            "responseCode": 409
+          }
+        }
+      },
+      {
+        "id": "10d64546-2438-4e2f-a53a-333e4e3a8a7f",
+        "name": "Balas Tidak Ditemukan",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.5,
+        "position": [
+          672,
+          416
+        ],
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "{\"error\":\"tagihan tidak ditemukan atau belum ada QR\"}",
+          "options": {
+            "responseCode": 404
+          }
+        }
+      }
+    ],
+    "connections": {
+      "Daftar Diminta": {
+        "main": [
+          [
+            {
+              "node": "Ambil Daftar Tagihan",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Ambil Daftar Tagihan": {
+        "main": [
+          [
+            {
+              "node": "Balas Daftar",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Bayar Diminta": {
+        "main": [
+          [
+            {
+              "node": "Ambil Tagihan",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Ambil Tagihan": {
+        "main": [
+          [
+            {
+              "node": "Tagihan Ada?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Tagihan Ada?": {
+        "main": [
+          [
+            {
+              "node": "Belum Lunas?",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Balas Tidak Ditemukan",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Belum Lunas?": {
+        "main": [
+          [
+            {
+              "node": "Simulasi Bayar Xendit",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Balas Sudah Lunas",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Simulasi Bayar Xendit": {
+        "main": [
+          [
+            {
+              "node": "Balas Berhasil",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Balas Gagal Xendit",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1"
+    },
+    "staticData": null,
+    "pinData": null,
+    "tags": [],
+    "versionId": "a59c7777-8063-47b3-b0dc-ed8d2263b0e8"
+  }
+]
