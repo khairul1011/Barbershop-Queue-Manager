@@ -7,7 +7,7 @@ const { parseBookingMessage } = require('./services/gemini');
 const supabase = require('./supabaseClient');
 const { getServicePrice, calculateDp } = require('./services/priceLookup');
 const { createQrisPaymentRequest } = require('./services/xenditClient');
-const { getTargetDateStr, mentionsDay, indicatesNewBooking, checkAvailability, checkExistingBookingSameDay, getShopName, getBusinessContext } = require('./services/bookingDomain');
+const { getTargetDateStr, mentionsDay, indicatesNewBooking, checkAvailability, isConfirmationReply, checkExistingBookingSameDay, getShopName, getBusinessContext } = require('./services/bookingDomain');
 const { startWebhookServer } = require('./webhookServer');
 
 const conversationState = new Map();
@@ -360,9 +360,7 @@ client.on('message', async msg => {
       // sedang menunggu konfirmasi -> periksa jawaban "ya"/"tidak". (c) Semua field lengkap namun
       // belum meminta konfirmasi -> kirim ringkasan.
 
-      const KONFIRMASI_WORDS = ['ya', 'iya', 'benar', 'yes', 'oke', 'ok', 'betul', 'sip', 'siap'];
-      const textNormalized = (msg.body || '').trim().toLowerCase();
-      const isKonfirmasi = KONFIRMASI_WORDS.some(w => textNormalized === w || textNormalized.startsWith(w + ' ') || textNormalized.endsWith(' ' + w) || textNormalized.includes(' ' + w + ' '));
+      const isKonfirmasi = isConfirmationReply(msg.body);
 
       if (missing.length > 0) {
         // (a) Terdapat field yang kosong — menanyakan field tersebut, dan mereset awaitingConfirmation.
@@ -392,38 +390,41 @@ client.on('message', async msg => {
       } else if (oldState.awaitingConfirmation === true) {
         // (b) Semua field terisi dan sedang menunggu konfirmasi
         if (isKonfirmasi) {
+          // Booking disimpan persis sesuai ringkasan terakhir yang dilihat dan disetujui
+          // customer (oldState), bukan hasil parsing ulang pesan konfirmasi ini. Gemini
+          // kadang menghasilkan nilai yang tidak sesuai pada follow-up berupa "ya" saja
+          // (insiden nyata: nama kapster berubah), sementara pesan konfirmasi memang
+          // tidak membawa data baru (lihat isConfirmationReply).
+          const confirmed = { nama: oldState.nama, hari: oldState.hari, jam: oldState.jam, servis: oldState.servis, kapster: oldState.kapster };
           try {
             // Pemeriksaan ketersediaan dan proses insert dibungkus dalam lock agar bersifat
-            // atomik; pengiriman balasan/QR dilakukan DI LUAR lock. oldState.kapster (bukan
-            // merged.kapster) digunakan karena Gemini kadang menghasilkan nama kapster yang
-            // tidak sesuai pada follow-up berupa "ya" saja — oldState adalah nilai yang
-            // sudah disetujui oleh customer.
+            // atomik; pengiriman balasan/QR dilakukan DI LUAR lock.
             const lockResult = await withBookingLock(async () => {
-              const { conflict, msg: conflictMsg, assignedBarber } = await checkAvailability(merged.hari, merged.jam, oldState.kapster);
+              const { conflict, msg: conflictMsg, assignedBarber } = await checkAvailability(confirmed.hari, confirmed.jam, confirmed.kapster);
               if (conflict) {
                 return { outcome: 'conflict', conflictMsg };
               }
 
-              const finalKapster = assignedBarber || oldState.kapster;
+              const finalKapster = assignedBarber || confirmed.kapster;
               const realPhone = await resolveRealPhone(msg.from);
-              const finalService = `${merged.servis}|BARBER:${finalKapster}`;
-              const price = await getServicePrice(merged.servis);
+              const finalService = `${confirmed.servis}|BARBER:${finalKapster}`;
+              const price = await getServicePrice(confirmed.servis);
 
               if (price == null) {
                 // Harga tidak ditemukan — fail open dengan melakukan insert tanpa DP, alih-alih memblokir booking.
-                console.error('[DP SKIP] harga servis tidak ditemukan untuk', merged.servis, '— booking diproses tanpa DP.');
+                console.error('[DP SKIP] harga servis tidak ditemukan untuk', confirmed.servis, '— booking diproses tanpa DP.');
                 const { error } = await supabase.from('whatsapp_requests').insert({
-                  sender_name: merged.nama,
+                  sender_name: confirmed.nama,
                   sender_phone: realPhone,
                   sender_wa_id: msg.from,
                   raw_message: msg.body,
-                  extracted_day: merged.hari,
-                  extracted_time: merged.jam,
+                  extracted_day: confirmed.hari,
+                  extracted_time: confirmed.jam,
                   extracted_service: finalService,
                   // Tanggal absolut hasil resolusi disimpan di sini supaya
                   // pemeriksaan booking ganda tidak perlu menerjemahkan ulang
                   // string relatif extracted_day (lihat checkExistingBookingSameDay).
-                  scheduled_date: getTargetDateStr(merged.hari),
+                  scheduled_date: getTargetDateStr(confirmed.hari),
                   is_booking_intent: true
                 });
                 if (error) console.error('[DB SAVE ERROR]', error.message);
@@ -439,14 +440,14 @@ client.on('message', async msg => {
               const { data: insertedRow, error: insertError } = await supabase
                 .from('whatsapp_requests')
                 .insert({
-                  sender_name: merged.nama,
+                  sender_name: confirmed.nama,
                   sender_phone: realPhone,
                   sender_wa_id: msg.from,
                   raw_message: msg.body,
-                  extracted_day: merged.hari,
-                  extracted_time: merged.jam,
+                  extracted_day: confirmed.hari,
+                  extracted_time: confirmed.jam,
                   extracted_service: finalService,
-                  scheduled_date: getTargetDateStr(merged.hari),
+                  scheduled_date: getTargetDateStr(confirmed.hari),
                   is_booking_intent: true,
                   payment_status: 'unpaid',
                   dp_amount: dpAmount,
@@ -465,7 +466,7 @@ client.on('message', async msg => {
             });
 
             if (lockResult.outcome === 'conflict') {
-              conversationState.set(msg.from, { ...merged, jam: null, kapster: null, awaitingConfirmation: false, lastUpdated: Date.now() });
+              conversationState.set(msg.from, { ...confirmed, jam: null, kapster: null, awaitingConfirmation: false, lastUpdated: Date.now() });
               console.log('[REPLY ATTEMPT] mencoba membalas ke', msg.from);
               await replyAndSaveHistory(msg, `Mohon maaf, Kak, jadwal tersebut baru saja diambil oleh pelanggan lain. ${lockResult.conflictMsg}`);
               return;
@@ -478,7 +479,7 @@ client.on('message', async msg => {
             }
 
             if (lockResult.outcome === 'noDp') {
-              await replyAndSaveHistory(msg, `Baik, Kak. Booking sudah lengkap:\n\nHari: ${merged.hari}\nJam: ${merged.jam}\nServis: ${merged.servis}\nKapster: ${lockResult.finalKapster}\nNama: ${merged.nama}\n\nTerima kasih, kami tunggu kedatangannya.`);
+              await replyAndSaveHistory(msg, `Baik, Kak. Booking sudah lengkap:\n\nHari: ${confirmed.hari}\nJam: ${confirmed.jam}\nServis: ${confirmed.servis}\nKapster: ${lockResult.finalKapster}\nNama: ${confirmed.nama}\n\nTerima kasih, kami tunggu kedatangannya.`);
               conversationState.delete(msg.from);
               return;
             }

@@ -65,28 +65,53 @@ async function checkAvailability(hariStr, jamStr, kapsterStr) {
     .eq('scheduled_date', dateStr);
 
   // Filter menggunakan archived=false, bukan status — kapster yang telah "dihapus" harus tetap dikecualikan.
-  const { data: barbers } = await supabase.from('barbers').select('id, name').eq('archived', false);
+  const { data: barberRows } = await supabase.from('barbers').select('id, name, status').eq('archived', false);
+  const barbers = barberRows || [];
 
+  // Request WA yang masih menahan slot pada tanggal ini. Dua syarat yang wajib:
+  // - Dicocokkan melalui scheduled_date (tanggal absolut), BUKAN dengan menerjemahkan
+  //   ulang extracted_day yang relatif ("besok") — alasannya sama dengan catatan pada
+  //   checkExistingBookingSameDay di bawah.
+  // - Booking yang DP-nya expired/failed dikecualikan. Baris tersebut tetap berstatus
+  //   'pending' namun disembunyikan dari dashboard sehingga barber tidak dapat
+  //   menolaknya; tanpa filter ini slot kapster tersebut terkunci permanen.
   const { data: waReqs } = await supabase.from('whatsapp_requests')
-    .select('extracted_day, extracted_time, extracted_service')
-    .in('status', ['pending']);
+    .select('extracted_time, extracted_service')
+    .eq('status', 'pending')
+    .eq('scheduled_date', dateStr)
+    .not('payment_status', 'in', '("expired","failed")');
 
-  let requestedBarberId = null;
+  // Kapster yang tidak bertugas pada tanggal ini: tercatat cuti di barber_time_off,
+  // atau berstatus 'off' apabila tanggalnya hari ini. Kolom status merupakan toggle
+  // harian (lihat PROJECT.md), sehingga tidak berlaku untuk tanggal lain.
+  const { data: timeOffs, error: timeOffError } = await supabase.from('barber_time_off')
+    .select('barbers(id)')
+    .eq('off_date', dateStr);
+  if (timeOffError) console.error('[TIME OFF FETCH ERROR]', timeOffError.message);
+  const isToday = dateStr === getTargetDateStr('hari ini');
+  const offDutyIds = new Set([
+    ...(timeOffs || []).map(t => t.barbers && t.barbers.id).filter(Boolean),
+    ...(isToday ? barbers.filter(b => b.status === 'off').map(b => b.id) : [])
+  ]);
+  const onDutyBarbers = barbers.filter(b => !offDutyIds.has(b.id));
+
+  let requestedBarber = null;
   if (kapsterStr) {
     const k = kapsterStr.toLowerCase();
-    const match = barbers.find(b => b.name.toLowerCase().includes(k) || k.includes(b.name.toLowerCase()));
-    if (match) requestedBarberId = match.id;
+    requestedBarber = barbers.find(b => b.name.toLowerCase().includes(k) || k.includes(b.name.toLowerCase())) || null;
   }
 
+  // Nilai status di database menggunakan huruf kecil ('completed'), berbeda dengan
+  // QueueStatus di frontend ('Completed') — lihat mapStatusToSupabase di useSupabaseQueue.ts.
   const busyBarberIds = new Set(
     (queue || [])
-      .filter(q => (q.scheduled_time || '').startsWith(jamStr) && q.status !== 'Completed' && q.status !== 'cancelled')
+      .filter(q => (q.scheduled_time || '').startsWith(jamStr) && q.status !== 'completed')
       .map(q => q.barber_id)
   );
 
   let anyCount = 0;
   (waReqs || []).forEach(r => {
-    if (getTargetDateStr(r.extracted_day) === dateStr && r.extracted_time === jamStr) {
+    if (r.extracted_time === jamStr) {
       const parts = (r.extracted_service || '').split('|BARBER:');
       const bName = parts[1];
       if (bName) {
@@ -98,29 +123,65 @@ async function checkAvailability(hariStr, jamStr, kapsterStr) {
     }
   });
 
-  if (requestedBarberId) {
-     if (busyBarberIds.has(requestedBarberId)) {
-        const availableBarbers = barbers.filter(b => !busyBarberIds.has(b.id));
+  const availableBarbers = onDutyBarbers.filter(b => !busyBarberIds.has(b.id));
+  const availableText = availableBarbers.map(b => b.name).join(', ');
+
+  if (requestedBarber) {
+     if (offDutyIds.has(requestedBarber.id)) {
+        return {
+           conflict: true,
+           msg: `Mohon maaf, Kak, kapster ${kapsterStr} tidak bertugas pada hari tersebut. ` +
+                (availableBarbers.length > 0
+                  ? `Kapster yang tersedia pada jam tersebut: ${availableText}. Apakah Kak ingin mengganti kapster atau memilih hari lain?`
+                  : `Kapster lain juga sudah penuh pada jam tersebut. Silakan pilih hari atau jam lain.`)
+        };
+     }
+     if (busyBarberIds.has(requestedBarber.id)) {
         return {
            conflict: true,
            msg: `Mohon maaf, Kak, kapster ${kapsterStr} sudah memiliki jadwal pada jam ${jamStr}. ` +
                 (availableBarbers.length > 0
-                  ? `Kapster yang tersedia pada jam tersebut: ${availableBarbers.map(b=>b.name).join(', ')}. Apakah Kak ingin mengganti kapster atau memilih jam lain?`
+                  ? `Kapster yang tersedia pada jam tersebut: ${availableText}. Apakah Kak ingin mengganti kapster atau memilih jam lain?`
                   : `Seluruh kapster juga penuh pada jam tersebut. Silakan pilih jam lain.`)
         };
      }
-     const match = barbers.find(b => b.id === requestedBarberId);
-     return { conflict: false, assignedBarber: match.name };
+     return { conflict: false, assignedBarber: requestedBarber.name };
   } else {
-     if (busyBarberIds.size + anyCount >= barbers.length) {
+     // Hanya jadwal milik kapster yang bertugas yang mengurangi kapasitas slot ini.
+     const busyOnDutyCount = onDutyBarbers.filter(b => busyBarberIds.has(b.id)).length;
+     if (busyOnDutyCount + anyCount >= onDutyBarbers.length) {
         return {
            conflict: true,
            msg: `Mohon maaf, Kak, seluruh kapster sudah penuh untuk jam ${jamStr}. Silakan pilih jam lain.`
         };
      }
-     const availableBarbers = barbers.filter(b => !busyBarberIds.has(b.id));
      return { conflict: false, assignedBarber: availableBarbers[0].name };
   }
+}
+
+// Kata yang menandakan persetujuan atas ringkasan booking.
+const CONFIRMATION_WORDS = ['ya', 'iya', 'benar', 'yes', 'oke', 'ok', 'betul', 'sip', 'siap'];
+
+// Penanda bahwa pesan berisi koreksi atau penolakan, bukan persetujuan murni.
+// Insiden yang dicegah: "ganti jam 4 ya" atau "bukan, hari rabu aja ya" sebelumnya
+// terbaca sebagai konfirmasi karena diakhiri "ya", sehingga booking langsung
+// tersimpan tanpa ringkasan baru ke pelanggan. Daftar ini sengaja longgar: salah
+// menganggap konfirmasi sebagai koreksi hanya berakibat ringkasan dikirim ulang,
+// sedangkan kebalikannya menyimpan booking (dan menagih DP) untuk jadwal yang salah.
+const CORRECTION_WORDS = [
+  'bukan', 'tidak', 'tdk', 'gak', 'ga', 'gk', 'nggak', 'ngga', 'enggak', 'engga', 'belum', 'blm',
+  'jangan', 'batal', 'salah', 'ganti', 'diganti', 'ubah', 'diubah', 'pindah', 'tapi', 'tp', 'tpi',
+  'aja', 'saja', 'jam', 'nama', 'kapster', 'servis', 'layanan'
+];
+
+function isConfirmationReply(text) {
+  const t = (text || '').toLowerCase();
+  // Angka (jam/tanggal) atau penyebutan hari berarti pelanggan menyampaikan data baru.
+  if (/\d/.test(t) || mentionsDay(t)) return false;
+  const words = t.match(/[a-z]+/g) || [];
+  // Akhiran "-nya" dilepas agar "bukannya", "kapsternya", dst. tetap dikenali.
+  if (words.some(w => CORRECTION_WORDS.includes(w.replace(/nya$/, '')))) return false;
+  return words.some(w => CONFIRMATION_WORDS.includes(w));
 }
 
 // Memeriksa apakah nomor ini sudah memiliki booking aktif pada hari yang sama.
@@ -239,6 +300,7 @@ module.exports = {
   mentionsDay,
   indicatesNewBooking,
   checkAvailability,
+  isConfirmationReply,
   checkExistingBookingSameDay,
   getShopName,
   getBusinessContext

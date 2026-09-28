@@ -382,6 +382,21 @@ Grid pada **Schedule → Daily View** sebelumnya mengalami mis-alignment antara 
 - Setelah cutover ke n8n + WAHA, bot `server/` dimatikan, tapi workflow deploy-nya masih terpicu tiap push ke `main` yang nyentuh `server/**`. Langkah terakhirnya `pm2 restart barberflow-wa` — kalau proses PM2-nya cuma di-*stop*, perintah itu **menyalakannya lagi**, jadi bot lama bisa ikut membalas pelanggan barengan bot produksi.
 - Trigger `push` dicabut. Workflow sekarang cuma bisa dijalankan manual (`workflow_dispatch`) dan wajib mengetik `HIDUPKAN-BOT-LAMA`, biar nggak kepicu karena salah klik.
 
+### Slot kapster terkunci permanen oleh booking yang DP-nya nggak pernah dibayar
+**File:** `server/services/bookingDomain.js` (`checkAvailability`), `server/services/bookingDomain.test.js`
+**Status:** FIXED di bot lama `server/` — cek juga workflow n8n, lihat [§🟡 Perlu Dicek](#-perlu-dicek-bot-produksi-n8n).
+- `checkAvailability()` ngitung semua request `pending` tanpa buang yang `payment_status`-nya `expired`/`failed`. Baris itu tetap `pending` tapi disembunyikan dari dashboard, jadi barber nggak bisa nolak — slot kapster itu kebaca penuh selamanya.
+- Hari request juga masih diterjemahkan ulang dari `extracted_day` yang relatif ("besok"), padahal kolom `scheduled_date` udah ada sejak fix peringatan booking ganda. Akibatnya request lama ikut ngunci slot di tanggal yang salah. Sekarang dicocokkan lewat `scheduled_date`.
+- Tiga bug kecil di fungsi yang sama ikut dibetulin: (1) entri kalender yang udah selesai tetap dihitung sibuk karena dibandingin ke `'Completed'`, padahal nilai di database `'completed'`; (2) kapster yang cuti di `barber_time_off` tetap bisa ditugasin — sekarang ditolak dengan pesan "tidak bertugas", dan jadwalnya nggak ikut ngurangin kapasitas slot; (3) kapster berstatus `off` sekarang juga dikecualikan, tapi cuma untuk booking hari ini karena `status` itu toggle harian.
+- Dites pakai Supabase palsu yang beneran nerapin filter query; kelima test gagal di kode lama dan lolos di kode baru.
+
+### Koreksi dari customer yang diakhiri "ya" dianggap konfirmasi booking
+**File:** `server/index.js`, `server/services/bookingDomain.js` (`isConfirmationReply`)
+**Status:** FIXED di bot lama `server/` — cek juga workflow n8n.
+- Deteksi konfirmasi lama cuma nyari kata "ya"/"ok"/dst di awal, tengah, atau akhir pesan. Pesan kayak "ganti jam 4 ya", "bukan, hari rabu aja ya", atau "belum ok" kebaca sebagai konfirmasi, dan booking langsung kesimpan (plus QR DP dikirim) tanpa ringkasan baru ke customer.
+- `isConfirmationReply()` sekarang nolak pesan yang berisi angka, nama hari, atau kata koreksi (bukan/ganti/tapi/aja/jam/nama/kapster/dst, termasuk bentuk "-nya"). Daftarnya sengaja longgar: salah nganggap konfirmasi sebagai koreksi cuma bikin ringkasan dikirim ulang, sedangkan kebalikannya nyimpen booking dan nagih DP untuk jadwal yang salah.
+- Booking yang dikonfirmasi sekarang disimpan persis sesuai ringkasan terakhir yang dilihat customer (`oldState`), bukan hasil parsing ulang pesan "ya" — ngelanjutin guard halusinasi kapster yang udah ada ke semua field.
+
 ---
 
 ## 🔴 Kritis (blocker fungsional)
@@ -399,6 +414,9 @@ Logika bot yang melayani pelanggan sekarang cuma ada di database n8n: nggak ada 
 
 ### Webhook `session-payment` belum terverifikasi punya autentikasi
 Dashboard memanggil `https://n8n.takhtabarber.shop/webhook/session-payment` tanpa header rahasia atau token apa pun (`src/components/Overview.tsx`), dan URL-nya kelihatan di bundle JavaScript. Kalau workflow `QR Sisa Bayar Dashboard` juga nggak memverifikasi pemanggil, siapa pun bisa bikin QR Xendit dengan nominal bebas. Perlu dicek di n8n; kalau memang terbuka, tambahkan verifikasi JWT Supabase milik staff yang login (frontend kirim `Authorization: Bearer <access_token>`).
+
+### Apakah workflow n8n mewarisi bug yang baru dibetulin di `server/`?
+Kalau logika booking di n8n dulu disalin dari `server/`, kemungkinan besar dia juga punya bug yang baru dibetulin di bot lama (lihat dua entri terakhir di §✅): slot terkunci oleh booking yang DP-nya expired/basi, kapster cuti tetap ditugasin, dan koreksi "…ya" dianggap konfirmasi. Daftar penjagaan yang perlu dicek ada di [n8n-stack/README.md](n8n-stack/README.md#penjagaan-yang-wajib-ada-di-workflow-n8n) poin 8–10.
 
 ### Proses PM2 bot lama di VPS Azure
 Auto-deploy sudah dicabut, tapi proses `barberflow-wa` masih terdaftar di PM2 kalau dulu cuma di-*stop*. Kalau bot lama memang nggak dipakai lagi, hapus total dengan `pm2 delete barberflow-wa && pm2 save` (atau matikan VPS-nya) biar nggak bisa hidup lagi karena salah perintah.

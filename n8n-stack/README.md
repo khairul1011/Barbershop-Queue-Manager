@@ -135,3 +135,17 @@ n8n perlu punya penjagaan yang setara — seluruhnya terdokumentasi di
 7. **Tanggal absolut, bukan relatif** — simpan tanggal hasil resolusi di
    database. Menyimpan string relatif ("besok") lalu menerjemahkannya ulang saat
    query membuat baris lama ikut cocok selamanya.
+8. **Cek ketersediaan slot mengabaikan booking yang DP-nya gagal** — request
+   `pending` dengan `payment_status` `expired`/`failed` tidak boleh menahan
+   slot, dan pencocokan tanggalnya lewat `scheduled_date`. Baris seperti itu
+   disembunyikan dari dashboard, jadi barber tidak bisa menolaknya; tanpa
+   filter ini slot kapster terkunci permanen.
+9. **Kapster yang tidak bertugas tidak ditugaskan** — kapster yang cuti di
+   `barber_time_off` pada tanggal tersebut, atau berstatus `off` untuk booking
+   hari ini (kolom `status` adalah toggle harian). Jadwal mereka juga tidak
+   boleh mengurangi kapasitas slot.
+10. **Konfirmasi harus persetujuan murni** — balasan yang berisi angka, nama
+    hari, atau kata koreksi ("ganti jam 4 ya", "bukan, rabu aja ya") bukan
+    konfirmasi, dan harus dijawab dengan ringkasan baru. Yang disimpan adalah
+    isi ringkasan terakhir yang dilihat pelanggan, bukan hasil parsing ulang
+    pesan "ya".
