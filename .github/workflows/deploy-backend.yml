@@ -1,15 +1,23 @@
 name: Deploy Backend to VPS
 
+# Bot lama di server/ sudah dimatikan sejak cutover ke n8n + WAHA (lihat
+# CLAUDE.md). Trigger `push` dicabut karena setiap push ke main yang menyentuh
+# server/** akan menjalankan `pm2 restart barberflow-wa` di bawah -- perintah
+# itu MENYALAKAN KEMBALI proses yang sedang di-stop, sehingga bot lama bisa
+# hidup lagi diam-diam dan ikut membalas pelanggan bersama bot produksi.
+#
+# Workflow ini hanya bisa dijalankan manual, dan wajib mengetik kata konfirmasi
+# agar tidak terpicu karena salah klik.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'server/**'
-      - '.github/workflows/deploy-backend.yml'
   workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Ketik HIDUPKAN-BOT-LAMA untuk deploy & menyalakan kembali bot server/ di VPS'
+        required: true
 
 jobs:
   deploy:
+    if: ${{ inputs.confirm == 'HIDUPKAN-BOT-LAMA' }}
     runs-on: ubuntu-latest
     steps:
       - name: SSH and deploy
