@@ -1,20 +1,29 @@
-# Stack Eksperimen n8n + Evolution API
+# Stack n8n (bot WhatsApp produksi)
 
-Versi eksperimen dari bot booking WhatsApp, dibangun dengan n8n (orkestrasi
-alur + AI) dan Evolution API (jembatan WhatsApp non-resmi berbasis Baileys).
+Awalnya dibangun sebagai eksperimen pengganti bot `server/`. Sejak cutover
+(lihat commit `4172a0d`), **bot WhatsApp produksi berjalan di n8n** dan bot
+lama `server/` sudah dimatikan.
 
-Stack ini **terpisah penuh** dari bot produksi di `server/`. Bot produksi tetap
-berjalan di VPS Azure dan terus melayani booking pelanggan; stack ini berjalan
-di server lain sehingga eksperimen tidak dapat mengganggu operasional.
+> **Isi folder ini belum sama dengan produksi.** `docker-compose.yml` di sini
+> masih versi eksperimen awal yang memakai **Evolution API**, sedangkan
+> produksi memakai **WAHA**. Workflow n8n-nya juga belum tersimpan di repo.
+> Lihat [Menyimpan workflow ke repo](#menyimpan-workflow-ke-repo).
 
-## Perbandingan dengan bot produksi
+## Perbandingan dengan bot lama
 
-| | `server/` (produksi) | Stack ini (eksperimen) |
+| | `server/` (lama, sudah dimatikan) | n8n (produksi) |
 |---|---|---|
-| Jembatan WhatsApp | `whatsapp-web.js` + Puppeteer (Chromium) | Evolution API (Baileys, tanpa browser) |
-| Logika booking | Kode Node.js | Alur visual n8n |
+| Jembatan WhatsApp | `whatsapp-web.js` + Puppeteer (Chromium) | WAHA (compose di folder ini masih Evolution API) |
+| Logika booking | Kode Node.js | Workflow visual n8n |
 | Parsing pesan | Gemini via `services/gemini.js` | Node AI n8n |
 | Penyimpanan | Supabase | Supabase (sama) |
+
+Workflow yang dirujuk langsung oleh dashboard:
+
+| Workflow | Dipanggil dari | Fungsi |
+|---|---|---|
+| `QR Sisa Bayar Dashboard` | `src/components/Overview.tsx` (`POST /webhook/session-payment`) | Membuat QR QRIS Xendit untuk sisa pembayaran sesi |
+| `Webhook Xendit` | Xendit | Menandai `queue_entries.payment_method = 'qris'` setelah QR lunas |
 
 ## Prasyarat server
 
@@ -23,7 +32,7 @@ di server lain sehingga eksperimen tidak dapat mengganggu operasional.
 - Docker dan Docker Compose terpasang
 - Cloudflare Tunnel untuk akses publik (tidak ada port masuk yang dibuka)
 
-## Cara menjalankan
+## Cara menjalankan (versi eksperimen di folder ini)
 
 ```bash
 cp .env.example .env
@@ -56,7 +65,7 @@ dari internet. Akses publik lewat Cloudflare Tunnel dengan ingress:
 | Hostname | Service lokal |
 |---|---|
 | `n8n.takhtabarber.shop` | `http://localhost:5678` |
-| `evo.takhtabarber.shop` | `http://localhost:8080` |
+| `evo.takhtabarber.shop` | `http://localhost:8080` (Evolution API, versi eksperimen) |
 
 Manager Evolution API tersedia di `https://evo.takhtabarber.shop/manager`,
 dan login memakai `EVOLUTION_API_KEY`.
@@ -65,20 +74,49 @@ dan login memakai `EVOLUTION_API_KEY`.
 
 - **`N8N_ENCRYPTION_KEY` jangan diubah** setelah ada kredensial tersimpan di
   n8n. Mengubahnya membuat seluruh kredensial lama tidak dapat dibaca.
-- **`EVOLUTION_API_KEY` adalah satu-satunya pelindung Evolution API.** Siapa pun
-  yang memilikinya dapat mengirim pesan atas nama nomor WhatsApp yang
-  tersambung. Wajib acak dan panjang.
-- Gunakan **nomor WhatsApp berbeda** dari bot produksi selama masa eksperimen,
-  agar dua bot tidak saling berebut sesi pada nomor yang sama.
-- Pertimbangkan memakai project Supabase terpisah untuk eksperimen, supaya data
-  booking percobaan tidak bercampur dengan data pelanggan asli.
+- **API key jembatan WhatsApp (WAHA / Evolution API) adalah satu-satunya
+  pelindungnya.** Siapa pun yang memilikinya dapat mengirim pesan atas nama
+  nomor WhatsApp yang tersambung. Wajib acak dan panjang.
+- **Jangan menyalakan bot lama `server/`** dengan nomor WhatsApp yang sama
+  dengan bot produksi, karena dua bot akan saling berebut sesi dan membalas
+  pelanggan dobel. Workflow deploy-nya sudah tidak terpicu otomatis (lihat
+  `.github/workflows/deploy-backend.yml`).
+- **Webhook n8n yang dipanggil dari browser bersifat publik.** URL
+  `/webhook/session-payment` terlihat di bundle JavaScript dashboard, sehingga
+  siapa pun bisa memanggilnya. Pastikan workflow-nya memverifikasi pemanggil
+  (misalnya header rahasia atau JWT Supabase milik staff yang login), bukan
+  hanya mengandalkan CORS.
 
-## Logika yang perlu dipindahkan
+## Menyimpan workflow ke repo
 
-Bot produksi memuat sejumlah penjagaan yang lahir dari insiden nyata. Saat
-membangun ulang alurnya di n8n, penjagaan berikut sebaiknya ikut dipindahkan —
-seluruhnya terdokumentasi di `server/services/bookingDomain.js` dan
-`server/index.js`:
+Selama workflow hanya ada di database n8n, logika bot produksi tidak punya
+riwayat versi, tidak bisa di-review, dan hilang kalau volume Postgres rusak.
+Ekspor secara berkala dari server produksi:
+
+```bash
+docker compose exec n8n n8n export:workflow --all --separate --pretty --output=/home/node/.n8n/export/
+docker compose cp n8n:/home/node/.n8n/export/. ./workflows/
+```
+
+Sebelum commit folder `workflows/`, periksa isinya:
+
+- **Rahasia yang diketik langsung di node.** Ekspor tidak menyertakan isi
+  kredensial n8n (hanya ID dan namanya), tetapi nilai yang diketik langsung di
+  parameter node, misalnya API key di header node HTTP Request, ikut terekspor
+  apa adanya. Cari dengan
+  `grep -rniE 'key|token|secret|password|authorization' workflows/`, lalu
+  pindahkan nilai tersebut ke kredensial n8n.
+- **`pinData`.** Data eksekusi yang di-pin di editor ikut terekspor dan bisa
+  berisi nomor telepon serta pesan pelanggan asli. Hapus sebelum commit.
+
+Simpan juga `docker-compose.yml` produksi (versi WAHA) ke folder ini, tanpa
+file `.env`.
+
+## Penjagaan yang wajib ada di workflow n8n
+
+Bot lama memuat sejumlah penjagaan yang lahir dari insiden nyata. Workflow
+n8n perlu punya penjagaan yang setara — seluruhnya terdokumentasi di
+`server/services/bookingDomain.js` dan `server/index.js`:
 
 1. **Zona waktu WIB** — server berjalan pada UTC; perhitungan "hari ini"/"besok"
    harus digeser +7 jam, jika tidak tanggalnya mundur satu hari selama

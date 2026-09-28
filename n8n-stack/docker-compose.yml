@@ -1,7 +1,8 @@
 # Stack eksperimen n8n + Evolution API (WhatsApp non-resmi).
 #
-# Dijalankan di server terpisah dari bot produksi (server/), sehingga eksperimen
-# tidak dapat mengganggu booking pelanggan yang sedang berjalan.
+# Versi eksperimen awal, sebelum cutover. Produksi sekarang menjalankan n8n
+# dengan WAHA (bukan Evolution API), dan compose produksinya belum
+# disinkronkan ke file ini -- lihat README.md di folder ini.
 #
 # Seluruh port sengaja di-bind ke 127.0.0.1 saja. Akses publik disediakan lewat
 # Cloudflare Tunnel (koneksi keluar), sama seperti pola yang sudah dipakai bot

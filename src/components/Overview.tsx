@@ -23,7 +23,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { supabase } from '../lib/supabaseClient';
 
-// Webhook n8n (workflow `QR Sisa Bayar Dashboard`, lihat n8n-stack/RANCANGAN.md).
+// Webhook n8n (workflow `QR Sisa Bayar Dashboard`; workflow-nya belum tersimpan
+// di repo, lihat n8n-stack/README.md).
 // Nilainya tidak pernah berubah, sehingga di-hardcode di sini alih-alih
 // menambah env var untuk satu nilai statis.
 const SESSION_PAYMENT_URL = 'https://n8n.takhtabarber.shop/webhook/session-payment';

@@ -20,6 +20,7 @@
 **[Bagian 2 — Known Issues](#bagian-2--known-issues)**
 - [✅ Sudah Diselesaikan](#-sudah-diselesaikan)
 - [🔴 Kritis](#-kritis-blocker-fungsional)
+- [🟡 Perlu Dicek](#-perlu-dicek-bot-produksi-n8n)
 - [🟢 Rendah](#-rendah-nice-to-have-bukan-prioritas-sekarang)
 - [Checklist sebelum pemakaian harian](#checklist-sebelum-pemakaian-harian-oleh-kapster-asli-dimulai)
 - [🔵 Batasan Desain](#-batasan-desain-by-design)
@@ -91,12 +92,14 @@ Proyek ini adalah **experiment pribadi** (bukan produk komersial saat ini), diba
 
 ## 7. Kebutuhan Non-Fungsional
 
-- **Biaya**: $0 di tahap experiment. Gunakan Gemini API free tier + `whatsapp-web.js` (unofficial, gratis) — bukan WhatsApp Business API resmi (berbayar).
-- **Risiko yang diterima secara sadar**: nomor WA bisa logout/ke-ban sewaktu-waktu karena `whatsapp-web.js` tidak resmi didukung Meta/WhatsApp. Ini risiko yang secara eksplisit diterima untuk versi experiment, dan harus dikomunikasikan ke kapster sebelum dipakai serius.
+- **Biaya**: $0 di tahap experiment. Gunakan AI free tier (bot lama: Gemini API) + jembatan WhatsApp non-resmi yang gratis (dulu `whatsapp-web.js`, sekarang WAHA) — bukan WhatsApp Business API resmi (berbayar).
+- **Risiko yang diterima secara sadar**: nomor WA bisa logout/ke-ban sewaktu-waktu karena jembatan WhatsApp yang dipakai (dulu `whatsapp-web.js`, sekarang WAHA) tidak resmi didukung Meta/WhatsApp. Ini risiko yang secara eksplisit diterima untuk versi experiment, dan harus dikomunikasikan ke kapster sebelum dipakai serius.
 - **Device**: dioptimalkan untuk layar HP (mobile-first), diakses lewat browser, bukan aplikasi native. Telah divalidasi berfungsi di Safari iOS.
 - **Tanpa akun/login kompleks**: 1 device/browser session cukup untuk tahap ini (bukan multi-user dengan auth).
 
 ## 8. Status Implementasi Saat Ini (per review terakhir)
+
+> **Update — cutover ke n8n + WAHA:** bot WhatsApp produksi sekarang berjalan sebagai workflow n8n dengan WAHA, dan bot `server/` sudah dimatikan (commit `4172a0d`). Poin di bawah yang menyebut `server/`, `whatsapp-web.js`, Gemini, PM2, atau VPS Azure menjelaskan bot lama tersebut. Perilaku setara di workflow n8n belum bisa diverifikasi dari repo karena workflow-nya belum tersimpan di sini — lihat [Bagian 2 §🟡 Perlu Dicek](#-perlu-dicek-bot-produksi-n8n).
 
 ✅ Sudah ada:
 - UI dashboard lengkap (Overview, Queue, Requests, Schedule, Settings) — React + Tailwind, sudah interaktif dengan state management asli (bukan cuma statis).
@@ -108,7 +111,7 @@ Proyek ini adalah **experiment pribadi** (bukan produk komersial saat ini), diba
 - **Auto-reply WA menanyakan jam** ketika tidak disebutkan sudah berjalan — bot menjalankan state machine tanya-jawab per nomor pengirim (tanya hari/jam/servis/nama yang belum lengkap, cek ketersediaan jadwal, minta konfirmasi eksplisit "ya") sebelum menyimpan sebagai request.
 - **Persistensi data sudah migrasi ke Supabase (Postgres)** — seluruh data inti (queue, requests, barbers, services, business hours) tersimpan di Supabase dengan realtime subscription dari frontend (`useSupabase*` hooks), bukan localStorage lagi. `localStorage` sekarang hanya dipakai untuk preferensi bahasa UI (`useLocalStorageState` di `src/i18n`).
 - Review & approval request WhatsApp di dashboard sudah tersambung ke Supabase asli (`approveRequest`/`rejectRequest` di `useSupabaseRequests.ts`), bukan simulasi.
-- **Backend di-deploy otomatis ke VPS** lewat GitHub Actions (`.github/workflows/deploy-backend.yml`) — push ke `main` yang nyentuh `server/**` langsung SSH-deploy + restart bot, nggak perlu `git pull` manual.
+- ~~**Backend di-deploy otomatis ke VPS** lewat GitHub Actions (`.github/workflows/deploy-backend.yml`).~~ **Update:** trigger otomatisnya dicabut setelah cutover ke n8n, karena justru bisa menyalakan lagi bot lama — sekarang cuma bisa dijalankan manual dengan kata konfirmasi.
 - **Bot WhatsApp sudah kebal dari spam balasan dobel saat restart**, dan punya jeda balasan natural (bukan instan) — lihat [Bagian 2 §✅ Sudah Diselesaikan](#-sudah-diselesaikan).
 - **Customer otomatis dikasih tau via WhatsApp** saat kapster approve/reject booking-nya di dashboard — sebelumnya bot cuma bisa bales dalam percakapan aktif, sekarang bisa kirim pesan duluan lewat Supabase Realtime subscription.
 - Perbaikan bug hardcode `'Wed'` sudah selesai, sistem kini dinamis mengikuti `todayKey`.
@@ -116,6 +119,7 @@ Proyek ini adalah **experiment pribadi** (bukan produk komersial saat ini), diba
 - Komponen `DataPagination` reusable sudah dipasang di Riwayat, siap dipakai ulang di halaman lain tanpa nulis ulang logic nomor halaman.
 
 ❌ Belum ada / masih dummy:
+- Workflow n8n (bot produksi) belum tersimpan di repo — logika bot yang melayani pelanggan sekarang nggak punya riwayat versi dan nggak bisa di-review dari sini.
 - Integrasi Instagram DM (memang sengaja belum dikerjakan — lihat §3 Non-Goals & Fase 5 di roadmap).
 - Belum ada validasi lapangan nyata dari kapster (lihat §10 Metrik Keberhasilan) — implementasi teknis backend sudah jalan, tapi belum terbukti dipakai harian oleh kapster sungguhan.
 
@@ -129,6 +133,7 @@ Lihat [Bagian 2 — Known Issues](#bagian-2--known-issues) untuk detail teknis d
 | **Fase 2** | Bangun backend nyata: `whatsapp-web.js` untuk baca pesan masuk + panggilan Gemini API untuk ekstraksi terstruktur | ✅ Selesai (`server/index.js` + `server/gemini.js`) |
 | **Fase 3** | Auto-reply WA untuk menanyakan jam ketika tidak disebutkan | ✅ Selesai (state machine tanya-jawab di `server/index.js`) |
 | **Fase 4** | Auto-deploy backend + bot tahan restart tanpa spam balasan dobel | ✅ Selesai (GitHub Actions + fix `BOT_START_TIME`/dedup di `server/index.js`) |
+| **Fase 4b** | Pindahkan bot WhatsApp dari `server/` ke n8n + WAHA | ✅ Cutover selesai (bot lama dimatikan); workflow belum diekspor ke repo |
 | **Fase 5 (sekarang)** | Demo ke kapster asli, validasi alur UX & kumpulkan feedback pemakaian harian | ⏳ Belum dimulai |
 | **Fase 6 (opsional)** | Integrasi Instagram DM, jika volume booking dari IG terbukti signifikan | Belum dikerjakan (by design) |
 
@@ -371,11 +376,32 @@ Grid pada **Schedule → Daily View** sebelumnya mengalami mis-alignment antara 
 - **RLS**: `business_hours` sengaja dibuka lagi read-only (`SELECT`) untuk role `anon` — beda dari tabel lain yang udah dikunci `authenticated`-only (lihat entri RLS di atas) — karena nama/jam toko bukan data sensitif, dan halaman Login butuh nampilin nama/logo toko SEBELUM staff login (belum ada sesi `authenticated`). Write tetap `authenticated`-only.
 - Dites end-to-end: ganti nama lewat Settings → langsung berubah di semua tempat frontend (real-time, tanpa refresh) termasuk halaman Login sebelum sesi login ada. Bug backend-nya ketauan justru dari tes manual: setelah nama toko diganti di dashboard, bot WA masih balas pakai nama lama ("Golden Shears") pas ditanya kapster — fix di atas nutup celah itu, diverifikasi ulang lewat WA beneran setelah deploy.
 
+### Workflow deploy bisa diam-diam menyalakan lagi bot lama `server/`
+**File:** `.github/workflows/deploy-backend.yml`
+**Status:** FIXED.
+- Setelah cutover ke n8n + WAHA, bot `server/` dimatikan, tapi workflow deploy-nya masih terpicu tiap push ke `main` yang nyentuh `server/**`. Langkah terakhirnya `pm2 restart barberflow-wa` — kalau proses PM2-nya cuma di-*stop*, perintah itu **menyalakannya lagi**, jadi bot lama bisa ikut membalas pelanggan barengan bot produksi.
+- Trigger `push` dicabut. Workflow sekarang cuma bisa dijalankan manual (`workflow_dispatch`) dan wajib mengetik `HIDUPKAN-BOT-LAMA`, biar nggak kepicu karena salah klik.
+
 ---
 
 ## 🔴 Kritis (blocker fungsional)
 
 Tidak ada saat ini.
+
+---
+
+## 🟡 Perlu Dicek (bot produksi n8n)
+
+Hal-hal di bawah nggak bisa diverifikasi dari repo karena workflow n8n dan server produksinya ada di luar repo.
+
+### Workflow n8n belum tersimpan di repo
+Logika bot yang melayani pelanggan sekarang cuma ada di database n8n: nggak ada riwayat versi, nggak bisa di-review/diff, dan hilang kalau volume Postgres-nya rusak. `n8n-stack/docker-compose.yml` juga masih versi eksperimen Evolution API, bukan compose WAHA yang jalan di produksi. Cara ekspor + hal yang wajib dicek sebelum commit (rahasia yang diketik langsung di node, `pinData` berisi data pelanggan) ada di [n8n-stack/README.md](n8n-stack/README.md#menyimpan-workflow-ke-repo).
+
+### Webhook `session-payment` belum terverifikasi punya autentikasi
+Dashboard memanggil `https://n8n.takhtabarber.shop/webhook/session-payment` tanpa header rahasia atau token apa pun (`src/components/Overview.tsx`), dan URL-nya kelihatan di bundle JavaScript. Kalau workflow `QR Sisa Bayar Dashboard` juga nggak memverifikasi pemanggil, siapa pun bisa bikin QR Xendit dengan nominal bebas. Perlu dicek di n8n; kalau memang terbuka, tambahkan verifikasi JWT Supabase milik staff yang login (frontend kirim `Authorization: Bearer <access_token>`).
+
+### Proses PM2 bot lama di VPS Azure
+Auto-deploy sudah dicabut, tapi proses `barberflow-wa` masih terdaftar di PM2 kalau dulu cuma di-*stop*. Kalau bot lama memang nggak dipakai lagi, hapus total dengan `pm2 delete barberflow-wa && pm2 save` (atau matikan VPS-nya) biar nggak bisa hidup lagi karena salah perintah.
 
 ---
 
@@ -402,6 +428,8 @@ Logika `startMinutes = ... + 15` antar walk-in mengasumsikan gap tetap 15 menit 
 - [x] Aktifkan Row Level Security di semua tabel Supabase (least-privilege per operasi)
 - [x] Perbaiki gagal hapus layanan (foreign key constraint) lewat soft delete
 - [x] Tambahkan sistem login dashboard (Supabase Auth) + kunci RLS ke `authenticated`-only, bot pindah ke `service_role` key
+- [x] Pindahkan bot WhatsApp ke n8n + WAHA, cabut auto-deploy bot lama
+- [ ] Ekspor workflow n8n + compose WAHA produksi ke repo (lihat [n8n-stack/README.md](n8n-stack/README.md#menyimpan-workflow-ke-repo))
 - [ ] Demo ke kapster asli, kumpulkan feedback alur UX (lihat [§10 Bagian 1](#10-metrik-keberhasilan-definisi-berhasil-untuk-experiment-ini) — belum divalidasi di lapangan)
 
 ---
